@@ -1,0 +1,16 @@
+[package]
+name = "btmesh-common"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+aes = { version = "0.7", default-features = false }
+ccm = { version = "0.4.4", default-features = false }
+cmac = { version = "0.6.0", default-features = false }
+heapless = { version = "0.7", features = ["defmt-impl"] }
+#logging
+log = { version = "0.4", optional = true }
+defmt = { version = "0.3", optional = true }
+serde = { version = "1.0", default-features = false, optional = true}
