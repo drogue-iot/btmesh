@@ -29,9 +29,7 @@ impl GroupAddress {
     pub fn parse(data: [u8; 2]) -> Result<Self, InvalidAddress> {
         if Self::is_group_address(&data) {
             // Safety: already checked
-            unsafe {
-                Ok(Self::parse_unchecked(data))
-            }
+            unsafe { Ok(Self::parse_unchecked(data)) }
         } else {
             Err(InvalidAddress)
         }

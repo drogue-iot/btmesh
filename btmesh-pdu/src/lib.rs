@@ -1,3 +1,5 @@
+use serde::{Deserialize, Serialize};
+
 pub mod access;
 pub mod lower;
 pub mod network;
@@ -19,5 +21,3 @@ impl From<ApplicationKeyIdentifier> for u8 {
         val.0
     }
 }
-
-

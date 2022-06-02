@@ -1,5 +1,5 @@
-use crate::{ApplicationKeyIdentifier, ParseError};
-use crate::InsufficientBuffer;
+use crate::ApplicationKeyIdentifier;
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[derive(Clone)]

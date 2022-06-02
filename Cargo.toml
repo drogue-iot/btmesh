@@ -1,0 +1,8 @@
+[workspace]
+members = [
+    "btmesh-bearer",
+    "btmesh-common",
+    "btmesh-driver",
+    "btmesh-models",
+    "btmesh-pdu",
+]

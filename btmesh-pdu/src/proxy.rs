@@ -1,5 +1,4 @@
-use crate::ParseError;
-use crate::InsufficientBuffer;
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

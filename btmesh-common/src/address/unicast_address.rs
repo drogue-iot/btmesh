@@ -14,12 +14,9 @@ impl core::fmt::LowerHex for UnicastAddress {
 }
 
 impl UnicastAddress {
-
     pub fn new(addr: u16) -> Result<Self, InvalidAddress> {
         if Self::is_unicast_address(&addr.to_be_bytes()) {
-            Ok(
-                Self(addr)
-            )
+            Ok(Self(addr))
         } else {
             Err(InvalidAddress)
         }

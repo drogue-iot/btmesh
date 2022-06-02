@@ -9,6 +9,12 @@ impl From<()> for InsufficientBuffer {
     }
 }
 
+impl From<u8> for InsufficientBuffer {
+    fn from(_: u8) -> Self {
+        InsufficientBuffer
+    }
+}
+
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Copy, Clone, Debug)]
 pub enum ParseError {

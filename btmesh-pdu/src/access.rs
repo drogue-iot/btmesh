@@ -1,13 +1,16 @@
-//use crate::drivers::ble::mesh::model::Message;
-use heapless::Vec;
-use crate::{ApplicationKeyIdentifier, ParseError};
 use crate::upper::UpperAccess;
+use crate::ApplicationKeyIdentifier;
+use btmesh_common::{
+    address::{Address, UnicastAddress},
+    InsufficientBuffer, ParseError,
+};
+use heapless::Vec;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AccessMessage {
     pub ttl: Option<u8>,
-    pub(crate) network_key: NetworkKeyHandle,
+    // TODO: pub(crate) network_key: NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) akf: bool,
@@ -35,7 +38,7 @@ impl AccessMessage {
     pub fn parse(access: &UpperAccess) -> Result<Self, ParseError> {
         Ok(Self {
             ttl: None,
-            network_key: access.network_key,
+            // TODO: network_key: access.network_key,
             ivi: access.ivi,
             nid: access.nid,
             akf: access.akf,
@@ -50,26 +53,27 @@ impl AccessMessage {
         self.payload.emit(xmit)
     }
 
-    pub(crate) fn create_response<M: Message>(
-        &self,
-        src: UnicastAddress,
-        response: M,
-    ) -> Result<Self, DeviceError> {
-        let mut parameters = Vec::new();
-        response
-            .emit_parameters(&mut parameters)
-            .map_err(|_| InsufficientBuffer)?;
-        Ok(Self {
-            ttl: None,
-            src,
-            dst: self.src.into(),
-            payload: AccessPayload {
-                opcode: response.opcode(),
-                parameters,
-            },
-            ..*self
-        })
-    }
+    // TODO: define Message and DeviceError
+    // pub(crate) fn create_response<M: Message>(
+    //     &self,
+    //     src: UnicastAddress,
+    //     response: M,
+    // ) -> Result<Self, DeviceError> {
+    //     let mut parameters = Vec::new();
+    //     response
+    //         .emit_parameters(&mut parameters)
+    //         .map_err(|_| InsufficientBuffer)?;
+    //     Ok(Self {
+    //         ttl: None,
+    //         src,
+    //         dst: self.src.into(),
+    //         payload: AccessPayload {
+    //             opcode: response.opcode(),
+    //             parameters,
+    //         },
+    //         ..*self
+    //     })
+    // }
 }
 
 #[derive(Clone, Debug)]

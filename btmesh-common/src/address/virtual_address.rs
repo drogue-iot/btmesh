@@ -132,22 +132,30 @@ mod tests {
     use crate::address::{LabelUuid, VirtualAddress};
 
     // Virtual addr: 800f, label: a04bf881e4a7bf702dfee1638ab8b2b3
-    const UUID: [u8;16] = [0xa0, 0x4b, 0xf8, 0x81, 0xe4, 0xa7, 0xbf, 0x70, 0x2d, 0xfe, 0xe1, 0x63, 0x8a, 0xb8, 0xb2, 0xb3];
+    const UUID: [u8; 16] = [
+        0xa0, 0x4b, 0xf8, 0x81, 0xe4, 0xa7, 0xbf, 0x70, 0x2d, 0xfe, 0xe1, 0x63, 0x8a, 0xb8, 0xb2,
+        0xb3,
+    ];
     const ADDR: u16 = 0x800f;
 
     #[test]
     fn virtual_address() {
-        let label = LabelUuid::new( UUID );
+        let label = LabelUuid::new(UUID);
         unsafe {
-            assert_eq!(label.unwrap().virtual_address(), VirtualAddress::new_unchecked(ADDR))
+            assert_eq!(
+                label.unwrap().virtual_address(),
+                VirtualAddress::new_unchecked(ADDR)
+            )
         }
     }
 
     #[test]
     fn virtual_address_of() {
         unsafe {
-            assert_eq!(LabelUuid::virtual_address_of(UUID),
-                       Ok(VirtualAddress::new_unchecked(ADDR)))
+            assert_eq!(
+                LabelUuid::virtual_address_of(UUID),
+                Ok(VirtualAddress::new_unchecked(ADDR))
+            )
         }
     }
 }

@@ -39,7 +39,6 @@ pub enum Address {
 }
 
 impl Address {
-
     /// convert an Address to it's big-endian 2-byte array representation.
     pub fn as_bytes(&self) -> [u8; 2] {
         match self {
@@ -58,19 +57,13 @@ impl Address {
             Self::Unassigned
         } else if UnicastAddress::is_unicast_address(&data) {
             // Safety: already performed the check.
-            unsafe {
-                Self::Unicast(UnicastAddress::new_unchecked(val))
-            }
+            unsafe { Self::Unicast(UnicastAddress::new_unchecked(val)) }
         } else if GroupAddress::is_group_address(&data) {
             // Safety: already performed the check.
-            unsafe {
-                Self::Group(GroupAddress::parse_unchecked(data))
-            }
+            unsafe { Self::Group(GroupAddress::parse_unchecked(data)) }
         } else {
             // Safety: all previous checks cover all other cases.
-            unsafe {
-                Self::Virtual(VirtualAddress::new_unchecked(val))
-            }
+            unsafe { Self::Virtual(VirtualAddress::new_unchecked(val)) }
         }
     }
 }
@@ -81,8 +74,7 @@ mod tests {
 
     #[test]
     fn parse_unassigned() {
-        assert_eq!(Address::parse([0x00, 0x00]),
-                   Address::Unassigned)
+        assert_eq!(Address::parse([0x00, 0x00]), Address::Unassigned)
     }
 
     #[test]
@@ -93,44 +85,64 @@ mod tests {
     #[test]
     fn parse_unicast() {
         unsafe {
-            assert_eq!(Address::parse([0x00, 0x0A]),
-                       Address::Unicast(UnicastAddress::new_unchecked(0x00_0A)));
+            assert_eq!(
+                Address::parse([0x00, 0x0A]),
+                Address::Unicast(UnicastAddress::new_unchecked(0x00_0A))
+            );
         }
     }
 
     #[test]
     fn as_bytes_unicast() {
         unsafe {
-            assert_eq!(Address::Unicast(UnicastAddress::new_unchecked(0x00_0A)).as_bytes(), [0x00, 0x0A]);
+            assert_eq!(
+                Address::Unicast(UnicastAddress::new_unchecked(0x00_0A)).as_bytes(),
+                [0x00, 0x0A]
+            );
         }
     }
 
     #[test]
     fn parse_virtual() {
         unsafe {
-            assert_eq!(Address::parse([0x80, 0x0A]),
-                       Address::Virtual(VirtualAddress::new_unchecked(0x80_0A)));
+            assert_eq!(
+                Address::parse([0x80, 0x0A]),
+                Address::Virtual(VirtualAddress::new_unchecked(0x80_0A))
+            );
         }
     }
 
     #[test]
     fn as_bytes_virtual() {
         unsafe {
-            assert_eq!(Address::Virtual(VirtualAddress::new_unchecked(0x80_0A)).as_bytes(), [0x80, 0x0A]);
+            assert_eq!(
+                Address::Virtual(VirtualAddress::new_unchecked(0x80_0A)).as_bytes(),
+                [0x80, 0x0A]
+            );
         }
     }
 
     #[test]
     fn parse_group() {
-        assert_eq!(Address::parse([0xFF, 0xFC]),
-                   Address::Group(GroupAddress::AllProxies));
-        assert_eq!(Address::parse([0xFF, 0xFD]),
-                   Address::Group(GroupAddress::AllFriends));
-        assert_eq!(Address::parse([0xFF, 0xFE]),
-                   Address::Group(GroupAddress::AllRelays));
-        assert_eq!(Address::parse([0xFF, 0xFF]),
-                   Address::Group(GroupAddress::AllNodes));
-        assert_eq!(Address::parse([0xFF, 0x0A]),
-                   Address::Group(GroupAddress::RFU(0xFF_0A)));
+        assert_eq!(
+            Address::parse([0xFF, 0xFC]),
+            Address::Group(GroupAddress::AllProxies)
+        );
+        assert_eq!(
+            Address::parse([0xFF, 0xFD]),
+            Address::Group(GroupAddress::AllFriends)
+        );
+        assert_eq!(
+            Address::parse([0xFF, 0xFE]),
+            Address::Group(GroupAddress::AllRelays)
+        );
+        assert_eq!(
+            Address::parse([0xFF, 0xFF]),
+            Address::Group(GroupAddress::AllNodes)
+        );
+        assert_eq!(
+            Address::parse([0xFF, 0x0A]),
+            Address::Group(GroupAddress::RFU(0xFF_0A))
+        );
     }
 }

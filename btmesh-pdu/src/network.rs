@@ -1,5 +1,8 @@
 use crate::lower::LowerPDU;
-use crate::{InsufficientBuffer, ParseError};
+use btmesh_common::{
+    address::{Address, UnicastAddress},
+    InsufficientBuffer, ParseError,
+};
 use heapless::Vec;
 
 pub enum NetworkPDU {
@@ -51,11 +54,10 @@ impl ObfuscatedAndEncryptedNetworkPDU {
     }
 }
 
-/*
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CleartextNetworkPDU {
-    pub(crate) network_key: NetworkKeyHandle,
+    // TODO: pub(crate) network_key: NetworkKeyHandle,
     pub(crate) ivi: u8, /* 1 bit */
     pub(crate) nid: u8, /* 7 bits */
     // ctl: bool /* 1 bit */
@@ -67,5 +69,3 @@ pub struct CleartextNetworkPDU {
 }
 
 impl CleartextNetworkPDU {}
-
- */

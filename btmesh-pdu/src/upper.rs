@@ -1,9 +1,8 @@
-use crate::drivers::ble::mesh::address::{Address, UnicastAddress};
-use crate::drivers::ble::mesh::app::ApplicationKeyIdentifier;
-use crate::drivers::ble::mesh::config::network::NetworkKeyHandle;
-use crate::drivers::ble::mesh::pdu::access::AccessMessage;
-use crate::drivers::ble::mesh::pdu::lower::Opcode;
-use crate::drivers::ble::mesh::pdu::ParseError;
+use crate::access::{AccessMessage, Opcode};
+use btmesh_common::{
+    address::{Address, UnicastAddress},
+    ParseError,
+};
 use core::convert::TryInto;
 use heapless::Vec;
 
@@ -16,7 +15,7 @@ pub enum UpperPDU {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UpperControl {
     pub(crate) ttl: u8,
-    pub(crate) network_key: NetworkKeyHandle,
+    // TODO: pub(crate) network_key: NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) src: UnicastAddress,
@@ -28,11 +27,11 @@ pub struct UpperControl {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UpperAccess {
     pub(crate) ttl: Option<u8>,
-    pub(crate) network_key: NetworkKeyHandle,
+    // TODO: pub(crate) network_key: NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) akf: bool,
-    pub(crate) aid: ApplicationKeyIdentifier,
+    pub(crate) aid: crate::ApplicationKeyIdentifier,
     pub(crate) src: UnicastAddress,
     pub(crate) dst: Address,
     pub(crate) payload: Vec<u8, 380>,
