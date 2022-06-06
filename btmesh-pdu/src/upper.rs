@@ -1,21 +1,19 @@
+use crate::System;
 use crate::access::{AccessMessage, Opcode};
-use btmesh_common::{
-    address::{Address, UnicastAddress},
-    ParseError,
-};
+use btmesh_common::{address::{Address, UnicastAddress}, Aid, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum UpperPDU {
-    Control(UpperControl),
-    Access(UpperAccess),
+pub enum UpperPDU<S:System> {
+    Control(UpperControl<S>),
+    Access(UpperAccess<S>),
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct UpperControl {
+pub struct UpperControl<S:System> {
     pub(crate) ttl: u8,
-    // TODO: pub(crate) network_key: NetworkKeyHandle,
+    pub(crate) network_key: S::NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) src: UnicastAddress,
@@ -25,22 +23,22 @@ pub struct UpperControl {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct UpperAccess {
+pub struct UpperAccess<S:System> {
     pub(crate) ttl: Option<u8>,
-    // TODO: pub(crate) network_key: NetworkKeyHandle,
+    pub(crate) network_key: S::NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) akf: bool,
-    pub(crate) aid: crate::ApplicationKeyIdentifier,
+    pub(crate) aid: Aid,
     pub(crate) src: UnicastAddress,
     pub(crate) dst: Address,
     pub(crate) payload: Vec<u8, 380>,
 }
 
-impl TryInto<AccessMessage> for UpperPDU {
+impl<S:System> TryInto<AccessMessage<S>> for UpperPDU<S> {
     type Error = ParseError;
 
-    fn try_into(self) -> Result<AccessMessage, Self::Error> {
+    fn try_into(self) -> Result<AccessMessage<S>, Self::Error> {
         match self {
             UpperPDU::Control(_) => Err(ParseError::InvalidPDUFormat),
             UpperPDU::Access(inner) => AccessMessage::parse(&inner),

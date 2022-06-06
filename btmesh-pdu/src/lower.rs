@@ -1,5 +1,4 @@
-use crate::ApplicationKeyIdentifier;
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{Aid, InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[derive(Clone)]
@@ -31,8 +30,7 @@ impl LowerPDU {
         Ok(LowerControl {
             opcode,
             message: LowerControlMessage::Unsegmented {
-                parameters: Vec::from_slice(parameters)
-                    .map_err(|_| ParseError::InsufficientBuffer)?,
+                parameters: Vec::from_slice(parameters)?
             },
         })
     }
@@ -49,8 +47,7 @@ impl LowerPDU {
                 seq_zero,
                 seg_o,
                 seg_n,
-                segment_m: Vec::from_slice(segment_m)
-                    .map_err(|_| ParseError::InsufficientBuffer)?,
+                segment_m: Vec::from_slice(segment_m)?
             },
         })
     }
@@ -62,7 +59,7 @@ impl LowerPDU {
             akf,
             aid: aid.into(),
             message: LowerAccessMessage::Unsegmented(
-                Vec::from_slice(&data[1..]).map_err(|_| ParseError::InsufficientBuffer)?,
+                Vec::from_slice(&data[1..])?
             ),
         })
     }
@@ -84,8 +81,7 @@ impl LowerPDU {
                 seq_zero,
                 seg_o,
                 seg_n,
-                segment_m: Vec::from_slice(&segment_m)
-                    .map_err(|_| ParseError::InsufficientBuffer)?,
+                segment_m: Vec::from_slice(&segment_m)?,
             },
         })
     }
@@ -102,7 +98,7 @@ impl LowerPDU {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LowerAccess {
     pub(crate) akf: bool,
-    pub(crate) aid: ApplicationKeyIdentifier,
+    pub(crate) aid: Aid,
     pub(crate) message: LowerAccessMessage,
 }
 
@@ -111,16 +107,16 @@ impl LowerAccess {
         let seg_akf_aid = match self.message {
             LowerAccessMessage::Unsegmented(_) => {
                 if self.akf {
-                    u8::from(self.aid) | 0b01000000
+                    Into::<u8>::into(self.aid) | 0b01000000
                 } else {
-                    u8::from(self.aid)
+                    Into::<u8>::into( self.aid )
                 }
             }
             LowerAccessMessage::Segmented { .. } => {
                 if self.akf {
-                    u8::from(self.aid) | 0b11000000
+                    Into::<u8>::into(self.aid) | 0b11000000
                 } else {
-                    u8::from(self.aid) | 0b10000000
+                    Into::<u8>::into(self.aid) | 0b10000000
                 }
             }
         };
@@ -138,12 +134,10 @@ pub struct LowerControl {
 
 impl LowerControl {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(self.opcode as u8)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(self.opcode as u8).map_err(|_| InsufficientBuffer)?;
         match &self.message {
             LowerControlMessage::Unsegmented { parameters } => {
-                xmit.extend_from_slice(&parameters)
-                    .map_err(|_| InsufficientBuffer)?;
+                xmit.extend_from_slice(&parameters)?;
             }
             LowerControlMessage::Segmented { .. } => {
                 todo!("emit segmented lower control message");
@@ -187,9 +181,7 @@ pub enum LowerAccessMessage {
 impl LowerAccessMessage {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            LowerAccessMessage::Unsegmented(inner) => xmit
-                .extend_from_slice(&inner)
-                .map_err(|_| InsufficientBuffer),
+            LowerAccessMessage::Unsegmented(inner) => Ok(xmit.extend_from_slice(&inner)?),
             LowerAccessMessage::Segmented {
                 szmic,
                 seq_zero,
@@ -211,10 +203,8 @@ impl LowerAccessMessage {
                 // last 6 bits of seq_zero + first 2 bits of seg_o
                 header[1] = ((seq_zero & 0b111111) << 2) as u8 | ((seg_o & 0b00011000) >> 2) as u8;
                 header[2] = ((seg_o & 0b00000111) << 5) | (seg_n & 0b00011111);
-                xmit.extend_from_slice(&header)
-                    .map_err(|_| InsufficientBuffer)?;
-                xmit.extend_from_slice(segment_m)
-                    .map_err(|_| InsufficientBuffer)?;
+                xmit.extend_from_slice(&header)?;
+                xmit.extend_from_slice(segment_m)?;
                 Ok(())
             }
         }

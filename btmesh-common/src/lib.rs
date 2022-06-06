@@ -46,3 +46,39 @@ impl SzMic {
         }
     }
 }
+
+/// Network key identifier.
+#[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Nid(u8);
+
+impl Into<u8> for Nid {
+    fn into(self) -> u8 {
+        self.0
+    }
+}
+
+impl From<u8> for Nid {
+    fn from(val: u8) -> Self {
+        Self(val)
+    }
+}
+
+/// Application key identifier.
+#[derive(Copy, Clone, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Aid(u8);
+
+impl Into<u8> for Aid {
+    fn into(self) -> u8 {
+        self.0
+    }
+}
+
+impl From<u8> for Aid {
+    fn from(val: u8) -> Self {
+        Self(val)
+    }
+}

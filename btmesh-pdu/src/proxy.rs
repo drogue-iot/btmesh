@@ -75,7 +75,7 @@ pub struct ProxyPDU {
 impl ProxyPDU {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         let byte_one = ((self.sar as u8) << 6) | (self.message_type as u8);
-        xmit.push(byte_one)?;
+        xmit.push(byte_one).map_err(|_| InsufficientBuffer)?;
         xmit.extend_from_slice(&self.data)?;
         Ok(())
     }

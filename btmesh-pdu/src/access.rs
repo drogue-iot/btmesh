@@ -1,6 +1,7 @@
 use crate::upper::UpperAccess;
-use crate::ApplicationKeyIdentifier;
+use crate::System;
 use btmesh_common::{
+    Aid,
     address::{Address, UnicastAddress},
     InsufficientBuffer, ParseError,
 };
@@ -8,20 +9,20 @@ use heapless::Vec;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct AccessMessage {
+pub struct AccessMessage<S:System> {
     pub ttl: Option<u8>,
-    // TODO: pub(crate) network_key: NetworkKeyHandle,
+    network_key: S::NetworkKeyHandle,
     pub(crate) ivi: u8,
     pub(crate) nid: u8,
     pub(crate) akf: bool,
-    pub(crate) aid: ApplicationKeyIdentifier,
+    pub(crate) aid: Aid,
     pub(crate) src: UnicastAddress,
     pub(crate) dst: Address,
     pub(crate) payload: AccessPayload,
 }
 
 #[allow(unused)]
-impl AccessMessage {
+impl<S:System> AccessMessage<S> {
     pub fn with_ttl(mut self, ttl: u8) -> Self {
         self.ttl.replace(ttl);
         self
@@ -35,10 +36,10 @@ impl AccessMessage {
         &self.payload.parameters
     }
 
-    pub fn parse(access: &UpperAccess) -> Result<Self, ParseError> {
+    pub fn parse(access: &UpperAccess<S>) -> Result<Self, ParseError> {
         Ok(Self {
             ttl: None,
-            // TODO: network_key: access.network_key,
+            network_key: access.network_key,
             ivi: access.ivi,
             nid: access.nid,
             akf: access.akf,
@@ -52,28 +53,6 @@ impl AccessMessage {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         self.payload.emit(xmit)
     }
-
-    // TODO: define Message and DeviceError
-    // pub(crate) fn create_response<M: Message>(
-    //     &self,
-    //     src: UnicastAddress,
-    //     response: M,
-    // ) -> Result<Self, DeviceError> {
-    //     let mut parameters = Vec::new();
-    //     response
-    //         .emit_parameters(&mut parameters)
-    //         .map_err(|_| InsufficientBuffer)?;
-    //     Ok(Self {
-    //         ttl: None,
-    //         src,
-    //         dst: self.src.into(),
-    //         payload: AccessPayload {
-    //             opcode: response.opcode(),
-    //             parameters,
-    //         },
-    //         ..*self
-    //     })
-    // }
 }
 
 #[derive(Clone, Debug)]
@@ -131,10 +110,10 @@ impl Opcode {
             Opcode::OneOctet(a) if data.len() >= 1 && data[0] == *a => true,
             Opcode::TwoOctet(a, b) if data.len() >= 2 && data[0] == *a && data[1] == *b => true,
             Opcode::ThreeOctet(a, b, c)
-                if data.len() >= 3 && data[0] == *a && data[1] == *b && data[2] == *c =>
-            {
-                true
-            }
+            if data.len() >= 3 && data[0] == *a && data[1] == *b && data[2] == *c =>
+                {
+                    true
+                }
             _ => false,
         }
     }

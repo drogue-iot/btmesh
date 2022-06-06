@@ -3,12 +3,8 @@ use btmesh_common::{
     address::{Address, UnicastAddress},
     InsufficientBuffer, ParseError,
 };
+use crate::System;
 use heapless::Vec;
-
-pub enum NetworkPDU {
-    ObfuscatedAndEncrypted(ObfuscatedAndEncryptedNetworkPDU),
-    Authenticated(CleartextNetworkPDU),
-}
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum NetMic {
@@ -16,17 +12,19 @@ pub enum NetMic {
     Control([u8; 8]),
 }
 
-// todo: format vecs/arrays as hex
+/// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ObfuscatedAndEncryptedNetworkPDU {
-    pub(crate) ivi: u8, /* 1 bit */
-    pub(crate) nid: u8, /* 7 bits */
-    pub(crate) obfuscated: [u8; 6],
-    pub(crate) encrypted_and_mic: Vec<u8, 28>,
+pub struct NetworkPDU {
+    ivi: u8,
+    /* 1 bit */
+    nid: u8,
+    /* 7 bits */
+    obfuscated: [u8; 6],
+    encrypted_and_mic: Vec<u8, 28>,
 }
 
-impl ObfuscatedAndEncryptedNetworkPDU {
+impl NetworkPDU {
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let ivi_nid = data[0];
         let ivi = (ivi_nid & 0b10000000) >> 7;
@@ -46,26 +44,28 @@ impl ObfuscatedAndEncryptedNetworkPDU {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         let ivi_nid = ((self.ivi & 0b0000001) << 7) | (self.nid & 0b01111111);
         xmit.push(ivi_nid).map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.obfuscated)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.encrypted_and_mic)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.obfuscated)?;
+        xmit.extend_from_slice(&self.encrypted_and_mic)?;
         Ok(())
     }
 }
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct CleartextNetworkPDU {
-    // TODO: pub(crate) network_key: NetworkKeyHandle,
-    pub(crate) ivi: u8, /* 1 bit */
-    pub(crate) nid: u8, /* 7 bits */
-    // ctl: bool /* 1 bit */
-    pub(crate) ttl: u8,  /* 7 bits */
-    pub(crate) seq: u32, /* 24 bits */
-    pub(crate) src: UnicastAddress,
-    pub(crate) dst: Address,
-    pub(crate) transport_pdu: LowerPDU,
+pub struct CleartextNetworkPDU<S: System> {
+    network_key: S::NetworkKeyHandle,
+    ivi: u8,
+    /* 1 bit */
+    nid: u8,
+    /* 7 bits */
+    ctl: bool, /* 1 bit */
+    ttl: u8,
+    /* 7 bits */
+    seq: u32,
+    /* 24 bits */
+    src: UnicastAddress,
+    dst: Address,
+    transport_pdu: Vec<u8, 16>,
 }
 
-impl CleartextNetworkPDU {}
+impl<S: System> CleartextNetworkPDU<S> {}

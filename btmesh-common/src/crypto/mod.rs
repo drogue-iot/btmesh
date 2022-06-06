@@ -12,6 +12,7 @@ use core::convert::TryInto;
 use heapless::Vec;
 
 pub mod nonce;
+pub mod secrets;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -166,4 +167,41 @@ pub fn k4(n: &[u8]) -> Result<u8, InvalidKeyLength> {
     } else {
         Err(InvalidKeyLength)
     }
+}
+
+pub fn privacy_plaintext(iv_index: u32, encrypted_and_mic: &[u8]) -> [u8; 16] {
+    let mut privacy_plaintext = [0; 16];
+
+    // 0x0000000000
+    privacy_plaintext[0] = 0;
+    privacy_plaintext[1] = 0;
+    privacy_plaintext[2] = 0;
+    privacy_plaintext[3] = 0;
+    privacy_plaintext[4] = 0;
+
+    // IV index
+    let iv_index_bytes = iv_index.to_be_bytes();
+    privacy_plaintext[5] = iv_index_bytes[0];
+    privacy_plaintext[6] = iv_index_bytes[1];
+    privacy_plaintext[7] = iv_index_bytes[2];
+    privacy_plaintext[8] = iv_index_bytes[3];
+
+    // Privacy Random
+    privacy_plaintext[9] = encrypted_and_mic[0];
+    privacy_plaintext[10] = encrypted_and_mic[1];
+    privacy_plaintext[11] = encrypted_and_mic[2];
+    privacy_plaintext[12] = encrypted_and_mic[3];
+    privacy_plaintext[13] = encrypted_and_mic[4];
+    privacy_plaintext[14] = encrypted_and_mic[5];
+    privacy_plaintext[15] = encrypted_and_mic[6];
+
+    privacy_plaintext
+}
+
+fn pecb_xor(pecb: [u8; 16], bytes: [u8; 6]) -> [u8; 6] {
+    let mut output = [0; 6];
+    for (i, b) in bytes.iter().enumerate() {
+        output[i] = pecb[i] ^ *b;
+    }
+    output
 }
