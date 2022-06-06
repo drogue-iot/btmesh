@@ -1,9 +1,9 @@
-use hash32::{Hash, Hasher};
+use btmesh_common::address::InvalidAddress;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use btmesh_pdu::System;
-use secrets::Secrets;
+use hash32::{Hash, Hasher};
 use hash32_derive::Hash32;
-use btmesh_common::address::InvalidAddress;
+use secrets::Secrets;
 
 pub mod network;
 mod secrets;

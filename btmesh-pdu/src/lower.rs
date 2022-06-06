@@ -30,7 +30,7 @@ impl LowerPDU {
         Ok(LowerControl {
             opcode,
             message: LowerControlMessage::Unsegmented {
-                parameters: Vec::from_slice(parameters)?
+                parameters: Vec::from_slice(parameters)?,
             },
         })
     }
@@ -47,7 +47,7 @@ impl LowerPDU {
                 seq_zero,
                 seg_o,
                 seg_n,
-                segment_m: Vec::from_slice(segment_m)?
+                segment_m: Vec::from_slice(segment_m)?,
             },
         })
     }
@@ -58,9 +58,7 @@ impl LowerPDU {
         Ok(LowerAccess {
             akf,
             aid: aid.into(),
-            message: LowerAccessMessage::Unsegmented(
-                Vec::from_slice(&data[1..])?
-            ),
+            message: LowerAccessMessage::Unsegmented(Vec::from_slice(&data[1..])?),
         })
     }
 
@@ -109,7 +107,7 @@ impl LowerAccess {
                 if self.akf {
                     Into::<u8>::into(self.aid) | 0b01000000
                 } else {
-                    Into::<u8>::into( self.aid )
+                    Into::<u8>::into(self.aid)
                 }
             }
             LowerAccessMessage::Segmented { .. } => {
@@ -134,7 +132,8 @@ pub struct LowerControl {
 
 impl LowerControl {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(self.opcode as u8).map_err(|_| InsufficientBuffer)?;
+        xmit.push(self.opcode as u8)
+            .map_err(|_| InsufficientBuffer)?;
         match &self.message {
             LowerControlMessage::Unsegmented { parameters } => {
                 xmit.extend_from_slice(&parameters)?;

@@ -1,23 +1,38 @@
+use crate::{Driver, DriverError, NetworkKeyHandle};
+use btmesh_common::Nid;
 use core::iter::Filter;
 use core::slice::Iter;
-use btmesh_common::Nid;
-use crate::{Driver, DriverError, NetworkKeyHandle};
 
 pub(crate) struct Secrets {
     network_keys: NetworkKeys,
 }
 
 impl Secrets {
-    pub(crate) fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
+    pub(crate) fn network_keys_by_nid(
+        &self,
+        nid: Nid,
+    ) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
         self.network_keys.by_nid_iter(nid)
     }
 
-    pub(crate) fn privacy_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.network_keys.keys[network_key.0 as usize].as_ref().ok_or(DriverError::InvalidKeyHandle).map(|key| key.privacy_key)
+    pub(crate) fn privacy_key(
+        &self,
+        network_key: NetworkKeyHandle,
+    ) -> Result<[u8; 16], DriverError> {
+        self.network_keys.keys[network_key.0 as usize]
+            .as_ref()
+            .ok_or(DriverError::InvalidKeyHandle)
+            .map(|key| key.privacy_key)
     }
 
-    pub(crate) fn encryption_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.network_keys.keys[network_key.0 as usize].as_ref().ok_or(DriverError::InvalidKeyHandle).map(|key| key.encryption_key)
+    pub(crate) fn encryption_key(
+        &self,
+        network_key: NetworkKeyHandle,
+    ) -> Result<[u8; 16], DriverError> {
+        self.network_keys.keys[network_key.0 as usize]
+            .as_ref()
+            .ok_or(DriverError::InvalidKeyHandle)
+            .map(|key| key.encryption_key)
     }
 }
 
@@ -28,9 +43,7 @@ struct NetworkKeys<const N: usize = 4> {
 impl<const N: usize> Default for NetworkKeys<N> {
     fn default() -> Self {
         let keys = [None; N];
-        Self {
-            keys
-        }
+        Self { keys }
     }
 }
 
@@ -43,19 +56,16 @@ impl<const N: usize> NetworkKeys<N> {
         }
     }
 
-    fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError>{
+    fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
         if index as usize >= N {
             Err(DriverError::InsufficientSpace)?
         }
 
-        self.keys[index as usize].replace(
-            network_key
-        );
+        self.keys[index as usize].replace(network_key);
 
         Ok(())
     }
 }
-
 
 #[derive(Copy, Clone)]
 pub(crate) struct NetworkKey {
@@ -64,13 +74,13 @@ pub(crate) struct NetworkKey {
     nid: Nid,
 }
 
-pub(crate) struct NetworkKeyIter<'i, I: Iterator<Item=&'i Option<NetworkKey>>> {
+pub(crate) struct NetworkKeyIter<'i, I: Iterator<Item = &'i Option<NetworkKey>>> {
     iter: I,
     nid: Nid,
     index: u8,
 }
 
-impl<'i, I: Iterator<Item=&'i Option<NetworkKey>>> Iterator for NetworkKeyIter<'i, I> {
+impl<'i, I: Iterator<Item = &'i Option<NetworkKey>>> Iterator for NetworkKeyIter<'i, I> {
     type Item = NetworkKeyHandle;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -91,8 +101,8 @@ impl<'i, I: Iterator<Item=&'i Option<NetworkKey>>> Iterator for NetworkKeyIter<'
 
 #[cfg(test)]
 mod tests {
-    use btmesh_common::Nid;
     use crate::secrets::{NetworkKey, NetworkKeys};
+    use btmesh_common::Nid;
 
     #[test]
     fn network_key_iteration_empty() {
@@ -111,35 +121,45 @@ mod tests {
     fn network_key_iteration() {
         let mut keys = NetworkKeys::<4>::default();
 
-        keys.set(0,
-                 NetworkKey {
-                     privacy_key: Default::default(),
-                     encryption_key: Default::default(),
-                     nid: Nid::new(42),
-                 }).unwrap();
+        keys.set(
+            0,
+            NetworkKey {
+                privacy_key: Default::default(),
+                encryption_key: Default::default(),
+                nid: Nid::new(42),
+            },
+        )
+        .unwrap();
 
-        keys.set(1,
-                 NetworkKey {
-                     privacy_key: Default::default(),
-                     encryption_key: Default::default(),
-                     nid: Nid::new(18),
-                 }).unwrap();
+        keys.set(
+            1,
+            NetworkKey {
+                privacy_key: Default::default(),
+                encryption_key: Default::default(),
+                nid: Nid::new(18),
+            },
+        )
+        .unwrap();
 
-        keys.set(2,
-                 NetworkKey {
-                     privacy_key: Default::default(),
-                     encryption_key: Default::default(),
-                     nid: Nid::new(42),
-                 }).unwrap();
+        keys.set(
+            2,
+            NetworkKey {
+                privacy_key: Default::default(),
+                encryption_key: Default::default(),
+                nid: Nid::new(42),
+            },
+        )
+        .unwrap();
 
-        keys.set(3,
-                 NetworkKey {
-                     privacy_key: Default::default(),
-                     encryption_key: Default::default(),
-                     nid: Nid::new(18),
-                 }).unwrap();
-
-
+        keys.set(
+            3,
+            NetworkKey {
+                privacy_key: Default::default(),
+                encryption_key: Default::default(),
+                nid: Nid::new(18),
+            },
+        )
+        .unwrap();
 
         let mut found = 0;
 

@@ -6,7 +6,6 @@ pub mod network;
 pub mod proxy;
 pub mod upper;
 
-
 pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;

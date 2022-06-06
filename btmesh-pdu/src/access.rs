@@ -1,15 +1,14 @@
 use crate::upper::UpperAccess;
 use crate::System;
 use btmesh_common::{
-    Aid,
     address::{Address, UnicastAddress},
-    InsufficientBuffer, ParseError,
+    Aid, InsufficientBuffer, ParseError,
 };
 use heapless::Vec;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct AccessMessage<S:System> {
+pub struct AccessMessage<S: System> {
     pub ttl: Option<u8>,
     network_key: S::NetworkKeyHandle,
     pub(crate) ivi: u8,
@@ -22,7 +21,7 @@ pub struct AccessMessage<S:System> {
 }
 
 #[allow(unused)]
-impl<S:System> AccessMessage<S> {
+impl<S: System> AccessMessage<S> {
     pub fn with_ttl(mut self, ttl: u8) -> Self {
         self.ttl.replace(ttl);
         self
@@ -110,10 +109,10 @@ impl Opcode {
             Opcode::OneOctet(a) if data.len() >= 1 && data[0] == *a => true,
             Opcode::TwoOctet(a, b) if data.len() >= 2 && data[0] == *a && data[1] == *b => true,
             Opcode::ThreeOctet(a, b, c)
-            if data.len() >= 3 && data[0] == *a && data[1] == *b && data[2] == *c =>
-                {
-                    true
-                }
+                if data.len() >= 3 && data[0] == *a && data[1] == *b && data[2] == *c =>
+            {
+                true
+            }
             _ => false,
         }
     }

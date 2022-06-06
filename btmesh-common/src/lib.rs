@@ -104,7 +104,7 @@ impl Ivi {
         match ivi {
             0 => Ok(Ivi::Zero),
             1 => Ok(Ivi::One),
-            _ => Err(ParseError::InvalidValue)
+            _ => Err(ParseError::InvalidValue),
         }
     }
 }
@@ -156,8 +156,5 @@ impl Ctl {
             Ctl::Access => 4,
             Ctl::Control => 8,
         }
-
     }
 }
-
-

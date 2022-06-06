@@ -1,6 +1,9 @@
 use crate::lower::LowerPDU;
-use btmesh_common::{address::{Address, UnicastAddress}, Ctl, InsufficientBuffer, Ivi, Nid, ParseError, Seq, Ttl};
 use crate::System;
+use btmesh_common::{
+    address::{Address, UnicastAddress},
+    Ctl, InsufficientBuffer, Ivi, Nid, ParseError, Seq, Ttl,
+};
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -55,7 +58,8 @@ impl NetworkPDU {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        let ivi_nid = ((Into::<u8>::into(self.ivi) & 0b0000001) << 7) | (Into::<u8>::into(self.nid) & 0b01111111);
+        let ivi_nid = ((Into::<u8>::into(self.ivi) & 0b0000001) << 7)
+            | (Into::<u8>::into(self.nid) & 0b01111111);
         xmit.push(ivi_nid).map_err(|_| InsufficientBuffer)?;
         xmit.extend_from_slice(&self.obfuscated)?;
         xmit.extend_from_slice(&self.encrypted_and_mic)?;
@@ -83,15 +87,17 @@ pub struct CleartextNetworkPDU<S: System> {
 }
 
 impl<S: System> CleartextNetworkPDU<S> {
-    pub fn new(network_key: S::NetworkKeyHandle,
-               ivi: Ivi,
-               nid: Nid,
-               ctl: Ctl,
-               ttl: Ttl,
-               seq: Seq,
-               src: UnicastAddress,
-               dst: Address,
-               transport_pdu: &[u8]) -> Result<Self, InsufficientBuffer> {
+    pub fn new(
+        network_key: S::NetworkKeyHandle,
+        ivi: Ivi,
+        nid: Nid,
+        ctl: Ctl,
+        ttl: Ttl,
+        seq: Seq,
+        src: UnicastAddress,
+        dst: Address,
+        transport_pdu: &[u8],
+    ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             network_key,
             ivi,
@@ -101,7 +107,7 @@ impl<S: System> CleartextNetworkPDU<S> {
             seq,
             src,
             dst,
-            transport_pdu: Vec::from_slice(transport_pdu)?
+            transport_pdu: Vec::from_slice(transport_pdu)?,
         })
     }
 }
