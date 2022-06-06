@@ -1,15 +1,37 @@
-use btmesh_common::{Aid, InsufficientBuffer, ParseError};
+use crate::network::CleartextNetworkPDU;
+use crate::System;
+use btmesh_common::{Aid, Ctl, InsufficientBuffer, ParseError};
 use heapless::Vec;
+use std::marker::PhantomData;
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum LowerPDU {
-    Access(LowerAccess),
-    Control(LowerControl),
+pub enum LowerPDU<S: System> {
+    Access(LowerAccess<S>),
+    Control(LowerControl<S>),
 }
 
-impl LowerPDU {
-    pub fn parse(ctl: bool, data: &[u8]) -> Result<Self, ParseError> {
+impl<S: System> LowerPDU<S> {
+    pub fn parse(network_pdu: &CleartextNetworkPDU<S>) -> Result<Self, ParseError> {
+        let data = network_pdu.transport_pdu();
+
+        if data.len() >= 2 {
+            let seg = data[0] & 0b10000000 != 0;
+
+            match (network_pdu.ctl(), seg) {
+                (Ctl::Control, false) => {
+                    Ok(LowerPDU::Control(Self::parse_unsegmented_control(data)?))
+                }
+                (Ctl::Control, true) => Ok(LowerPDU::Control(Self::parse_segmented_control(data)?)),
+                (Ctl::Access, false) => Ok(LowerPDU::Access(Self::parse_unsegmented_access(data)?)),
+                (Ctl::Access, true) => Ok(LowerPDU::Access(Self::parse_segmented_access(data)?)),
+            }
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+
+    pub fn old_parse(ctl: bool, data: &[u8]) -> Result<Self, ParseError> {
         if data.len() >= 2 {
             let seg = data[0] & 0b10000000 != 0;
 
@@ -24,7 +46,7 @@ impl LowerPDU {
         }
     }
 
-    fn parse_unsegmented_control(data: &[u8]) -> Result<LowerControl, ParseError> {
+    fn parse_unsegmented_control(data: &[u8]) -> Result<LowerControl<S>, ParseError> {
         let opcode = Opcode::parse(data[0] & 0b01111111).ok_or(ParseError::InvalidValue)?;
         let parameters = &data[1..];
         Ok(LowerControl {
@@ -32,10 +54,11 @@ impl LowerPDU {
             message: LowerControlMessage::Unsegmented {
                 parameters: Vec::from_slice(parameters)?,
             },
+            _marker: PhantomData,
         })
     }
 
-    fn parse_segmented_control(data: &[u8]) -> Result<LowerControl, ParseError> {
+    fn parse_segmented_control(data: &[u8]) -> Result<LowerControl<S>, ParseError> {
         let opcode = Opcode::parse(data[0] & 0b01111111).ok_or(ParseError::InvalidValue)?;
         let seq_zero = u16::from_be_bytes([data[1] & 0b01111111, data[2] & 0b11111100]) >> 2;
         let seg_o = (u16::from_be_bytes([data[2] & 0b00000011, data[3] & 0b11100000]) >> 5) as u8;
@@ -49,20 +72,22 @@ impl LowerPDU {
                 seg_n,
                 segment_m: Vec::from_slice(segment_m)?,
             },
+            _marker: PhantomData,
         })
     }
 
-    fn parse_unsegmented_access(data: &[u8]) -> Result<LowerAccess, ParseError> {
+    fn parse_unsegmented_access(data: &[u8]) -> Result<LowerAccess<S>, ParseError> {
         let akf = data[0] & 0b01000000 != 0;
         let aid = data[0] & 0b00111111;
         Ok(LowerAccess {
             akf,
             aid: aid.into(),
             message: LowerAccessMessage::Unsegmented(Vec::from_slice(&data[1..])?),
+            _marker: PhantomData,
         })
     }
 
-    fn parse_segmented_access(data: &[u8]) -> Result<LowerAccess, ParseError> {
+    fn parse_segmented_access(data: &[u8]) -> Result<LowerAccess<S>, ParseError> {
         let akf = data[0] & 0b01000000 != 0;
         let aid = data[0] & 0b00111111;
         let szmic = SzMic::parse(data[1] & 0b10000000);
@@ -81,6 +106,7 @@ impl LowerPDU {
                 seg_n,
                 segment_m: Vec::from_slice(&segment_m)?,
             },
+            _marker: PhantomData,
         })
     }
 
@@ -94,13 +120,14 @@ impl LowerPDU {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct LowerAccess {
+pub struct LowerAccess<S: System> {
     pub(crate) akf: bool,
     pub(crate) aid: Aid,
     pub(crate) message: LowerAccessMessage,
+    _marker: PhantomData<S>,
 }
 
-impl LowerAccess {
+impl<S: System> LowerAccess<S> {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         let seg_akf_aid = match self.message {
             LowerAccessMessage::Unsegmented(_) => {
@@ -125,12 +152,13 @@ impl LowerAccess {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct LowerControl {
+pub struct LowerControl<S: System> {
     pub(crate) opcode: Opcode,
     pub(crate) message: LowerControlMessage,
+    _marker: PhantomData<S>,
 }
 
-impl LowerControl {
+impl<S: System> LowerControl<S> {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         xmit.push(self.opcode as u8)
             .map_err(|_| InsufficientBuffer)?;

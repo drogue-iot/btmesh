@@ -84,6 +84,7 @@ pub struct CleartextNetworkPDU<S: System> {
     src: UnicastAddress,
     dst: Address,
     transport_pdu: Vec<u8, 16>,
+    meta: S::NetworkMetadata,
 }
 
 impl<S: System> CleartextNetworkPDU<S> {
@@ -97,6 +98,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         src: UnicastAddress,
         dst: Address,
         transport_pdu: &[u8],
+        meta: S::NetworkMetadata,
     ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             network_key,
@@ -108,6 +110,47 @@ impl<S: System> CleartextNetworkPDU<S> {
             src,
             dst,
             transport_pdu: Vec::from_slice(transport_pdu)?,
+            meta,
         })
+    }
+
+    pub fn network_key(&self) -> S::NetworkKeyHandle {
+        self.network_key
+    }
+
+    pub fn ivi(&self) -> Ivi {
+        self.ivi
+    }
+
+    pub fn ttl(&self) -> Ttl {
+        self.ttl
+    }
+
+    pub fn ctl(&self) -> Ctl {
+        self.ctl
+    }
+
+    pub fn seq(&self) -> Seq {
+        self.seq
+    }
+
+    pub fn src(&self) -> UnicastAddress {
+        self.src
+    }
+
+    pub fn dst(&self) -> Address {
+        self.dst
+    }
+
+    pub fn meta(&self) -> &S::NetworkMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::NetworkMetadata {
+        &mut self.meta
+    }
+
+    pub fn transport_pdu(&self) -> &Vec<u8, 16> {
+        &self.transport_pdu
     }
 }

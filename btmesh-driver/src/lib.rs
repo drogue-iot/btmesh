@@ -1,3 +1,4 @@
+use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use btmesh_pdu::System;
@@ -5,7 +6,8 @@ use hash32::{Hash, Hasher};
 use hash32_derive::Hash32;
 use secrets::Secrets;
 
-pub mod network;
+mod lower;
+mod network;
 mod secrets;
 
 #[derive(Debug)]
@@ -38,6 +40,7 @@ impl From<InvalidAddress> for DriverError {
 
 pub struct Driver {
     secrets: Secrets,
+    replay_protection: ReplayProtection,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
@@ -49,4 +52,30 @@ pub struct ApplicationKeyHandle(u8);
 impl System for Driver {
     type NetworkKeyHandle = NetworkKeyHandle;
     type ApplicationKeyHandle = ApplicationKeyHandle;
+    type NetworkMetadata = NetworkMetadata;
+    type LowerMetadata = LowerMetadata;
 }
+
+#[derive(Copy, Clone, Default)]
+pub struct NetworkMetadata {
+    iv_index: u32,
+    replay_protected: Option<bool>,
+    should_relay: Option<bool>,
+}
+
+impl NetworkMetadata {
+    pub fn iv_index(&self) -> u32 {
+        self.iv_index
+    }
+
+    pub fn replay_protected(&mut self, protected: bool) {
+        self.replay_protected.replace(protected);
+    }
+
+    pub fn should_relay(&mut self, relay: bool) {
+        self.should_relay.replace(relay);
+    }
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct LowerMetadata {}

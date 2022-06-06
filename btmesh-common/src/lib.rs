@@ -127,7 +127,7 @@ impl Ttl {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
 pub struct Seq(u32);
 
 impl Seq {

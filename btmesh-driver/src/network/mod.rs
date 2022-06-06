@@ -1,11 +1,13 @@
 use crate::secrets::{NetworkKey, NetworkKeyIter};
-use crate::{Driver, DriverError, NetworkKeyHandle};
+use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::System;
-use std::slice::Iter;
+use core::slice::Iter;
+
+pub mod replay_protection;
 
 impl Driver {
     fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
@@ -20,11 +22,15 @@ impl Driver {
         self.secrets.encryption_key(network_key)
     }
 
+    pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
+        self.replay_protection.check(pdu);
+    }
+
     pub fn try_decrypt_network_pdu(
         &self,
         pdu: &NetworkPDU,
         iv_index: u32,
-    ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
+    ) -> Result<CleartextNetworkPDU<Self>, DriverError> {
         for network_key in self.network_keys_by_nid(pdu.nid()) {
             if let Ok(result) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
                 return Ok(result);
@@ -83,6 +89,11 @@ impl Driver {
 
             let transport_pdu = &payload[2..];
 
+            let meta = NetworkMetadata {
+                iv_index,
+                ..Default::default()
+            };
+
             Ok(CleartextNetworkPDU::new(
                 network_key,
                 pdu.ivi(),
@@ -93,6 +104,7 @@ impl Driver {
                 src,
                 dst,
                 transport_pdu,
+                meta,
             )?)
         } else {
             Err(DriverError::CryptoError)

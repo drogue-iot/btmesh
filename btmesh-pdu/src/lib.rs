@@ -9,4 +9,7 @@ pub mod upper;
 pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
+
+    type NetworkMetadata: Default + Copy;
+    type LowerMetadata: Default + Copy;
 }
