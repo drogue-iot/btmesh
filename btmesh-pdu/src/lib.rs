@@ -13,3 +13,10 @@ pub trait System {
     type NetworkMetadata: Default + Copy;
     type LowerMetadata: Default + Copy;
 }
+
+impl System for () {
+    type NetworkKeyHandle = ();
+    type ApplicationKeyHandle = ();
+    type NetworkMetadata = ();
+    type LowerMetadata = ();
+}

@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum LowerPDU<S: System> {
+pub enum LowerPDU<S: System = ()> {
     Access(LowerAccess<S>),
     Control(LowerControl<S>),
 }
@@ -120,7 +120,7 @@ impl<S: System> LowerPDU<S> {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct LowerAccess<S: System> {
+pub struct LowerAccess<S: System = ()> {
     pub(crate) akf: bool,
     pub(crate) aid: Aid,
     pub(crate) message: LowerAccessMessage,
@@ -152,7 +152,7 @@ impl<S: System> LowerAccess<S> {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct LowerControl<S: System> {
+pub struct LowerControl<S: System = ()> {
     pub(crate) opcode: Opcode,
     pub(crate) message: LowerControlMessage,
     _marker: PhantomData<S>,
