@@ -12,7 +12,6 @@ use core::convert::TryInto;
 use heapless::Vec;
 
 pub mod nonce;
-pub mod secrets;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -198,7 +197,7 @@ pub fn privacy_plaintext(iv_index: u32, encrypted_and_mic: &[u8]) -> [u8; 16] {
     privacy_plaintext
 }
 
-fn pecb_xor(pecb: [u8; 16], bytes: [u8; 6]) -> [u8; 6] {
+pub fn pecb_xor(pecb: [u8; 16], bytes: [u8; 6]) -> [u8; 6] {
     let mut output = [0; 6];
     for (i, b) in bytes.iter().enumerate() {
         output[i] = pecb[i] ^ *b;

@@ -53,6 +53,16 @@ impl SzMic {
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Nid(u8);
 
+impl Nid {
+    pub fn new(nid: u8) -> Self {
+        Self(nid)
+    }
+
+    pub fn parse(nid: u8) -> Result<Nid, ParseError> {
+        Ok(Self::new(nid))
+    }
+}
+
 impl Into<u8> for Nid {
     fn into(self) -> u8 {
         self.0
@@ -82,3 +92,72 @@ impl From<u8> for Aid {
         Self(val)
     }
 }
+
+#[derive(Copy, Clone)]
+pub enum Ivi {
+    Zero,
+    One,
+}
+
+impl Ivi {
+    pub fn parse(ivi: u8) -> Result<Ivi, ParseError> {
+        match ivi {
+            0 => Ok(Ivi::Zero),
+            1 => Ok(Ivi::One),
+            _ => Err(ParseError::InvalidValue)
+        }
+    }
+}
+
+impl Into<u8> for Ivi {
+    fn into(self) -> u8 {
+        match self {
+            Ivi::Zero => 0,
+            Ivi::One => 1,
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Ttl(u8);
+
+impl Ttl {
+    pub fn parse(ttl: u8) -> Result<Ttl, ParseError> {
+        Ok(Self(ttl))
+    }
+}
+
+#[derive(Copy, Clone)]
+pub struct Seq(u32);
+
+impl Seq {
+    pub fn parse(seq: u32) -> Result<Seq, ParseError> {
+        Ok(Self(seq))
+    }
+}
+
+#[derive(Copy, Clone)]
+pub enum Ctl {
+    Access,
+    Control,
+}
+
+impl Ctl {
+    pub fn parse(ctl: u8) -> Result<Ctl, ParseError> {
+        match ctl {
+            0 => Ok(Ctl::Access),
+            1 => Ok(Ctl::Control),
+            _ => Err(ParseError::InvalidValue),
+        }
+    }
+
+    pub fn netmic_size(&self) -> usize {
+        match self {
+            Ctl::Access => 4,
+            Ctl::Control => 8,
+        }
+
+    }
+}
+
+
