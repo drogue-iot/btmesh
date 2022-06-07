@@ -287,6 +287,7 @@ impl Opcode {
     }
 }
 
+#[allow(dead_code)]
 pub struct SegmentAck {
     seq_zero: u16,
     block_ack: u32,

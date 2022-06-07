@@ -4,7 +4,6 @@ use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
-use btmesh_pdu::System;
 use core::slice::Iter;
 
 pub mod replay_protection;
@@ -53,7 +52,7 @@ impl Driver {
             .map_err(|_| DriverError::InvalidKeyLength)?;
 
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
-        let ctl = Ctl::parse((unobfuscated[0] & 0b10000000))?;
+        let ctl = Ctl::parse(unobfuscated[0] & 0b10000000)?;
 
         let seq = u32::from_be_bytes([0, unobfuscated[1], unobfuscated[2], unobfuscated[3]]);
 

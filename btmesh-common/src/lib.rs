@@ -77,7 +77,6 @@ impl From<u8> for Nid {
 
 /// Application key identifier.
 #[derive(Copy, Clone, PartialEq, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Aid(u8);
 
@@ -94,6 +93,7 @@ impl From<u8> for Aid {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Ivi {
     Zero,
     One,
@@ -119,6 +119,7 @@ impl Into<u8> for Ivi {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Ttl(u8);
 
 impl Ttl {
@@ -128,6 +129,7 @@ impl Ttl {
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Seq(u32);
 
 impl Seq {
@@ -137,6 +139,7 @@ impl Seq {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Ctl {
     Access,
     Control,

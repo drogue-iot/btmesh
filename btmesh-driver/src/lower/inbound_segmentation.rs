@@ -1,9 +1,9 @@
-use heapless::Vec;
+use crate::DriverError;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::InsufficientBuffer;
-use crate::DriverError;
+use heapless::Vec;
 
-pub struct InboundSegmentation<const N: usize=3> {
+pub struct InboundSegmentation<const N: usize = 3> {
     in_flight: [Option<InFlight>; N],
 }
 
@@ -71,6 +71,7 @@ impl InboundSegmentation {
 }
 
 #[derive(Clone)]
+#[allow(dead_code)]
 struct InFlight {
     src: UnicastAddress,
     seq_zero: u16,

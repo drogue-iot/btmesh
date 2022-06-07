@@ -1,4 +1,3 @@
-use crate::lower::LowerPDU;
 use crate::System;
 use btmesh_common::{
     address::{Address, UnicastAddress},
@@ -69,6 +68,7 @@ impl NetworkPDU {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[allow(dead_code)]
 pub struct CleartextNetworkPDU<S: System = ()> {
     network_key: S::NetworkKeyHandle,
     ivi: Ivi,

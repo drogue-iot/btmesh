@@ -8,6 +8,7 @@ use heapless::Vec;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[allow(dead_code)]
 pub struct AccessMessage<S: System> {
     pub ttl: Option<u8>,
     network_key: S::NetworkKeyHandle,

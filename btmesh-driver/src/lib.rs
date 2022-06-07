@@ -2,7 +2,6 @@ use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use btmesh_pdu::System;
-use hash32::{Hash, Hasher};
 use hash32_derive::Hash32;
 use secrets::Secrets;
 

@@ -1,6 +1,5 @@
-use crate::{Driver, DriverError, NetworkKeyHandle};
+use crate::{DriverError, NetworkKeyHandle};
 use btmesh_common::{crypto, Nid};
-use core::iter::Filter;
 use core::slice::Iter;
 
 pub(crate) struct Secrets {

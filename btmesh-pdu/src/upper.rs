@@ -14,6 +14,7 @@ pub enum UpperPDU<S: System> {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[allow(dead_code)]
 pub struct UpperControl<S: System> {
     pub(crate) ttl: u8,
     pub(crate) network_key: S::NetworkKeyHandle,
@@ -26,6 +27,7 @@ pub struct UpperControl<S: System> {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[allow(dead_code)]
 pub struct UpperAccess<S: System> {
     pub(crate) ttl: Option<u8>,
     pub(crate) network_key: S::NetworkKeyHandle,
