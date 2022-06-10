@@ -39,7 +39,8 @@ impl From<InvalidAddress> for DriverError {
 
 pub struct Driver {
     secrets: Secrets,
-    replay_protection: ReplayProtection,
+    lower: lower::LowerDriver,
+    network: network::NetworkDriver,
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
@@ -78,3 +79,9 @@ impl NetworkMetadata {
 
 #[derive(Copy, Clone, Default)]
 pub struct LowerMetadata {}
+
+#[derive(Copy, Clone, Default)]
+pub struct UpperMetadata {}
+
+
+

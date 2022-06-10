@@ -1,5 +1,5 @@
 use crate::secrets::{NetworkKey, NetworkKeyIter};
-use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata};
+use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, Nid, Seq, Ttl};
@@ -7,6 +7,10 @@ use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use core::slice::Iter;
 
 pub mod replay_protection;
+
+pub struct NetworkDriver {
+    replay_protection: ReplayProtection,
+}
 
 impl Driver {
     fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
@@ -22,7 +26,7 @@ impl Driver {
     }
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
-        self.replay_protection.check(pdu);
+        self.network.replay_protection.check(pdu);
     }
 
     pub fn try_decrypt_network_pdu(

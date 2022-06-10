@@ -10,6 +10,7 @@ pub trait System {
 
     type NetworkMetadata: Default + Copy;
     type LowerMetadata: Default + Copy;
+    type UpperMetadata: Default + Copy;
 }
 
 impl System for () {
@@ -17,4 +18,5 @@ impl System for () {
     type ApplicationKeyHandle = ();
     type NetworkMetadata = ();
     type LowerMetadata = ();
+    type UpperMetadata = ();
 }
