@@ -55,6 +55,7 @@ impl System for Driver {
     type NetworkMetadata = NetworkMetadata;
     type LowerMetadata = LowerMetadata;
     type UpperMetadata = UpperMetadata;
+    type AccessMetadata = AccessMetadata;
 }
 
 #[derive(Copy, Clone, Default)]
@@ -78,11 +79,67 @@ impl NetworkMetadata {
     }
 }
 
-#[derive(Copy, Clone, Default)]
-pub struct LowerMetadata {}
+impl From<LowerMetadata> for NetworkMetadata {
+    fn from(other: LowerMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+            replay_protected: None,
+            should_relay: None,
+        }
+    }
+}
 
 #[derive(Copy, Clone, Default)]
-pub struct UpperMetadata {}
+pub struct LowerMetadata {
+    iv_index: u32,
+}
 
+impl From<NetworkMetadata> for LowerMetadata {
+    fn from(other: NetworkMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+        }
+    }
+}
 
+impl From<UpperMetadata> for LowerMetadata {
+    fn from(other: UpperMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+        }
+    }
+}
 
+#[derive(Copy, Clone, Default)]
+pub struct UpperMetadata {
+    iv_index: u32,
+}
+
+impl From<LowerMetadata> for UpperMetadata {
+    fn from(other: LowerMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+        }
+    }
+}
+
+impl From<AccessMetadata> for UpperMetadata {
+    fn from(other: AccessMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+        }
+    }
+}
+
+#[derive(Copy, Clone, Default)]
+pub struct AccessMetadata {
+    iv_index: u32,
+}
+
+impl From<UpperMetadata> for AccessMetadata {
+    fn from(other: UpperMetadata) -> Self {
+        Self {
+            iv_index: other.iv_index,
+        }
+    }
+}

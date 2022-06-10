@@ -31,7 +31,7 @@ impl Driver {
 
     pub fn try_decrypt_network_pdu(
         &self,
-        pdu: &NetworkPDU,
+        pdu: &NetworkPDU<Self>,
         iv_index: u32,
     ) -> Result<CleartextNetworkPDU<Self>, DriverError> {
         for network_key in self.network_keys_by_nid(pdu.nid()) {
@@ -45,7 +45,7 @@ impl Driver {
 
     pub fn try_decrypt_network_pdu_with_key(
         &self,
-        pdu: &NetworkPDU,
+        pdu: &NetworkPDU<Self>,
         iv_index: u32,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {

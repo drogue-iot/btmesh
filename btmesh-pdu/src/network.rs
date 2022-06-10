@@ -14,16 +14,17 @@ pub enum NetMic {
 /// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct NetworkPDU {
+pub struct NetworkPDU<S: System> {
     ivi: Ivi,
     /* 1 bit */
     nid: Nid,
     /* 7 bits */
     obfuscated: [u8; 6],
     encrypted_and_mic: Vec<u8, 28>,
+    meta: S::NetworkMetadata,
 }
 
-impl NetworkPDU {
+impl<S: System> NetworkPDU<S> {
     pub fn encrypted_and_mic(&self) -> &Vec<u8, 28> {
         &self.encrypted_and_mic
     }
@@ -53,6 +54,7 @@ impl NetworkPDU {
             nid: Nid::parse(nid)?,
             obfuscated,
             encrypted_and_mic,
+            meta: Default::default(),
         })
     }
 

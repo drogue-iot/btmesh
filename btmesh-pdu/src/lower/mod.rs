@@ -1,14 +1,38 @@
+pub mod access;
+pub mod control;
+
+use crate::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
+use crate::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
 use crate::network::CleartextNetworkPDU;
 use crate::System;
-use btmesh_common::{Aid, Ctl, InsufficientBuffer, ParseError};
+use btmesh_common::address::UnicastAddress;
+use btmesh_common::mic::SzMic;
+use btmesh_common::{Aid, Ctl, InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 use std::marker::PhantomData;
 
-#[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LowerPDU<S: System = ()> {
-    Access(LowerAccess<S>),
-    Control(LowerControl<S>),
+    Unsegmented(UnsegmentedLowerPDU<S>),
+    Segmented(SegmentedLowerPDU<S>),
+}
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum UnsegmentedLowerPDU<S: System> {
+    Access(UnsegmentedLowerAccessPDU<S>),
+    Control(UnsegmentedLowerControlPDU<S>),
+}
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum SegmentedLowerPDU<S: System> {
+    Access(SegmentedLowerAccessPDU<S>),
+    Control(SegmentedLowerControlPDU<S>),
+}
+
+pub trait SegmentedLowerPDUInfo {
+    fn seq_zero(&self) -> SeqZero;
+    fn seg_o(&self) -> u8;
+    fn seg_n(&self) -> u8;
 }
 
 impl<S: System> LowerPDU<S> {
@@ -19,33 +43,25 @@ impl<S: System> LowerPDU<S> {
             let seg = data[0] & 0b10000000 != 0;
 
             match (network_pdu.ctl(), seg) {
-                (Ctl::Control, false) => {
-                    Ok(LowerPDU::Control(Self::parse_unsegmented_control(data)?))
-                }
-                (Ctl::Control, true) => Ok(LowerPDU::Control(Self::parse_segmented_control(data)?)),
-                (Ctl::Access, false) => Ok(LowerPDU::Access(Self::parse_unsegmented_access(data)?)),
-                (Ctl::Access, true) => Ok(LowerPDU::Access(Self::parse_segmented_access(data)?)),
+                (Ctl::Access, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(
+                    UnsegmentedLowerAccessPDU::parse(&data[1..])?,
+                ))),
+                (Ctl::Access, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Access(
+                    SegmentedLowerAccessPDU::parse(&data[1..])?,
+                ))),
+                (Ctl::Control, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Control(
+                    UnsegmentedLowerControlPDU::parse(&data[1..])?,
+                ))),
+                (Ctl::Control, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Control(
+                    SegmentedLowerControlPDU::parse(&data[1..])?,
+                ))),
             }
         } else {
             Err(ParseError::InvalidLength)
         }
     }
 
-    pub fn old_parse(ctl: bool, data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() >= 2 {
-            let seg = data[0] & 0b10000000 != 0;
-
-            match (ctl, seg) {
-                (true, false) => Ok(LowerPDU::Control(Self::parse_unsegmented_control(data)?)),
-                (true, true) => Ok(LowerPDU::Control(Self::parse_segmented_control(data)?)),
-                (false, false) => Ok(LowerPDU::Access(Self::parse_unsegmented_access(data)?)),
-                (false, true) => Ok(LowerPDU::Access(Self::parse_segmented_access(data)?)),
-            }
-        } else {
-            Err(ParseError::InvalidLength)
-        }
-    }
-
+    /*
     fn parse_unsegmented_control(data: &[u8]) -> Result<LowerControl<S>, ParseError> {
         let opcode = Opcode::parse(data[0] & 0b01111111).ok_or(ParseError::InvalidValue)?;
         let parameters = &data[1..];
@@ -116,6 +132,7 @@ impl<S: System> LowerPDU<S> {
             LowerPDU::Control(inner) => inner.emit(xmit),
         }
     }
+     */
 }
 
 #[derive(Clone)]
@@ -172,23 +189,6 @@ impl<S: System> LowerControl<S> {
         }
 
         Ok(())
-    }
-}
-
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SzMic {
-    Bit32,
-    Bit64,
-}
-
-impl SzMic {
-    pub fn parse(data: u8) -> Self {
-        if data != 0 {
-            Self::Bit64
-        } else {
-            Self::Bit32
-        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::upper::UpperAccess;
+use crate::upper::access::UpperAccessPDU;
 use crate::System;
 use btmesh_common::{
     address::{Address, UnicastAddress},
@@ -10,65 +10,27 @@ use heapless::Vec;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[allow(dead_code)]
 pub struct AccessMessage<S: System> {
-    pub ttl: Option<u8>,
-    network_key: S::NetworkKeyHandle,
-    pub(crate) ivi: u8,
-    pub(crate) nid: u8,
-    pub(crate) akf: bool,
-    pub(crate) aid: Aid,
-    pub(crate) src: UnicastAddress,
-    pub(crate) dst: Address,
-    pub(crate) payload: AccessPayload,
+    opcode: Opcode,
+    parameters: Vec<u8, 384>,
+    meta: S::AccessMetadata,
 }
 
 #[allow(unused)]
 impl<S: System> AccessMessage<S> {
-    pub fn with_ttl(mut self, ttl: u8) -> Self {
-        self.ttl.replace(ttl);
-        self
-    }
-
     pub fn opcode(&self) -> Opcode {
-        self.payload.opcode
+        self.opcode
     }
 
     pub fn parameters(&self) -> &[u8] {
-        &self.payload.parameters
+        &self.parameters
     }
 
-    pub fn parse(access: &UpperAccess<S>) -> Result<Self, ParseError> {
-        Ok(Self {
-            ttl: None,
-            network_key: access.network_key,
-            ivi: access.ivi,
-            nid: access.nid,
-            akf: access.akf,
-            aid: access.aid,
-            src: access.src,
-            dst: access.dst,
-            payload: AccessPayload::parse(&access.payload)?,
-        })
-    }
-
-    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        self.payload.emit(xmit)
-    }
-}
-
-#[derive(Clone, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct AccessPayload {
-    pub opcode: Opcode,
-    pub parameters: Vec<u8, 384>,
-}
-
-#[allow(unused)]
-impl AccessPayload {
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let (opcode, parameters) = Opcode::split(data).ok_or(ParseError::InvalidPDUFormat)?;
         Ok(Self {
             opcode,
-            parameters: Vec::from_slice(parameters).map_err(|_| ParseError::InsufficientBuffer)?,
+            parameters: Vec::from_slice(parameters)?,
+            meta: Default::default(),
         })
     }
 
@@ -179,6 +141,7 @@ macro_rules! opcode {
     };
 }
 
+/*
 opcode!( CONFIG_BEACON_GET 0x80, 0x09 );
 opcode!( CONFIG_BEACON_SET 0x80, 0x0A );
 opcode!( CONFIG_BEACON_STATUS 0x80, 0x0B );
@@ -238,3 +201,4 @@ opcode!( HEALTH_PERIOD_GET 0x80, 0x34 );
 opcode!( HEALTH_PERIOD_SET 0x80, 0x35 );
 opcode!( HEALTH_PERIOD_SET_UNACKNOWLEDGED 0x80, 0x36 );
 opcode!( HEALTH_PERIOD_STATUS 0x80, 0x37 );
+ */

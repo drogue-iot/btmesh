@@ -1,5 +1,5 @@
 use crate::address::{Address, UnicastAddress};
-use crate::SzMic;
+use crate::mic::SzMic;
 use core::ops::Deref;
 
 pub struct NetworkNonce([u8; 13]);

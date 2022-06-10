@@ -1,5 +1,8 @@
+use core::array::TryFromSliceError;
+
 pub mod address;
 pub mod crypto;
+pub mod mic;
 
 pub struct InsufficientBuffer;
 
@@ -30,20 +33,9 @@ impl From<()> for ParseError {
     }
 }
 
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SzMic {
-    Bit32,
-    Bit64,
-}
-
-impl SzMic {
-    pub fn parse(data: u8) -> Self {
-        if data != 0 {
-            Self::Bit64
-        } else {
-            Self::Bit32
-        }
+impl From<TryFromSliceError> for ParseError {
+    fn from(_: TryFromSliceError) -> Self {
+        Self::InvalidLength
     }
 }
 
@@ -79,6 +71,18 @@ impl From<u8> for Nid {
 #[derive(Copy, Clone, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Aid(u8);
+
+impl Aid {
+    pub fn parse(akf_aid: u8) -> Result<Option<Self>, ParseError> {
+        let akf = akf_aid & 0b01000000 != 0;
+        if akf {
+            let aid = akf_aid & 0b00111111;
+            Ok(Some(Self(aid)))
+        } else {
+            Ok(None)
+        }
+    }
+}
 
 impl Into<u8> for Aid {
     fn into(self) -> u8 {
@@ -135,6 +139,16 @@ pub struct Seq(u32);
 impl Seq {
     pub fn parse(seq: u32) -> Result<Seq, ParseError> {
         Ok(Self(seq))
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct SeqZero(u16);
+
+impl SeqZero {
+    pub fn parse(data: u16) -> Result<Self, ParseError> {
+        Ok(Self(data))
     }
 }
 
