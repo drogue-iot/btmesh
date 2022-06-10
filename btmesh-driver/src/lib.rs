@@ -54,6 +54,7 @@ impl System for Driver {
     type ApplicationKeyHandle = ApplicationKeyHandle;
     type NetworkMetadata = NetworkMetadata;
     type LowerMetadata = LowerMetadata;
+    type UpperMetadata = UpperMetadata;
 }
 
 #[derive(Copy, Clone, Default)]
