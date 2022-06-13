@@ -123,7 +123,6 @@ impl<S: System> LowerPDU<S> {
     }
 }
 
-
 #[derive(Copy, Clone)]
 pub struct BlockAck(u32);
 
@@ -134,9 +133,8 @@ impl Default for BlockAck {
 }
 
 impl BlockAck {
-
     pub fn is_acked(&self, seg_o: u8) -> bool {
-        (self.0 & ( 1 << seg_o )) != 0
+        (self.0 & (1 << seg_o)) != 0
     }
 
     pub fn ack(&mut self, seg_o: u8) {

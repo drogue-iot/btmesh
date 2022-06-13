@@ -12,6 +12,7 @@ mod secrets;
 
 #[derive(Debug)]
 pub enum DriverError {
+    InvalidState,
     InvalidKeyLength,
     CryptoError,
     InvalidAddress,

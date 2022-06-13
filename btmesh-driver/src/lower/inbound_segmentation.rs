@@ -13,12 +13,24 @@ use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::{UpperControlOpcode, UpperControlPDU};
 use btmesh_pdu::upper::UpperPDU;
 
-pub struct InboundSegmentation<const N: usize> {
+pub struct InboundSegmentation<const N: usize = 5> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
 }
 
+impl<const N: usize> Default for InboundSegmentation<N> {
+    fn default() -> Self {
+        Self {
+            current: Default::default(),
+        }
+    }
+}
+
 impl<const N: usize> InboundSegmentation<N> {
-    fn process(
+    /// Accept an inbound segmented `LowerPDU`, and attempt to reassemble
+    /// into an `UpperPDU`. If processed without error, will return a tuple
+    /// containing the current `BlockAck` set and optionally the completely
+    /// reassembled `UpperPDU`, if all segments have been processed.
+    pub fn process(
         &mut self,
         pdu: &SegmentedLowerPDU<Driver>,
     ) -> Result<(BlockAck, Option<UpperPDU<Driver>>), DriverError> {
@@ -36,11 +48,7 @@ impl<const N: usize> InboundSegmentation<N> {
             }
 
             if in_flight.already_seen(pdu) {
-                Ok((
-                    in_flight.block_ack(),
-                    None,
-                ))
-
+                Ok((in_flight.block_ack(), None))
             } else {
                 in_flight.ingest(pdu)?;
 
@@ -52,7 +60,7 @@ impl<const N: usize> InboundSegmentation<N> {
                         reassembled
                     } else {
                         None
-                    }
+                    },
                 ))
             }
         } else {
@@ -61,12 +69,16 @@ impl<const N: usize> InboundSegmentation<N> {
     }
 }
 
+/// Tracking of processed blocks and `BlockAck`.
 struct Blocks {
     seg_n: u8,
     block_ack: BlockAck,
 }
 
 impl Blocks {
+    /// Construct a new block-tracker.
+    ///
+    /// * `seg_n` The number of segments to expect.
     fn new(seg_n: u8) -> Self {
         Self {
             seg_n,
@@ -74,14 +86,25 @@ impl Blocks {
         }
     }
 
+    /// Record that a given segment has been processed.
+    ///
+    /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
     fn ack(&mut self, seg_o: u8) {
         self.block_ack.ack(seg_o)
     }
 
+    /// Determine if a given segment has been seen.
+    ///
+    /// * `seg_o`: The `seg_o` (offset) of the block to check.
+    ///
+    /// Returns `true` if it has been processed, otherwise `false`.
     fn already_seen(&self, seg_o: u8) -> bool {
         self.block_ack.is_acked(seg_o)
     }
 
+    /// Determine if all expected blocks have been processed.
+    ///
+    /// Returns `true` if all blocks have been processed, otherwise `false`.
     fn is_complete(&self) -> bool {
         for seg_o in 0..self.seg_n {
             if !self.block_ack.is_acked(seg_o) {
@@ -92,6 +115,7 @@ impl Blocks {
     }
 }
 
+/// Track the in-flight reassembly of segmented `LowerPDUs`.
 struct InFlight {
     seq_zero: SeqZero,
     blocks: Blocks,
@@ -99,6 +123,8 @@ struct InFlight {
 }
 
 impl InFlight {
+    /// Construct a new `InFlight` initialized with expected number of segments
+    /// and other access- or control-specific details, such as `SzMic` or `UpperControlOpcode`.
     fn new(pdu: &SegmentedLowerPDU<Driver>) -> Self {
         match pdu {
             SegmentedLowerPDU::Access(pdu) => {
@@ -130,29 +156,52 @@ impl InFlight {
         self.blocks.block_ack
     }
 
+    /// Determine if the proposed segment is valid for the current in-flight reassembly.
+    ///
+    /// Returns `true` if it is valid, otherwise `false`.
     fn is_valid(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
+        // TODO: check pdu-specific details such as SzMic or UpperControlOpcode.
         self.seq_zero == pdu.seq_zero()
     }
 
+    /// Determine if the proposed segment has already been seen for the current in-flight reassembly.
+    ///
+    /// Returns `true` if it has been seen, otherwise `false`.
     fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
         self.blocks.already_seen(pdu.seg_n())
     }
 
+    /// Ingest a segment.
+    ///
+    /// Returns a result of `()` or a `DriverError`.
     fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
+        if !self.is_valid(pdu) {
+            Err(DriverError::InvalidPDU)?;
+        }
         self.reassembly.ingest(pdu)?;
         self.blocks.ack(pdu.seg_o());
         Ok(())
     }
 
+    /// Determine if all expected blocks have been processed.
+    ///
+    /// Returns `true` if all blocks have been processed, otherwise `false`.
     fn is_complete(&self) -> bool {
         self.blocks.is_complete()
     }
 
+    /// Reassemble a complete set of segments into a single `UpperPDU`.
+    ///
+    /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
     fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
+        if !self.is_complete() {
+            Err(DriverError::InvalidState)?;
+        }
         self.reassembly.reassemble()
     }
 }
 
+/// Structure allowing random-access assembly of access or control PDU segments.
 enum Reassembly {
     Access {
         szmic: SzMic,
@@ -185,12 +234,7 @@ impl Reassembly {
 
     fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
         match (self, pdu) {
-            (
-                Reassembly::Access {
-                    data, len, ..
-                },
-                SegmentedLowerPDU::Access(pdu),
-            ) => {
+            (Reassembly::Access { data, len, .. }, SegmentedLowerPDU::Access(pdu)) => {
                 const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<Driver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment, we now know the length.
@@ -204,12 +248,7 @@ impl Reassembly {
                         .clone_from_slice(pdu.segment_m());
                 }
             }
-            (
-                Reassembly::Control {
-                    data, len, ..
-                },
-                SegmentedLowerPDU::Control(pdu),
-            ) => {
+            (Reassembly::Control { data, len, .. }, SegmentedLowerPDU::Control(pdu)) => {
                 const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<Driver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment
