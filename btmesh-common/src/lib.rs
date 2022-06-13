@@ -96,6 +96,20 @@ impl From<u8> for Aid {
     }
 }
 
+#[derive(Copy, Clone, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct IvIndex(u32);
+
+impl IvIndex {
+    pub fn to_be_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
+    }
+
+    pub fn value(&self) -> u32 {
+        self.0
+    }
+}
+
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Ivi {
@@ -139,6 +153,10 @@ pub struct Seq(u32);
 impl Seq {
     pub fn parse(seq: u32) -> Result<Seq, ParseError> {
         Ok(Self(seq))
+    }
+
+    pub fn to_be_bytes(&self) -> [u8; 4] {
+        self.0.to_be_bytes()
     }
 }
 

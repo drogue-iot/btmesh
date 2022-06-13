@@ -2,7 +2,7 @@ use crate::secrets::NetworkKey;
 use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
-use btmesh_common::{crypto, Ctl, Nid, Seq, Ttl};
+use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use core::slice::Iter;
 
@@ -13,11 +13,7 @@ pub struct NetworkDriver {
 }
 
 impl Driver {
-    //fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
-     //   self.secrets.network_keys_by_nid(nid)
-    //}
-
-    fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item=NetworkKeyHandle> + '_ {
+    fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.secrets.network_keys_by_nid(nid)
     }
 
@@ -36,21 +32,21 @@ impl Driver {
     pub fn try_decrypt_network_pdu(
         &self,
         pdu: &NetworkPDU<Self>,
-        iv_index: u32,
-    ) -> Result<CleartextNetworkPDU<Self>, DriverError> {
+        iv_index: IvIndex,
+    ) -> Result<Option<CleartextNetworkPDU<Self>>, DriverError> {
         for network_key in self.network_keys_by_nid(pdu.nid()) {
             if let Ok(result) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
-                return Ok(result);
+                return Ok(Some(result));
             }
         }
 
-        Err(DriverError::CryptoError)
+        Ok(None)
     }
 
     pub fn try_decrypt_network_pdu_with_key(
         &self,
         pdu: &NetworkPDU<Self>,
-        iv_index: u32,
+        iv_index: IvIndex,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
         let mut encrypted_and_mic = pdu.encrypted_and_mic().clone();
@@ -62,7 +58,12 @@ impl Driver {
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
         let ctl = Ctl::parse(unobfuscated[0] & 0b10000000)?;
 
-        let seq = u32::from_be_bytes([0, unobfuscated[1], unobfuscated[2], unobfuscated[3]]);
+        let seq = Seq::parse(u32::from_be_bytes([
+            0,
+            unobfuscated[1],
+            unobfuscated[2],
+            unobfuscated[3],
+        ]))?;
 
         let nonce = NetworkNonce::new(
             unobfuscated[0],

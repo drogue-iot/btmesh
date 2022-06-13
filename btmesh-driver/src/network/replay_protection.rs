@@ -25,7 +25,7 @@ impl<const N: usize> Default for ReplayProtection<N> {
 
 impl<const N: usize> ReplayProtection<N> {
     pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<Driver>) {
-        let iv_index = (pdu.meta().iv_index() & 0xFFFF) as u16;
+        let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;
 
         if let Some(entry) = self.lru.find(|e| e.src == pdu.src()) {
             if iv_index < entry.iv_index {

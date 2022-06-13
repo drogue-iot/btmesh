@@ -10,7 +10,7 @@ impl Secrets {
     pub(crate) fn network_keys_by_nid(
         &self,
         nid: Nid,
-    ) -> impl Iterator<Item=NetworkKeyHandle> + '_ {
+    ) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.network_keys.by_nid_iter(nid)
     }
 
@@ -47,18 +47,18 @@ impl<const N: usize> Default for NetworkKeys<N> {
 }
 
 impl<const N: usize> NetworkKeys<N> {
-    fn by_nid_iter(&self, nid: Nid) -> impl Iterator<Item=NetworkKeyHandle> + '_ {
-        self.keys.iter().enumerate()
+    fn by_nid_iter(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
+        self.keys
+            .iter()
+            .enumerate()
             .filter(move |e| {
                 if let (_, Some(network_key)) = e {
                     network_key.nid == nid
                 } else {
                     false
                 }
-            } ).map(|(index, _)|{
-            NetworkKeyHandle(index as u8)
-        })
-
+            })
+            .map(|(index, _)| NetworkKeyHandle(index as u8))
     }
 
     fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {

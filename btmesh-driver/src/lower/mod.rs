@@ -13,13 +13,13 @@ pub struct LowerDriver {
     inbound_segmentation: InboundSegmentation,
 }
 
-impl Driver {
+impl LowerDriver {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accomodating segmentation,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
     fn process_cleartext_network_pdu(
         &self,
-        network_pdu: &CleartextNetworkPDU<Self>,
-    ) -> Result<Option<UpperPDU<Self>>, DriverError> {
+        network_pdu: &CleartextNetworkPDU<Driver>,
+    ) -> Result<Option<UpperPDU<Driver>>, DriverError> {
         match LowerPDU::parse(network_pdu)? {
             LowerPDU::Unsegmented(lower_pdu) => match lower_pdu {
                 UnsegmentedLowerPDU::Access(access_pdu) => Ok(Some(

@@ -1,3 +1,4 @@
+use crate::IvIndex;
 use aes::cipher::Block;
 use aes::{Aes128, BlockEncrypt, NewBlockCipher};
 use ccm::aead::generic_array::GenericArray;
@@ -168,7 +169,7 @@ pub fn k4(n: &[u8]) -> Result<u8, InvalidKeyLength> {
     }
 }
 
-pub fn privacy_plaintext(iv_index: u32, encrypted_and_mic: &[u8]) -> [u8; 16] {
+pub fn privacy_plaintext(iv_index: IvIndex, encrypted_and_mic: &[u8]) -> [u8; 16] {
     let mut privacy_plaintext = [0; 16];
 
     // 0x0000000000

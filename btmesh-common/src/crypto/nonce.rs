@@ -1,5 +1,6 @@
 use crate::address::{Address, UnicastAddress};
 use crate::mic::SzMic;
+use crate::{IvIndex, Seq};
 use core::ops::Deref;
 
 pub struct NetworkNonce([u8; 13]);
@@ -7,7 +8,7 @@ pub struct NetworkNonce([u8; 13]);
 impl NetworkNonce {
     const NONCE_TYPE: u8 = 0x00;
 
-    pub fn new(ctl_ttl: u8, seq: u32, src: [u8; 2], iv_index: u32) -> Self {
+    pub fn new(ctl_ttl: u8, seq: Seq, src: [u8; 2], iv_index: IvIndex) -> Self {
         let mut nonce = [0; 13];
         nonce[0] = Self::NONCE_TYPE;
         nonce[1] = ctl_ttl;

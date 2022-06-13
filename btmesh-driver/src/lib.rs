@@ -1,6 +1,6 @@
 use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::InvalidAddress;
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};
 use btmesh_pdu::System;
 use hash32_derive::Hash32;
 use secrets::Secrets;
@@ -60,13 +60,13 @@ impl System for Driver {
 
 #[derive(Copy, Clone, Default)]
 pub struct NetworkMetadata {
-    iv_index: u32,
+    iv_index: IvIndex,
     replay_protected: Option<bool>,
     should_relay: Option<bool>,
 }
 
 impl NetworkMetadata {
-    pub fn iv_index(&self) -> u32 {
+    pub fn iv_index(&self) -> IvIndex {
         self.iv_index
     }
 
@@ -91,7 +91,7 @@ impl From<LowerMetadata> for NetworkMetadata {
 
 #[derive(Copy, Clone, Default)]
 pub struct LowerMetadata {
-    iv_index: u32,
+    iv_index: IvIndex,
 }
 
 impl From<NetworkMetadata> for LowerMetadata {
@@ -112,7 +112,7 @@ impl From<UpperMetadata> for LowerMetadata {
 
 #[derive(Copy, Clone, Default)]
 pub struct UpperMetadata {
-    iv_index: u32,
+    iv_index: IvIndex,
 }
 
 impl From<LowerMetadata> for UpperMetadata {
@@ -133,7 +133,7 @@ impl From<AccessMetadata> for UpperMetadata {
 
 #[derive(Copy, Clone, Default)]
 pub struct AccessMetadata {
-    iv_index: u32,
+    iv_index: IvIndex,
 }
 
 impl From<UpperMetadata> for AccessMetadata {
