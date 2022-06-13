@@ -1,4 +1,3 @@
-use crate::lower::SegmentedLowerPDUInfo;
 use crate::upper::control::UpperControlOpcode;
 use crate::System;
 use btmesh_common::{ParseError, SeqZero};
@@ -28,6 +27,14 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
     pub fn parameters(&self) -> &[u8] {
         &*self.parameters
     }
+
+    pub fn meta(&self) -> &S::LowerMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        &mut self.meta
+    }
 }
 
 pub struct SegmentedLowerControlPDU<S: System> {
@@ -35,11 +42,13 @@ pub struct SegmentedLowerControlPDU<S: System> {
     seq_zero: SeqZero,
     seg_o: u8,
     seg_n: u8,
-    segment_m: Vec<u8, 64>,
+    segment_m: Vec<u8, 8>,
     meta: S::LowerMetadata,
 }
 
 impl<S: System> SegmentedLowerControlPDU<S> {
+    pub const SEGMENT_SIZE: usize = 8;
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let opcode = UpperControlOpcode::parse(data[0] & 0b01111111)?;
         let seq_zero =
@@ -56,18 +65,32 @@ impl<S: System> SegmentedLowerControlPDU<S> {
             meta: Default::default(),
         })
     }
-}
 
-impl<S: System> SegmentedLowerPDUInfo for SegmentedLowerControlPDU<S> {
-    fn seq_zero(&self) -> SeqZero {
+    pub fn opcode(&self) -> UpperControlOpcode {
+        self.opcode
+    }
+
+    pub fn seq_zero(&self) -> SeqZero {
         self.seq_zero
     }
 
-    fn seg_o(&self) -> u8 {
+    pub fn seg_o(&self) -> u8 {
         self.seg_o
     }
 
-    fn seg_n(&self) -> u8 {
+    pub fn seg_n(&self) -> u8 {
         self.seg_n
+    }
+
+    pub fn segment_m(&self) -> &[u8] {
+        &*self.segment_m
+    }
+
+    pub fn meta(&self) -> &S::LowerMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        &mut self.meta
     }
 }

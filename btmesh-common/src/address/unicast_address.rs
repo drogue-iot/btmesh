@@ -2,8 +2,9 @@ use crate::address::{Address, InvalidAddress};
 use core::convert::TryInto;
 use core::ops::Add;
 use core::ops::Sub;
+use hash32_derive::Hash32;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnicastAddress(u16);
 

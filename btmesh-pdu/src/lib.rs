@@ -8,10 +8,10 @@ pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 
-    type NetworkMetadata: Default + Copy + From<Self::LowerMetadata>;
-    type LowerMetadata: Default + Copy + From<Self::NetworkMetadata> + From<Self::UpperMetadata>;
-    type UpperMetadata: Default + Copy + From<Self::LowerMetadata> + From<Self::AccessMetadata>;
-    type AccessMetadata: Default + Copy + From<Self::UpperMetadata>;
+    type NetworkMetadata: Default + Copy;
+    type LowerMetadata: Default + Copy;
+    type UpperMetadata: Default + Copy;
+    type AccessMetadata: Default + Copy;
 }
 
 impl System for () {

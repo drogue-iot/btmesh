@@ -1,6 +1,7 @@
 use crate::network::replay_protection::ReplayProtection;
-use btmesh_common::address::InvalidAddress;
+use btmesh_common::address::{InvalidAddress, UnicastAddress};
 use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};
+use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
 use hash32_derive::Hash32;
 use secrets::Secrets;
@@ -16,6 +17,7 @@ pub enum DriverError {
     InvalidAddress,
     InsufficientSpace,
     InvalidKeyHandle,
+    InvalidPDU,
     ParseError(ParseError),
 }
 
@@ -79,34 +81,15 @@ impl NetworkMetadata {
     }
 }
 
-impl From<LowerMetadata> for NetworkMetadata {
-    fn from(other: LowerMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-            replay_protected: None,
-            should_relay: None,
-        }
-    }
-}
-
 #[derive(Copy, Clone, Default)]
 pub struct LowerMetadata {
-    iv_index: IvIndex,
+    src: Option<UnicastAddress>,
+    iv_index: Option<IvIndex>,
 }
 
-impl From<NetworkMetadata> for LowerMetadata {
-    fn from(other: NetworkMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-        }
-    }
-}
-
-impl From<UpperMetadata> for LowerMetadata {
-    fn from(other: UpperMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-        }
+impl LowerMetadata {
+    pub(crate) fn apply(&mut self, pdu: &CleartextNetworkPDU<Driver>) {
+        self.src.replace(pdu.src());
     }
 }
 
@@ -115,31 +98,7 @@ pub struct UpperMetadata {
     iv_index: IvIndex,
 }
 
-impl From<LowerMetadata> for UpperMetadata {
-    fn from(other: LowerMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-        }
-    }
-}
-
-impl From<AccessMetadata> for UpperMetadata {
-    fn from(other: AccessMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-        }
-    }
-}
-
 #[derive(Copy, Clone, Default)]
 pub struct AccessMetadata {
     iv_index: IvIndex,
-}
-
-impl From<UpperMetadata> for AccessMetadata {
-    fn from(other: UpperMetadata) -> Self {
-        Self {
-            iv_index: other.iv_index,
-        }
-    }
 }

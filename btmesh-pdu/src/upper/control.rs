@@ -52,6 +52,14 @@ impl<S: System> UpperControlPDU<S> {
             meta: Default::default(),
         })
     }
+
+    pub fn parse(opcode: UpperControlOpcode, data: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self {
+            opcode,
+            parameters: Vec::from_slice(data)?,
+            meta: Default::default(),
+        })
+    }
 }
 
 impl<S: System> Into<UpperPDU<S>> for UpperControlPDU<S> {

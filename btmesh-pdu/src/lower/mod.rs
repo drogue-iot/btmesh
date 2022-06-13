@@ -17,10 +17,42 @@ pub enum LowerPDU<S: System = ()> {
     Segmented(SegmentedLowerPDU<S>),
 }
 
+impl<S: System> LowerPDU<S> {
+    pub fn meta(&self) -> &S::LowerMetadata {
+        match self {
+            LowerPDU::Unsegmented(pdu) => pdu.meta(),
+            LowerPDU::Segmented(pdu) => pdu.meta(),
+        }
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        match self {
+            LowerPDU::Unsegmented(pdu) => pdu.meta_mut(),
+            LowerPDU::Segmented(pdu) => pdu.meta_mut(),
+        }
+    }
+}
+
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UnsegmentedLowerPDU<S: System> {
     Access(UnsegmentedLowerAccessPDU<S>),
     Control(UnsegmentedLowerControlPDU<S>),
+}
+
+impl<S: System> UnsegmentedLowerPDU<S> {
+    pub fn meta(&self) -> &S::LowerMetadata {
+        match self {
+            UnsegmentedLowerPDU::Access(pdu) => pdu.meta(),
+            UnsegmentedLowerPDU::Control(pdu) => pdu.meta(),
+        }
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        match self {
+            UnsegmentedLowerPDU::Access(pdu) => pdu.meta_mut(),
+            UnsegmentedLowerPDU::Control(pdu) => pdu.meta_mut(),
+        }
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -29,10 +61,39 @@ pub enum SegmentedLowerPDU<S: System> {
     Control(SegmentedLowerControlPDU<S>),
 }
 
-pub trait SegmentedLowerPDUInfo {
-    fn seq_zero(&self) -> SeqZero;
-    fn seg_o(&self) -> u8;
-    fn seg_n(&self) -> u8;
+impl<S: System> SegmentedLowerPDU<S> {
+    pub fn meta(&self) -> &S::LowerMetadata {
+        match self {
+            SegmentedLowerPDU::Access(pdu) => pdu.meta(),
+            SegmentedLowerPDU::Control(pdu) => pdu.meta(),
+        }
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        match self {
+            SegmentedLowerPDU::Access(pdu) => pdu.meta_mut(),
+            SegmentedLowerPDU::Control(pdu) => pdu.meta_mut(),
+        }
+    }
+
+    pub fn seq_zero(&self) -> SeqZero {
+        match self {
+            SegmentedLowerPDU::Access(pdu) => pdu.seq_zero(),
+            SegmentedLowerPDU::Control(pdu) => pdu.seq_zero(),
+        }
+    }
+    pub fn seg_o(&self) -> u8 {
+        match self {
+            SegmentedLowerPDU::Access(pdu) => pdu.seg_o(),
+            SegmentedLowerPDU::Control(pdu) => pdu.seg_o(),
+        }
+    }
+    pub fn seg_n(&self) -> u8 {
+        match self {
+            SegmentedLowerPDU::Access(pdu) => pdu.seg_n(),
+            SegmentedLowerPDU::Control(pdu) => pdu.seg_n(),
+        }
+    }
 }
 
 impl<S: System> LowerPDU<S> {
@@ -60,79 +121,6 @@ impl<S: System> LowerPDU<S> {
             Err(ParseError::InvalidLength)
         }
     }
-
-    /*
-    fn parse_unsegmented_control(data: &[u8]) -> Result<LowerControl<S>, ParseError> {
-        let opcode = Opcode::parse(data[0] & 0b01111111).ok_or(ParseError::InvalidValue)?;
-        let parameters = &data[1..];
-        Ok(LowerControl {
-            opcode,
-            message: LowerControlMessage::Unsegmented {
-                parameters: Vec::from_slice(parameters)?,
-            },
-            _marker: PhantomData,
-        })
-    }
-
-    fn parse_segmented_control(data: &[u8]) -> Result<LowerControl<S>, ParseError> {
-        let opcode = Opcode::parse(data[0] & 0b01111111).ok_or(ParseError::InvalidValue)?;
-        let seq_zero = u16::from_be_bytes([data[1] & 0b01111111, data[2] & 0b11111100]) >> 2;
-        let seg_o = (u16::from_be_bytes([data[2] & 0b00000011, data[3] & 0b11100000]) >> 5) as u8;
-        let seg_n = data[3] & 0b00011111;
-        let segment_m = &data[4..];
-        Ok(LowerControl {
-            opcode,
-            message: LowerControlMessage::Segmented {
-                seq_zero,
-                seg_o,
-                seg_n,
-                segment_m: Vec::from_slice(segment_m)?,
-            },
-            _marker: PhantomData,
-        })
-    }
-
-    fn parse_unsegmented_access(data: &[u8]) -> Result<LowerAccess<S>, ParseError> {
-        let akf = data[0] & 0b01000000 != 0;
-        let aid = data[0] & 0b00111111;
-        Ok(LowerAccess {
-            akf,
-            aid: aid.into(),
-            message: LowerAccessMessage::Unsegmented(Vec::from_slice(&data[1..])?),
-            _marker: PhantomData,
-        })
-    }
-
-    fn parse_segmented_access(data: &[u8]) -> Result<LowerAccess<S>, ParseError> {
-        let akf = data[0] & 0b01000000 != 0;
-        let aid = data[0] & 0b00111111;
-        let szmic = SzMic::parse(data[1] & 0b10000000);
-        let seq_zero = u16::from_be_bytes([data[1] & 0b01111111, data[2] & 0b11111100]) >> 2;
-        let seg_o = (u16::from_be_bytes([data[2] & 0b00000011, data[3] & 0b11100000]) >> 5) as u8;
-        let seg_n = data[3] & 0b00011111;
-        let segment_m = &data[4..];
-
-        Ok(LowerAccess {
-            akf,
-            aid: aid.into(),
-            message: LowerAccessMessage::Segmented {
-                szmic,
-                seq_zero,
-                seg_o,
-                seg_n,
-                segment_m: Vec::from_slice(&segment_m)?,
-            },
-            _marker: PhantomData,
-        })
-    }
-
-    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        match self {
-            LowerPDU::Access(inner) => inner.emit(xmit),
-            LowerPDU::Control(inner) => inner.emit(xmit),
-        }
-    }
-     */
 }
 
 #[derive(Clone)]

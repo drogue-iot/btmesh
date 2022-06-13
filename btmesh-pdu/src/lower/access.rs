@@ -1,4 +1,3 @@
-use crate::lower::SegmentedLowerPDUInfo;
 use crate::System;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{Aid, ParseError, SeqZero};
@@ -31,6 +30,14 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
     pub fn upper_pdu(&self) -> &[u8] {
         &*self.upper_pdu
     }
+
+    pub fn meta(&self) -> &S::LowerMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        &mut self.meta
+    }
 }
 
 pub struct SegmentedLowerAccessPDU<S: System> {
@@ -39,11 +46,13 @@ pub struct SegmentedLowerAccessPDU<S: System> {
     seq_zero: SeqZero,
     seg_o: u8,
     seg_n: u8,
-    segment_m: Vec<u8, 96>,
+    segment_m: Vec<u8, 12>,
     meta: S::LowerMetadata,
 }
 
 impl<S: System> SegmentedLowerAccessPDU<S> {
+    pub const SEGMENT_SIZE: usize = 12;
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let akf_aid = Aid::parse(data[0])?;
         let szmic = SzMic::parse(data[1] & 0b10000000);
@@ -62,18 +71,32 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             meta: Default::default(),
         })
     }
-}
 
-impl<S: System> SegmentedLowerPDUInfo for SegmentedLowerAccessPDU<S> {
-    fn seq_zero(&self) -> SeqZero {
+    pub fn seq_zero(&self) -> SeqZero {
         self.seq_zero
     }
 
-    fn seg_o(&self) -> u8 {
+    pub fn seg_o(&self) -> u8 {
         self.seg_o
     }
 
-    fn seg_n(&self) -> u8 {
+    pub fn seg_n(&self) -> u8 {
         self.seg_n
+    }
+
+    pub fn segment_m(&self) -> &[u8] {
+        &*self.segment_m
+    }
+
+    pub fn szmic(&self) -> SzMic {
+        self.szmic
+    }
+
+    pub fn meta(&self) -> &S::LowerMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::LowerMetadata {
+        &mut self.meta
     }
 }

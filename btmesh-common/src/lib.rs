@@ -108,6 +108,14 @@ impl IvIndex {
     pub fn value(&self) -> u32 {
         self.0
     }
+
+    pub fn ivi(&self) -> Ivi {
+        if self.0 & 1 == 1 {
+            Ivi::One
+        } else {
+            Ivi::Zero
+        }
+    }
 }
 
 #[derive(Copy, Clone)]

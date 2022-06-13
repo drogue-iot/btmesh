@@ -1,135 +1,212 @@
-use crate::DriverError;
-use btmesh_common::address::UnicastAddress;
-use btmesh_common::InsufficientBuffer;
+use heapless::FnvIndexMap;
+use heapless::IndexMap;
 use heapless::Vec;
 
-pub struct InboundSegmentation<const N: usize = 3> {
-    in_flight: [Option<InFlight>; N],
+use crate::{Driver, DriverError};
+use btmesh_common::address::UnicastAddress;
+use btmesh_common::mic::SzMic;
+use btmesh_common::{Seq, SeqZero};
+use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
+use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
+use btmesh_pdu::lower::SegmentedLowerPDU;
+use btmesh_pdu::upper::access::UpperAccessPDU;
+use btmesh_pdu::upper::control::{UpperControlOpcode, UpperControlPDU};
+use btmesh_pdu::upper::UpperPDU;
+
+pub struct InboundSegmentation<const N: usize> {
+    current: FnvIndexMap<UnicastAddress, InFlight, N>,
 }
 
-impl Default for InboundSegmentation {
-    fn default() -> Self {
-        Self {
-            in_flight: Default::default(),
-        }
-    }
-}
-
-impl InboundSegmentation {
-    pub(crate) fn process_inbound(
+impl<const N: usize> InboundSegmentation<N> {
+    fn process(
         &mut self,
-        src: UnicastAddress,
-        seq_zero: u16,
-        seg_o: u8,
-        seg_n: u8,
-        segment_m: &Vec<u8, 12>,
-    ) -> Result<(u32, Option<Vec<u8, 380>>), DriverError> {
-        let in_flight_index = self.find_or_create_in_flight(src, seq_zero, seg_n)?;
+        pdu: &SegmentedLowerPDU<Driver>,
+    ) -> Result<Option<UpperPDU<Driver>>, DriverError> {
+        if let Some(src) = &pdu.meta().src {
+            let in_flight = if let Some(current) = self.current.get_mut(src) {
+                current
+            } else {
+                let in_flight = InFlight::new(pdu);
+                self.current.insert(*src, in_flight);
+                self.current.get_mut(src).unwrap()
+            };
 
-        if let Some(in_flight) = &mut self.in_flight[in_flight_index] {
-            if let Some(all) = in_flight.process_inbound(seg_o, segment_m)? {
-                let block_ack = in_flight.block_ack();
-                self.in_flight[in_flight_index] = None;
-                Ok((block_ack, Some(all)))
-            } else {
-                Ok((in_flight.block_ack(), None))
+            if !in_flight.is_valid(pdu) {
+                Err(DriverError::InvalidPDU)?;
             }
-        } else {
-            Err(DriverError::InsufficientSpace)
-        }
-    }
 
-    fn find_or_create_in_flight(
-        &mut self,
-        src: UnicastAddress,
-        seq_zero: u16,
-        seg_n: u8,
-    ) -> Result<usize, InsufficientBuffer> {
-        if let Some((index, _)) = self.in_flight.iter_mut().enumerate().find(|(_, e)| {
-            if let Some(e) = e {
-                e.src == src && e.seq_zero == seq_zero && e.seg_n == seg_n
-            } else {
-                false
-            }
-        }) {
-            Ok(index)
-        } else {
-            if let Some((index, _)) = self
-                .in_flight
-                .iter_mut()
-                .enumerate()
-                .find(|(_, e)| matches!(e, None))
-            {
-                let in_flight = InFlight::new(src, seq_zero, seg_n);
-                self.in_flight[index] = Some(in_flight);
-                Ok(index)
-            } else {
-                Err(InsufficientBuffer)
+            if !in_flight.already_seen(pdu) {
+                in_flight.ingest(pdu)?;
+
+                if in_flight.is_complete() {
+                    // remove, make room for the next
+                    let reassembled = Ok(Some(in_flight.reassemble()?));
+                    self.current.remove(src);
+                    return reassembled;
+                }
             }
         }
+
+        Ok(None)
     }
 }
 
-#[derive(Clone)]
-#[allow(dead_code)]
 struct InFlight {
-    src: UnicastAddress,
-    seq_zero: u16,
+    seq_zero: SeqZero,
     seg_n: u8,
-    segments: Vec<Option<Vec<u8, 12>>, 32>,
+    reassembly: Reassembly,
 }
 
 impl InFlight {
-    fn new(src: UnicastAddress, seq_zero: u16, seg_n: u8) -> Self {
-        let mut segments = Vec::new();
-        for _ in 0..=seg_n {
-            // supposedly infallible
-            segments.push(None).ok();
+    fn new(pdu: &SegmentedLowerPDU<Driver>) -> Self {
+        match pdu {
+            SegmentedLowerPDU::Access(pdu) => {
+                Self::new_access(pdu.seq_zero(), pdu.seg_n(), pdu.szmic())
+            }
+            SegmentedLowerPDU::Control(pdu) => {
+                Self::new_control(pdu.seq_zero(), pdu.seg_n(), pdu.opcode())
+            }
         }
+    }
+
+    fn new_access(seq_zero: SeqZero, seg_n: u8, szmic: SzMic) -> Self {
         Self {
-            src,
             seq_zero,
             seg_n,
-            segments,
+            reassembly: Reassembly::new_access(seg_n, szmic),
         }
     }
 
-    fn block_ack(&self) -> u32 {
-        let mut block_ack = 0;
-        for (i, segment) in self.segments.iter().enumerate() {
-            if let Some(_) = segment {
-                block_ack = block_ack | (1 << i);
+    fn new_control(seq_zero: SeqZero, seg_n: u8, opcode: UpperControlOpcode) -> Self {
+        Self {
+            seq_zero,
+            seg_n,
+            reassembly: Reassembly::new_control(seg_n, opcode),
+        }
+    }
+
+    fn is_valid(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
+        self.seq_zero == pdu.seq_zero()
+    }
+
+    fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
+        self.reassembly.already_seen(pdu.seg_n())
+    }
+
+    fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
+        self.reassembly.ingest(pdu)
+    }
+
+    fn is_complete(&self) -> bool {
+        for seg_o in 0..self.seg_n {
+            if !self.reassembly.already_seen(seg_o) {
+                return false;
             }
         }
-
-        block_ack
+        true
     }
 
-    fn process_inbound(
-        &mut self,
-        seg_n: u8,
-        segment_m: &Vec<u8, 12>,
-    ) -> Result<Option<Vec<u8, 380>>, InsufficientBuffer> {
-        if matches!(self.segments[seg_n as usize], None) {
-            let mut inner = Vec::new();
-            inner
-                .extend_from_slice(segment_m)
-                .map_err(|_| InsufficientBuffer)?;
-            self.segments[seg_n as usize] = Some(inner);
-            if self.segments.iter().all(|e| !matches!(e, None)) {
-                let mut all = Vec::new();
-                for segment in self.segments.iter() {
-                    if let Some(segment) = segment {
-                        all.extend_from_slice(segment)
-                            .map_err(|_| InsufficientBuffer)?
-                    }
+    fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
+        self.reassembly.reassemble()
+    }
+}
+
+enum Reassembly {
+    Access {
+        szmic: SzMic,
+        mask: u64,
+        data: [u8; 380],
+        len: usize,
+    },
+    Control {
+        opcode: UpperControlOpcode,
+        mask: u32,
+        data: [u8; 256],
+        len: usize,
+    },
+}
+
+impl Reassembly {
+    fn new_access(seg_n: u8, szmic: SzMic) -> Self {
+        Self::Access {
+            szmic,
+            mask: 0,
+            data: [0; 380],
+            len: 0,
+        }
+    }
+
+    fn new_control(seg_n: u8, opcode: UpperControlOpcode) -> Self {
+        Self::Control {
+            opcode,
+            mask: 0,
+            data: [0; 256],
+            len: 0,
+        }
+    }
+
+    fn already_seen(&self, seg_n: u8) -> bool {
+        match self {
+            Reassembly::Access { mask, .. } => (*mask & (1 << seg_n)) != 0,
+            Reassembly::Control { mask, .. } => (*mask & (1 << seg_n)) != 0,
+        }
+    }
+
+    fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
+        match (self, pdu) {
+            (
+                Reassembly::Access {
+                    mask, data, len, ..
+                },
+                SegmentedLowerPDU::Access(pdu),
+            ) => {
+                const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<Driver>::SEGMENT_SIZE;
+                *mask = *mask | (1 << pdu.seg_o());
+                if pdu.seg_o() == pdu.seg_n() {
+                    // the last segment
+                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize - 1) + pdu.segment_m().len();
+                    data[SEGMENT_SIZE * pdu.seg_o() as usize
+                        ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
+                        .clone_from_slice(pdu.segment_m());
+                } else {
+                    data[SEGMENT_SIZE * pdu.seg_o() as usize
+                        ..SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
+                        .clone_from_slice(pdu.segment_m());
                 }
-                Ok(Some(all))
-            } else {
-                Ok(None)
             }
-        } else {
-            Ok(None)
+            (
+                Reassembly::Control {
+                    mask, data, len, ..
+                },
+                SegmentedLowerPDU::Control(pdu),
+            ) => {
+                const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<Driver>::SEGMENT_SIZE;
+                *mask = *mask | (1 << pdu.seg_o());
+                if pdu.seg_o() == pdu.seg_n() {
+                    // the last segment
+                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize - 1) + pdu.segment_m().len();
+                    data[SEGMENT_SIZE * pdu.seg_o() as usize
+                        ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
+                        .clone_from_slice(pdu.segment_m());
+                } else {
+                    data[SEGMENT_SIZE * pdu.seg_o() as usize
+                        ..SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
+                        .clone_from_slice(pdu.segment_m());
+                }
+            }
+            _ => Err(DriverError::InvalidPDU)?,
+        }
+        Ok(())
+    }
+
+    fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
+        match self {
+            Reassembly::Control { data, opcode, .. } => {
+                Ok(UpperControlPDU::parse(*opcode, data)?.into())
+            }
+            Reassembly::Access { data, szmic, .. } => {
+                Ok(UpperAccessPDU::parse(data, *szmic)?.into())
+            }
         }
     }
 }
