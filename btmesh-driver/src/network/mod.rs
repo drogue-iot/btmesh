@@ -1,4 +1,4 @@
-use crate::secrets::{NetworkKey, NetworkKeyIter};
+use crate::secrets::NetworkKey;
 use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
@@ -13,7 +13,11 @@ pub struct NetworkDriver {
 }
 
 impl Driver {
-    fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
+    //fn network_keys_by_nid(&self, nid: Nid) -> NetworkKeyIter<'_, Iter<'_, Option<NetworkKey>>> {
+     //   self.secrets.network_keys_by_nid(nid)
+    //}
+
+    fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item=NetworkKeyHandle> + '_ {
         self.secrets.network_keys_by_nid(nid)
     }
 
