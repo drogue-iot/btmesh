@@ -4,6 +4,7 @@ use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
 use hash32_derive::Hash32;
+use btmesh_pdu::lower::InvalidBlock;
 use secrets::Secrets;
 
 mod lower;
@@ -37,6 +38,12 @@ impl From<ParseError> for DriverError {
 impl From<InvalidAddress> for DriverError {
     fn from(_: InvalidAddress) -> Self {
         Self::InvalidAddress
+    }
+}
+
+impl From<InvalidBlock> for DriverError {
+    fn from(_: InvalidBlock) -> Self {
+        Self::InvalidState
     }
 }
 

@@ -123,6 +123,11 @@ impl<S: System> LowerPDU<S> {
     }
 }
 
+/// Error indicating an attempt to ack or check a block outside the range of 0-31.
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidBlock;
+
 #[derive(Copy, Clone)]
 pub struct BlockAck(u32);
 
@@ -133,11 +138,74 @@ impl Default for BlockAck {
 }
 
 impl BlockAck {
-    pub fn is_acked(&self, seg_o: u8) -> bool {
-        (self.0 & (1 << seg_o)) != 0
+    pub fn is_acked(&self, seg_o: u8) -> Result<bool, InvalidBlock> {
+        if seg_o >= 32 {
+            Err(InvalidBlock)?;
+        }
+        Ok((self.0 & (1 << seg_o)) != 0)
     }
 
-    pub fn ack(&mut self, seg_o: u8) {
-        self.0 = self.0 | (1 << seg_o)
+    pub fn ack(&mut self, seg_o: u8) -> Result<(), InvalidBlock>{
+        if seg_o >= 32 {
+            Err(InvalidBlock)?;
+        }
+        self.0 = self.0 | (1 << seg_o);
+        Ok(())
+    }
+
+    fn value(&self) -> u32 {
+        self.0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::lower::{BlockAck, InvalidBlock};
+
+    #[test]
+    pub fn block_ack_valid_blocks() {
+
+        let mut block_ack = BlockAck::default();
+
+        assert_eq!(0, block_ack.value());
+
+        assert_eq!(Ok(false), block_ack.is_acked(1));
+
+        block_ack.ack(1);
+
+        assert_eq!(Ok(true), block_ack.is_acked(1));
+
+        block_ack.ack(1);
+
+        assert_eq!(Ok(true), block_ack.is_acked(1));
+
+        assert_eq!(Ok(false), block_ack.is_acked(4));
+
+        block_ack.ack(4);
+
+        assert_eq!(Ok(true), block_ack.is_acked(4));
+
+        assert_eq!(18, block_ack.value());
+
+        assert_eq!(Ok(false), block_ack.is_acked(0));
+        assert_eq!(Ok(()), block_ack.ack(0));
+        assert_eq!(Ok(true), block_ack.is_acked(0));
+
+        assert_eq!(Ok(false), block_ack.is_acked(31));
+        assert_eq!(Ok(()), block_ack.ack(31));
+        assert_eq!(Ok(true), block_ack.is_acked(31));
+    }
+
+    #[test]
+    pub fn block_ack_invalid_blocks() {
+        let mut block_ack = BlockAck::default();
+
+        assert_eq!(Err(InvalidBlock), block_ack.ack(32));
+        assert_eq!(Err(InvalidBlock), block_ack.is_acked(32));
+
+        assert_eq!(Err(InvalidBlock), block_ack.ack(99));
+        assert_eq!(Err(InvalidBlock), block_ack.is_acked(99));
+
+
     }
 }

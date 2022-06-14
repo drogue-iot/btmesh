@@ -47,14 +47,14 @@ impl<const N: usize> InboundSegmentation<N> {
                 Err(DriverError::InvalidPDU)?;
             }
 
-            if in_flight.already_seen(pdu) {
+            if in_flight.already_seen(pdu)? {
                 Ok((in_flight.block_ack(), None))
             } else {
                 in_flight.ingest(pdu)?;
 
                 Ok((
                     in_flight.block_ack(),
-                    if in_flight.is_complete() {
+                    if in_flight.is_complete()? {
                         let reassembled = Some(in_flight.reassemble()?);
                         self.current.remove(src);
                         reassembled
@@ -89,29 +89,31 @@ impl Blocks {
     /// Record that a given segment has been processed.
     ///
     /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
-    fn ack(&mut self, seg_o: u8) {
-        self.block_ack.ack(seg_o)
+    fn ack(&mut self, seg_o: u8) -> Result<(), DriverError>{
+        Ok(self.block_ack.ack(seg_o)?)
     }
 
     /// Determine if a given segment has been seen.
     ///
     /// * `seg_o`: The `seg_o` (offset) of the block to check.
     ///
-    /// Returns `true` if it has been processed, otherwise `false`.
-    fn already_seen(&self, seg_o: u8) -> bool {
-        self.block_ack.is_acked(seg_o)
+    /// Returns `true` if it has been processed, otherwise `false`,
+    /// or a `DriverError` if attempting to check a block outside of
+    /// the range of 0-31.
+    fn already_seen(&self, seg_o: u8) -> Result<bool, DriverError> {
+        Ok(self.block_ack.is_acked(seg_o)?)
     }
 
     /// Determine if all expected blocks have been processed.
     ///
     /// Returns `true` if all blocks have been processed, otherwise `false`.
-    fn is_complete(&self) -> bool {
+    fn is_complete(&self) -> Result<bool, DriverError> {
         for seg_o in 0..self.seg_n {
-            if !self.block_ack.is_acked(seg_o) {
-                return false;
+            if !self.block_ack.is_acked(seg_o)? {
+                return Ok(false);
             }
         }
-        true
+        Ok(true)
     }
 }
 
@@ -167,8 +169,8 @@ impl InFlight {
     /// Determine if the proposed segment has already been seen for the current in-flight reassembly.
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
-    fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
-        self.blocks.already_seen(pdu.seg_n())
+    fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> Result<bool, DriverError> {
+        Ok(self.blocks.already_seen(pdu.seg_n())?)
     }
 
     /// Ingest a segment.
@@ -186,15 +188,15 @@ impl InFlight {
     /// Determine if all expected blocks have been processed.
     ///
     /// Returns `true` if all blocks have been processed, otherwise `false`.
-    fn is_complete(&self) -> bool {
-        self.blocks.is_complete()
+    fn is_complete(&self) -> Result<bool, DriverError> {
+        Ok(self.blocks.is_complete()?)
     }
 
     /// Reassemble a complete set of segments into a single `UpperPDU`.
     ///
     /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
     fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
-        if !self.is_complete() {
+        if !self.is_complete()? {
             Err(DriverError::InvalidState)?;
         }
         self.reassembly.reassemble()
@@ -278,3 +280,5 @@ impl Reassembly {
         }
     }
 }
+
+
