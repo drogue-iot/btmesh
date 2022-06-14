@@ -23,6 +23,11 @@ impl UnicastAddress {
         }
     }
 
+    /// Create a new unicast address.
+    ///
+    /// # Safety
+    /// The address bytes are not checked for the correct bit-pattern
+    /// for unicast addresses. See `is_unicast_address(...)`.
     pub unsafe fn new_unchecked(addr: u16) -> Self {
         Self(addr)
     }
@@ -44,11 +49,12 @@ impl UnicastAddress {
     }
 }
 
-impl Into<Address> for UnicastAddress {
-    fn into(self) -> Address {
-        Address::Unicast(self)
+impl From<UnicastAddress> for Address {
+    fn from(addr: UnicastAddress) -> Self {
+        Self::Unicast(addr)
     }
 }
+
 #[cfg(feature = "defmt")]
 impl defmt::Format for UnicastAddress {
     fn format(&self, fmt: defmt::Formatter) {

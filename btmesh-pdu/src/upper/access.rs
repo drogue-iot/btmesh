@@ -32,15 +32,15 @@ impl<S:System> UpperAccessPDU<S> {
 
 }
 
-impl<S: System> Into<UpperPDU<S>> for UpperAccessPDU<S> {
-    fn into(self) -> UpperPDU<S> {
-        UpperPDU::Access(self)
+impl<S: System> From<UpperAccessPDU<S>> for UpperPDU<S> {
+    fn from(pdu: UpperAccessPDU<S>) -> Self {
+        UpperPDU::Access(pdu)
     }
 }
 
 impl<S: System> UpperAccessPDU<S> {
     pub fn parse(data: &[u8], szmic: SzMic) -> Result<Self, ParseError> {
-        let (payload, transmic) = data.split_at(data.len() - szmic.len());
+        let (payload, transmic) = data.split_at(data.len() - szmic.size());
 
         Ok(Self {
             payload: Vec::from_slice(payload)?,

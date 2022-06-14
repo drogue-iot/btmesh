@@ -22,9 +22,9 @@ impl SAR {
     }
 }
 
-impl Into<u8> for SAR {
-    fn into(self) -> u8 {
-        match self {
+impl From<SAR> for u8 {
+    fn from(sar: SAR) -> Self {
+        match sar {
             SAR::Complete => 0b00,
             SAR::First => 0b01,
             SAR::Continuation => 0b10,
@@ -54,9 +54,9 @@ impl MessageType {
     }
 }
 
-impl Into<u8> for MessageType {
-    fn into(self) -> u8 {
-        match self {
+impl From<MessageType> for u8 {
+    fn from(message_type: MessageType) -> Self {
+        match message_type {
             MessageType::NetworkPDU => 0x00,
             MessageType::MeshBeacon => 0x01,
             MessageType::ProxyConfiguration => 0x02,
@@ -81,8 +81,8 @@ impl ProxyPDU {
     }
 
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() < 1 {
-            Err(ParseError::InvalidLength)?;
+        if data.is_empty() {
+            return Err(ParseError::InvalidLength);
         }
 
         let sar = SAR::parse(data[0] >> 6)?;

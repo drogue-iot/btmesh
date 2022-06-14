@@ -1,8 +1,6 @@
-use crate::upper::access::UpperAccessPDU;
 use crate::System;
 use btmesh_common::{
-    address::{Address, UnicastAddress},
-    Aid, InsufficientBuffer, ParseError,
+    InsufficientBuffer, ParseError,
 };
 use heapless::Vec;
 
@@ -67,6 +65,7 @@ impl defmt::Format for Opcode {
 }
 
 impl Opcode {
+    #[allow(clippy::len_zero)]
     pub fn matches(&self, data: &[u8]) -> bool {
         match self {
             Opcode::OneOctet(a) if data.len() >= 1 && data[0] == *a => true,
@@ -89,21 +88,19 @@ impl Opcode {
     }
 
     pub fn split(data: &[u8]) -> Option<(Opcode, &[u8])> {
-        if data.is_empty() {
+        if !data.is_empty() {
             None
+        } else if data[0] & 0b10000000 == 0 {
+            // one octet
+            Some((Opcode::OneOctet(data[0] & 0b00111111), &data[1..]))
+        } else if data.len() >= 2 && data[0] & 0b11000000 == 0b10000000 {
+            // two octet
+            Some((Opcode::TwoOctet(data[0], data[1]), &data[2..]))
+        } else if data.len() >= 3 && data[0] & 0b11000000 == 0b11000000 {
+            // three octet
+            Some((Opcode::ThreeOctet(data[0], data[1], data[2]), &data[3..]))
         } else {
-            if data[0] & 0b10000000 == 0 {
-                // one octet
-                Some((Opcode::OneOctet(data[0] & 0b00111111), &data[1..]))
-            } else if data.len() >= 2 && data[0] & 0b11000000 == 0b10000000 {
-                // two octet
-                Some((Opcode::TwoOctet(data[0], data[1]), &data[2..]))
-            } else if data.len() >= 3 && data[0] & 0b11000000 == 0b11000000 {
-                // three octet
-                Some((Opcode::ThreeOctet(data[0], data[1], data[2]), &data[3..]))
-            } else {
-                None
-            }
+            None
         }
     }
 

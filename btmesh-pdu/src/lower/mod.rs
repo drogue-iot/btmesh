@@ -5,11 +5,7 @@ use crate::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
 use crate::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
 use crate::network::CleartextNetworkPDU;
 use crate::System;
-use btmesh_common::address::UnicastAddress;
-use btmesh_common::mic::SzMic;
-use btmesh_common::{Aid, Ctl, InsufficientBuffer, ParseError, SeqZero};
-use heapless::Vec;
-use std::marker::PhantomData;
+use btmesh_common::{Ctl, ParseError, SeqZero};
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum LowerPDU<S: System = ()> {
@@ -132,28 +128,22 @@ pub struct InvalidBlock;
 /// Structure for tracking and communicating "block acks",
 /// indicating which segment(s) have been received and should
 /// be ACK'd for a given segmented lower PDU.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 pub struct BlockAck(u32);
-
-impl Default for BlockAck {
-    fn default() -> Self {
-        Self(0)
-    }
-}
 
 impl BlockAck {
     pub fn is_acked(&self, seg_o: u8) -> Result<bool, InvalidBlock> {
         if seg_o >= 32 {
-            Err(InvalidBlock)?;
+            return Err(InvalidBlock);
         }
         Ok((self.0 & (1 << seg_o)) != 0)
     }
 
     pub fn ack(&mut self, seg_o: u8) -> Result<(), InvalidBlock>{
         if seg_o >= 32 {
-            Err(InvalidBlock)?;
+            return Err(InvalidBlock);
         }
-        self.0 = self.0 | (1 << seg_o);
+        self.0 |= 1 << seg_o;
         Ok(())
     }
 

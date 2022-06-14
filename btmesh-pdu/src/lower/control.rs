@@ -1,6 +1,6 @@
 use crate::upper::control::UpperControlOpcode;
 use crate::System;
-use btmesh_common::{InsufficientBuffer, ParseError, Seq, SeqZero};
+use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
 pub struct UnsegmentedLowerControlPDU<S: System> {

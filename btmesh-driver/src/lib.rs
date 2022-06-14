@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::{InvalidAddress, UnicastAddress};
 use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};

@@ -29,13 +29,19 @@ impl GroupAddress {
     pub fn parse(data: [u8; 2]) -> Result<Self, InvalidAddress> {
         if Self::is_group_address(&data) {
             // Safety: already checked
-            unsafe { Ok(Self::parse_unchecked(data)) }
+            unsafe { Ok(Self::new_unchecked(data)) }
         } else {
             Err(InvalidAddress)
         }
     }
 
-    pub unsafe fn parse_unchecked(data: [u8; 2]) -> Self {
+    /// Parse an group address pattern.
+    ///
+    /// # Safety
+    /// The bits must match the format of a group-address,
+    /// otherwise, a non-group address bit pattern could be contained
+    /// within.  See `is_group_address(...)`.
+    pub unsafe fn new_unchecked(data: [u8; 2]) -> Self {
         match data {
             [0xFF, 0xFC] => Self::AllProxies,
             [0xFF, 0xFD] => Self::AllFriends,
@@ -46,8 +52,8 @@ impl GroupAddress {
     }
 }
 
-impl Into<Address> for GroupAddress {
-    fn into(self) -> Address {
-        Address::Group(self)
+impl From<GroupAddress> for Address {
+    fn from(addr: GroupAddress) -> Self {
+        Self::Group(addr)
     }
 }

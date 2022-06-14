@@ -62,8 +62,8 @@ impl<S: System> UpperControlPDU<S> {
     }
 }
 
-impl<S: System> Into<UpperPDU<S>> for UpperControlPDU<S> {
-    fn into(self) -> UpperPDU<S> {
-        UpperPDU::Control(self)
+impl<S:System> From<UpperControlPDU<S>> for UpperPDU<S> {
+    fn from(pdu: UpperControlPDU<S>) -> Self {
+        UpperPDU::Control(pdu)
     }
 }

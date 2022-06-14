@@ -60,7 +60,7 @@ impl Address {
             unsafe { Self::Unicast(UnicastAddress::new_unchecked(val)) }
         } else if GroupAddress::is_group_address(&data) {
             // Safety: already performed the check.
-            unsafe { Self::Group(GroupAddress::parse_unchecked(data)) }
+            unsafe { Self::Group(GroupAddress::new_unchecked(data)) }
         } else {
             // Safety: all previous checks cover all other cases.
             unsafe { Self::Virtual(VirtualAddress::new_unchecked(val)) }

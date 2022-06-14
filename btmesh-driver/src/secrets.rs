@@ -1,6 +1,5 @@
 use crate::{DriverError, NetworkKeyHandle};
 use btmesh_common::{crypto, Nid};
-use core::slice::Iter;
 
 pub(crate) struct Secrets {
     network_keys: NetworkKeys,
@@ -63,7 +62,7 @@ impl<const N: usize> NetworkKeys<N> {
 
     fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
         if index as usize >= N {
-            Err(DriverError::InsufficientSpace)?
+            return Err(DriverError::InsufficientSpace);
         }
 
         self.keys[index as usize].replace(network_key);

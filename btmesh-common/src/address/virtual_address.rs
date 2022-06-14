@@ -17,6 +17,10 @@ impl VirtualAddress {
         }
     }
 
+    /// Create a virtual address.
+    ///
+    /// # Safety
+    /// The bit-pattern is not verified to be a valid virtual-address.
     pub unsafe fn new_unchecked(addr: u16) -> Self {
         Self(addr)
     }
@@ -46,9 +50,9 @@ impl defmt::Format for VirtualAddress {
     }
 }
 
-impl Into<Address> for VirtualAddress {
-    fn into(self) -> Address {
-        Address::Virtual(self)
+impl From<VirtualAddress> for Address {
+    fn from(addr: VirtualAddress) -> Self {
+        Self::Virtual(addr)
     }
 }
 

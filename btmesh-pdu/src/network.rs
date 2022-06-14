@@ -90,6 +90,8 @@ pub struct CleartextNetworkPDU<S: System = ()> {
 }
 
 impl<S: System> CleartextNetworkPDU<S> {
+
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         network_key: S::NetworkKeyHandle,
         ivi: Ivi,

@@ -1,10 +1,8 @@
-use crate::secrets::NetworkKey;
 use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
-use core::slice::Iter;
 
 pub mod replay_protection;
 
@@ -76,13 +74,13 @@ impl Driver {
 
         let (payload, mic) = encrypted_and_mic.split_at_mut(encrypted_len - ctl.netmic_size());
 
-        if let Ok(_) = crypto::aes_ccm_decrypt_detached(
+        if crypto::aes_ccm_decrypt_detached(
             &self.encryption_key(network_key)?,
             &nonce.into_bytes(),
             payload,
             mic,
             None,
-        ) {
+        ).is_ok() {
             let ttl = Ttl::parse(unobfuscated[0] & 0b01111111)?;
             let seq = Seq::parse(u32::from_be_bytes([
                 0,

@@ -1,11 +1,9 @@
 use heapless::FnvIndexMap;
-use heapless::IndexMap;
-use heapless::Vec;
 
 use crate::{Driver, DriverError};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Seq, SeqZero};
+use btmesh_common::SeqZero;
 use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
 use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
 use btmesh_pdu::lower::{BlockAck, SegmentedLowerPDU};
@@ -39,12 +37,12 @@ impl<const N: usize> InboundSegmentation<N> {
                 current
             } else {
                 let in_flight = InFlight::new(pdu);
-                self.current.insert(*src, in_flight);
+                self.current.insert(*src, in_flight).map_err(|_|DriverError::InsufficientSpace)?;
                 self.current.get_mut(src).unwrap()
             };
 
             if !in_flight.is_valid(pdu) {
-                Err(DriverError::InvalidPDU)?;
+                return Err(DriverError::InvalidPDU);
             }
 
             if in_flight.already_seen(pdu)? {
@@ -64,7 +62,7 @@ impl<const N: usize> InboundSegmentation<N> {
                 ))
             }
         } else {
-            Err(DriverError::InvalidPDU)?
+            Err(DriverError::InvalidPDU)
         }
     }
 }
@@ -91,7 +89,7 @@ impl Blocks {
     /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
     fn ack(&mut self, seg_o: u8) -> Result<(), DriverError> {
         if seg_o > self.seg_n {
-            Err(DriverError::InvalidState)?
+            return Err(DriverError::InvalidState);
         }
         Ok(self.block_ack.ack(seg_o)?)
     }
@@ -188,7 +186,7 @@ impl InFlight {
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
     fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> Result<bool, DriverError> {
-        Ok(self.blocks.already_seen(pdu.seg_n())?)
+        self.blocks.already_seen(pdu.seg_n())
     }
 
     /// Ingest a segment.
@@ -196,10 +194,10 @@ impl InFlight {
     /// Returns a result of `()` or a `DriverError`.
     fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
         if !self.is_valid(pdu) {
-            Err(DriverError::InvalidPDU)?;
+            return Err(DriverError::InvalidPDU);
         }
         self.reassembly.ingest(pdu)?;
-        self.blocks.ack(pdu.seg_o());
+        self.blocks.ack(pdu.seg_o())?;
         Ok(())
     }
 
@@ -207,7 +205,7 @@ impl InFlight {
     ///
     /// Returns `true` if all blocks have been processed, otherwise `false`.
     fn is_complete(&self) -> Result<bool, DriverError> {
-        Ok(self.blocks.is_complete()?)
+        self.blocks.is_complete()
     }
 
     /// Reassemble a complete set of segments into a single `UpperPDU`.
@@ -215,7 +213,7 @@ impl InFlight {
     /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
     fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
         if !self.is_complete()? {
-            Err(DriverError::InvalidState)?;
+            return Err(DriverError::InvalidState);
         }
         self.reassembly.reassemble()
     }
@@ -282,7 +280,7 @@ impl Reassembly {
                         .clone_from_slice(pdu.segment_m());
                 }
             }
-            _ => Err(DriverError::InvalidPDU)?,
+            _ => return Err(DriverError::InvalidPDU),
         }
         Ok(())
     }

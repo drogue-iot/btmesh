@@ -1,3 +1,4 @@
+use std::cmp::Ordering;
 use crate::Driver;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
@@ -28,19 +29,23 @@ impl<const N: usize> ReplayProtection<N> {
         let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;
 
         if let Some(entry) = self.lru.find(|e| e.src == pdu.src()) {
-            if iv_index < entry.iv_index {
-                pdu.meta_mut().replay_protected(true);
-            } else if iv_index == entry.iv_index {
-                if pdu.seq() <= entry.seq {
+            match iv_index.cmp(&entry.iv_index) {
+                Ordering::Less => {
                     pdu.meta_mut().replay_protected(true);
-                } else {
+                }
+                Ordering::Equal => {
+                    if pdu.seq() <= entry.seq {
+                        pdu.meta_mut().replay_protected(true);
+                    } else {
+                        entry.seq = pdu.seq();
+                        pdu.meta_mut().replay_protected(false);
+                    }
+                }
+                Ordering::Greater => {
+                    entry.iv_index = iv_index;
                     entry.seq = pdu.seq();
                     pdu.meta_mut().replay_protected(false);
                 }
-            } else {
-                entry.iv_index = iv_index;
-                entry.seq = pdu.seq();
-                pdu.meta_mut().replay_protected(false);
             }
         } else {
             self.lru.insert(CacheEntry {

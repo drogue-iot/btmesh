@@ -1,4 +1,3 @@
-use crate::mic::SzMic::Bit64;
 use crate::ParseError;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
@@ -9,7 +8,7 @@ pub enum SzMic {
 }
 
 impl SzMic {
-    pub fn len(&self) -> usize {
+    pub fn size(&self) -> usize {
         match self {
             Self::Bit32 => 4,
             Self::Bit64 => 8,
@@ -51,10 +50,10 @@ impl TransMic {
     pub fn as_slice(&self) -> &[u8] {
         match self {
             TransMic::Bit32(transmic) => {
-                &transmic.as_slice()
+                transmic.as_slice()
             }
             TransMic::Bit64(transmic) => {
-                &transmic.as_slice()
+                transmic.as_slice()
             }
         }
     }
@@ -148,8 +147,8 @@ mod tests {
 
     #[test]
     fn szmic_len() {
-        assert_eq!( 4, SzMic::Bit32.len());
-        assert_eq!( 8, SzMic::Bit64.len());
+        assert_eq!( 4, SzMic::Bit32.size());
+        assert_eq!( 8, SzMic::Bit64.size());
     }
 
     #[test]

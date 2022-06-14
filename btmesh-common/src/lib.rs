@@ -57,9 +57,9 @@ impl Nid {
     }
 }
 
-impl Into<u8> for Nid {
-    fn into(self) -> u8 {
-        self.0
+impl From<Nid> for u8 {
+    fn from(nid: Nid) -> Self {
+        nid.0
     }
 }
 
@@ -86,9 +86,9 @@ impl Aid {
     }
 }
 
-impl Into<u8> for Aid {
-    fn into(self) -> u8 {
-        self.0
+impl From<Aid> for u8 {
+    fn from(aid: Aid) -> Self {
+        aid.0
     }
 }
 
@@ -137,9 +137,9 @@ impl Ivi {
     }
 }
 
-impl Into<u8> for Ivi {
-    fn into(self) -> u8 {
-        match self {
+impl From<Ivi> for u8 {
+    fn from(ivi: Ivi) -> Self {
+        match ivi {
             Ivi::Zero => 0,
             Ivi::One => 1,
         }
