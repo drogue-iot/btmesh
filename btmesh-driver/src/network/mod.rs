@@ -80,7 +80,9 @@ impl Driver {
             payload,
             mic,
             None,
-        ).is_ok() {
+        )
+        .is_ok()
+        {
             let ttl = Ttl::parse(unobfuscated[0] & 0b01111111)?;
             let seq = Seq::parse(u32::from_be_bytes([
                 0,

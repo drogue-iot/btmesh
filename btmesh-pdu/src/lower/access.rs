@@ -72,16 +72,23 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
         })
     }
 
-    pub fn new(akf_aid: Option<Aid>, szmic: SzMic, seq_zero: SeqZero, seg_o: u8, seg_n: u8, segment_m: &[u8]) -> Result<Self, InsufficientBuffer> {
-        Ok( Self {
+    pub fn new(
+        akf_aid: Option<Aid>,
+        szmic: SzMic,
+        seq_zero: SeqZero,
+        seg_o: u8,
+        seg_n: u8,
+        segment_m: &[u8],
+    ) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
             akf_aid,
             szmic,
             seq_zero,
             seg_o,
             seg_n,
             segment_m: Vec::from_slice(segment_m)?,
-            meta: Default::default()
-        } )
+            meta: Default::default(),
+        })
     }
 
     pub fn seq_zero(&self) -> SeqZero {

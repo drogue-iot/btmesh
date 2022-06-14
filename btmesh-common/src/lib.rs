@@ -175,7 +175,6 @@ impl Seq {
 pub struct SeqZero(u16);
 
 impl SeqZero {
-
     pub fn new(seq_zero: u16) -> Self {
         Self(seq_zero)
     }

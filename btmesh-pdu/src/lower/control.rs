@@ -66,16 +66,21 @@ impl<S: System> SegmentedLowerControlPDU<S> {
         })
     }
 
-    pub fn new(opcode: UpperControlOpcode, seq_zero: SeqZero, seg_o: u8, seg_n: u8, segment_m: &[u8]) -> Result<Self, InsufficientBuffer> {
-        Ok( Self {
+    pub fn new(
+        opcode: UpperControlOpcode,
+        seq_zero: SeqZero,
+        seg_o: u8,
+        seg_n: u8,
+        segment_m: &[u8],
+    ) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
             opcode,
             seq_zero,
             seg_o,
             seg_n,
             segment_m: Vec::from_slice(segment_m)?,
-            meta: Default::default()
-        } )
-
+            meta: Default::default(),
+        })
     }
 
     pub fn opcode(&self) -> UpperControlOpcode {

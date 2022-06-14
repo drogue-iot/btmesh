@@ -2,10 +2,10 @@
 use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::{InvalidAddress, UnicastAddress};
 use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};
+use btmesh_pdu::lower::InvalidBlock;
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
 use hash32_derive::Hash32;
-use btmesh_pdu::lower::InvalidBlock;
 use secrets::Secrets;
 
 mod lower;

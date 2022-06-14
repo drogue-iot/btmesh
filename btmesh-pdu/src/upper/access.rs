@@ -12,8 +12,7 @@ pub struct UpperAccessPDU<S: System> {
     meta: S::UpperMetadata,
 }
 
-impl<S:System> UpperAccessPDU<S> {
-
+impl<S: System> UpperAccessPDU<S> {
     pub fn payload(&self) -> &[u8] {
         &*self.payload
     }
@@ -29,7 +28,6 @@ impl<S:System> UpperAccessPDU<S> {
     pub fn meta_mut(&mut self) -> &mut S::UpperMetadata {
         &mut self.meta
     }
-
 }
 
 impl<S: System> From<UpperAccessPDU<S>> for UpperPDU<S> {

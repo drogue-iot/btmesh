@@ -1,7 +1,5 @@
 use crate::System;
-use btmesh_common::{
-    InsufficientBuffer, ParseError,
-};
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[derive(Clone, Debug)]

@@ -37,7 +37,9 @@ impl<const N: usize> InboundSegmentation<N> {
                 current
             } else {
                 let in_flight = InFlight::new(pdu);
-                self.current.insert(*src, in_flight).map_err(|_|DriverError::InsufficientSpace)?;
+                self.current
+                    .insert(*src, in_flight)
+                    .map_err(|_| DriverError::InsufficientSpace)?;
                 self.current.get_mut(src).unwrap()
             };
 
@@ -290,7 +292,7 @@ impl Reassembly {
             Reassembly::Control { data, opcode, len } => {
                 Ok(UpperControlPDU::parse(*opcode, &data[0..*len])?.into())
             }
-            Reassembly::Access { data, szmic, len} => {
+            Reassembly::Access { data, szmic, len } => {
                 Ok(UpperAccessPDU::parse(&data[0..*len], *szmic)?.into())
             }
         }
@@ -385,15 +387,29 @@ mod tests {
     fn reassembly() {
         let mut reassembly = Reassembly::new_access(SzMic::Bit32);
 
-        let pdu =
-            SegmentedLowerAccessPDU::<Driver>::new(None, SzMic::Bit32, SeqZero::new(42), 0, 1, b"ABCDEFGHIJKL").unwrap();
+        let pdu = SegmentedLowerAccessPDU::<Driver>::new(
+            None,
+            SzMic::Bit32,
+            SeqZero::new(42),
+            0,
+            1,
+            b"ABCDEFGHIJKL",
+        )
+        .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
         reassembly.ingest(&pdu);
 
-        let pdu =
-            SegmentedLowerAccessPDU::<Driver>::new(None, SzMic::Bit32, SeqZero::new(42), 1, 1, b"ZYX").unwrap();
+        let pdu = SegmentedLowerAccessPDU::<Driver>::new(
+            None,
+            SzMic::Bit32,
+            SeqZero::new(42),
+            1,
+            1,
+            b"ZYX",
+        )
+        .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 

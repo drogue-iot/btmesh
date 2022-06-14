@@ -62,7 +62,7 @@ impl<S: System> UpperControlPDU<S> {
     }
 }
 
-impl<S:System> From<UpperControlPDU<S>> for UpperPDU<S> {
+impl<S: System> From<UpperControlPDU<S>> for UpperPDU<S> {
     fn from(pdu: UpperControlPDU<S>) -> Self {
         UpperPDU::Control(pdu)
     }
