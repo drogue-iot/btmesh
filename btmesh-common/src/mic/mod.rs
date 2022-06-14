@@ -11,8 +11,8 @@ pub enum SzMic {
 impl SzMic {
     pub fn len(&self) -> usize {
         match self {
-            SzMic::Bit32 => 4,
-            SzMic::Bit64 => 8,
+            Self::Bit32 => 4,
+            Self::Bit64 => 8,
         }
     }
 
@@ -65,7 +65,6 @@ impl TransMic {
 pub struct Bit32TransMic([u8; 4]);
 
 impl Bit32TransMic {
-
     pub fn as_slice(&self) -> &[u8] {
         &self.0
     }
@@ -84,7 +83,7 @@ impl Bit64TransMic {
 
 #[cfg(test)]
 mod tests {
-    use crate::mic::TransMic;
+    use crate::mic::{SzMic, TransMic};
 
     #[test]
     fn transmic_parse() {
@@ -133,4 +132,30 @@ mod tests {
             assert!(false, "failed to error on 5-byte transmic")
         }
     }
+
+    #[test]
+    fn transmic_szmic() {
+        let transmic = TransMic::parse( b"abcd" ).unwrap();
+
+        assert!( matches!( transmic, TransMic::Bit32(_)));
+        assert_eq!( SzMic::Bit32, transmic.szmic() );
+
+        let transmic = TransMic::parse( b"abcdwxyz" ).unwrap();
+
+        assert!( matches!( transmic, TransMic::Bit64(_)));
+        assert_eq!( SzMic::Bit64, transmic.szmic() );
+    }
+
+    #[test]
+    fn szmic_len() {
+        assert_eq!( 4, SzMic::Bit32.len());
+        assert_eq!( 8, SzMic::Bit64.len());
+    }
+
+    #[test]
+    fn szmic_parse() {
+        assert_eq!( SzMic::Bit32, SzMic::parse(0));
+        assert_eq!( SzMic::Bit64, SzMic::parse(1));
+    }
+
 }
