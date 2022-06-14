@@ -47,12 +47,90 @@ impl TransMic {
             TransMic::Bit64(_) => SzMic::Bit64,
         }
     }
+
+    pub fn as_slice(&self) -> &[u8] {
+        match self {
+            TransMic::Bit32(transmic) => {
+                &transmic.as_slice()
+            }
+            TransMic::Bit64(transmic) => {
+                &transmic.as_slice()
+            }
+        }
+    }
 }
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Bit32TransMic([u8; 4]);
 
+impl Bit32TransMic {
+
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+}
+
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Bit64TransMic([u8; 6]);
+pub struct Bit64TransMic([u8; 8]);
+
+impl Bit64TransMic {
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
+}
+
+
+#[cfg(test)]
+mod tests {
+    use crate::mic::TransMic;
+
+    #[test]
+    fn transmic_parse() {
+        let transmic = TransMic::parse( b"abcd" ).unwrap();
+        if let TransMic::Bit32(transmic) = transmic {
+            assert_eq!( *b"abcd", transmic.as_slice())
+        } else {
+            assert!(false, "failed to parse a 32-bit transmic")
+        }
+
+        let transmic = TransMic::parse( b"abcdefgh" ).unwrap();
+
+        if let TransMic::Bit64(transmic) = transmic {
+            assert_eq!( *b"abcdefgh", transmic.as_slice())
+        } else {
+            assert!(false, "failed to parse a 64-bit transmic")
+        }
+
+        if let Err(_) = TransMic::parse( b"") {
+            // okay
+        } else {
+            assert!(false, "failed to error on 0-byte transmic")
+        }
+
+        if let Err(_) = TransMic::parse( b"a") {
+            // okay
+        } else {
+            assert!(false, "failed to error on 1-byte transmic")
+        }
+
+        if let Err(_) = TransMic::parse( b"ab") {
+            // okay
+        } else {
+            assert!(false, "failed to error on 2-byte transmic")
+        }
+
+        if let Err(_) = TransMic::parse( b"abc") {
+            // okay
+        } else {
+            assert!(false, "failed to error on 3-byte transmic")
+        }
+
+        if let Err(_) = TransMic::parse( b"abcde") {
+            // okay
+        } else {
+            assert!(false, "failed to error on 5-byte transmic")
+        }
+    }
+}

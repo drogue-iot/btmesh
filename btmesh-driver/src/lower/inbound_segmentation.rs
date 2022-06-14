@@ -258,13 +258,13 @@ impl Reassembly {
                 const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<Driver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment, we now know the length.
-                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize - 1) + pdu.segment_m().len();
+                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
                         .clone_from_slice(pdu.segment_m());
                 } else {
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
-                        ..SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
+                        ..=SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
                         .clone_from_slice(pdu.segment_m());
                 }
             }
@@ -272,13 +272,13 @@ impl Reassembly {
                 const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<Driver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment
-                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize - 1) + pdu.segment_m().len();
+                    *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
                         .clone_from_slice(pdu.segment_m());
                 } else {
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
-                        ..SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
+                        ..=SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
                         .clone_from_slice(pdu.segment_m());
                 }
             }
@@ -289,11 +289,11 @@ impl Reassembly {
 
     fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
         match self {
-            Reassembly::Control { data, opcode, .. } => {
-                Ok(UpperControlPDU::parse(*opcode, data)?.into())
+            Reassembly::Control { data, opcode, len } => {
+                Ok(UpperControlPDU::parse(*opcode, &data[0..*len])?.into())
             }
-            Reassembly::Access { data, szmic, .. } => {
-                Ok(UpperAccessPDU::parse(data, *szmic)?.into())
+            Reassembly::Access { data, szmic, len} => {
+                Ok(UpperAccessPDU::parse(&data[0..*len], *szmic)?.into())
             }
         }
     }
@@ -301,14 +301,15 @@ impl Reassembly {
 
 #[cfg(test)]
 mod tests {
-    use crate::lower::inbound_segmentation::{Blocks, InFlight};
+    use crate::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
     use crate::{Driver, DriverError};
-    use btmesh_common::mic::SzMic;
+    use btmesh_common::mic::{Bit32TransMic, SzMic, TransMic};
     use btmesh_common::SeqZero;
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::lower::SegmentedLowerPDU;
     use btmesh_pdu::upper::control::UpperControlOpcode;
+    use btmesh_pdu::upper::UpperPDU;
 
     #[test]
     fn in_flight_is_valid_seq_zero() {
@@ -380,5 +381,35 @@ mod tests {
         assert_eq!(Ok(true), blocks.is_complete());
 
         assert_eq!(Err(DriverError::InvalidState), blocks.ack(4));
+    }
+
+    #[test]
+    fn reassembly() {
+        let mut reassembly = Reassembly::new_access(SzMic::Bit32);
+
+        let pdu =
+            SegmentedLowerAccessPDU::<Driver>::new(None, SzMic::Bit32, SeqZero::new(42), 0, 1, b"ABCDEFGHIJKL").unwrap();
+
+        let pdu = SegmentedLowerPDU::Access(pdu);
+
+        reassembly.ingest(&pdu);
+
+        let pdu =
+            SegmentedLowerAccessPDU::<Driver>::new(None, SzMic::Bit32, SeqZero::new(42), 1, 1, b"ZYX").unwrap();
+
+        let pdu = SegmentedLowerPDU::Access(pdu);
+
+        reassembly.ingest(&pdu);
+
+        if let UpperPDU::Access(result) = reassembly.reassemble().unwrap() {
+            let payload = result.payload();
+            // last 4 go to the transmic
+            assert_eq!(b"ABCDEFGHIJK", payload);
+
+            let transmic = result.transmic();
+            assert_eq!(b"LZYX", transmic.as_slice());
+        } else {
+            assert!(false)
+        }
     }
 }

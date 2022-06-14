@@ -12,6 +12,26 @@ pub struct UpperAccessPDU<S: System> {
     meta: S::UpperMetadata,
 }
 
+impl<S:System> UpperAccessPDU<S> {
+
+    pub fn payload(&self) -> &[u8] {
+        &*self.payload
+    }
+
+    pub fn transmic(&self) -> TransMic {
+        self.transmic
+    }
+
+    pub fn meta(&self) -> &S::UpperMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::UpperMetadata {
+        &mut self.meta
+    }
+
+}
+
 impl<S: System> Into<UpperPDU<S>> for UpperAccessPDU<S> {
     fn into(self) -> UpperPDU<S> {
         UpperPDU::Access(self)
