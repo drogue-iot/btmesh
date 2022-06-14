@@ -89,7 +89,7 @@ impl Blocks {
     /// Record that a given segment has been processed.
     ///
     /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
-    fn ack(&mut self, seg_o: u8) -> Result<(), DriverError>{
+    fn ack(&mut self, seg_o: u8) -> Result<(), DriverError> {
         if seg_o > self.seg_n {
             Err(DriverError::InvalidState)?
         }
@@ -166,6 +166,21 @@ impl InFlight {
     /// Returns `true` if it is valid, otherwise `false`.
     fn is_valid(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
         // TODO: check pdu-specific details such as SzMic or UpperControlOpcode.
+        match (&self.reassembly, pdu) {
+            (Reassembly::Access { szmic, .. }, SegmentedLowerPDU::Access(pdu)) => {
+                if pdu.szmic() != *szmic {
+                    return false;
+                }
+                // ignore, okay
+            }
+            (Reassembly::Control { opcode, .. }, SegmentedLowerPDU::Control(pdu)) => {
+                if pdu.opcode() != *opcode {
+                    return false;
+                }
+                // ignore, okay
+            }
+            _ => return false,
+        }
         self.seq_zero == pdu.seq_zero()
     }
 
@@ -284,11 +299,68 @@ impl Reassembly {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
-    use crate::DriverError;
-    use crate::lower::inbound_segmentation::Blocks;
+    use crate::lower::inbound_segmentation::{Blocks, InFlight};
+    use crate::{Driver, DriverError};
+    use btmesh_common::mic::SzMic;
+    use btmesh_common::SeqZero;
+    use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
+    use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
+    use btmesh_pdu::lower::SegmentedLowerPDU;
+    use btmesh_pdu::upper::control::UpperControlOpcode;
+
+    #[test]
+    fn in_flight_is_valid_seq_zero() {
+        let seq_zero = SeqZero::new(42);
+        let seg_n = 4;
+        let szmic = SzMic::Bit64;
+        let in_flight = InFlight::new_access(seq_zero, seg_n, szmic);
+
+        let pdu =
+            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(42), 0, seg_n, &[]).unwrap();
+
+        let pdu = SegmentedLowerPDU::Access(pdu);
+
+        assert_eq!(true, in_flight.is_valid(&pdu));
+
+        let pdu =
+            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(88), 0, seg_n, &[]).unwrap();
+
+        let pdu = SegmentedLowerPDU::Access(pdu);
+
+        assert_eq!(false, in_flight.is_valid(&pdu));
+    }
+
+    #[test]
+    fn in_flight_is_valid_pdu_type() {
+        let seq_zero = SeqZero::new(42);
+        let seg_n = 4;
+        let szmic = SzMic::Bit64;
+        let in_flight = InFlight::new_control(seq_zero, seg_n, UpperControlOpcode::FriendPoll);
+
+        let pdu =
+            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(42), 0, seg_n, &[]).unwrap();
+
+        let pdu = SegmentedLowerPDU::Access(pdu);
+
+        assert_eq!(false, in_flight.is_valid(&pdu));
+
+        let in_flight = InFlight::new_access(seq_zero, seg_n, SzMic::Bit32);
+
+        let pdu = SegmentedLowerControlPDU::new(
+            UpperControlOpcode::FriendPoll,
+            SeqZero::new(42),
+            0,
+            seg_n,
+            &[],
+        )
+        .unwrap();
+
+        let pdu = SegmentedLowerPDU::Control(pdu);
+
+        assert_eq!(false, in_flight.is_valid(&pdu));
+    }
 
     #[test]
     fn blocks() {
@@ -309,6 +381,4 @@ mod tests {
 
         assert_eq!(Err(DriverError::InvalidState), blocks.ack(4));
     }
-
-
 }

@@ -4,6 +4,8 @@ pub mod address;
 pub mod crypto;
 pub mod mic;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub struct InsufficientBuffer;
 
 impl From<()> for InsufficientBuffer {
@@ -173,6 +175,11 @@ impl Seq {
 pub struct SeqZero(u16);
 
 impl SeqZero {
+
+    pub fn new(seq_zero: u16) -> Self {
+        Self(seq_zero)
+    }
+
     pub fn parse(data: u16) -> Result<Self, ParseError> {
         Ok(Self(data))
     }

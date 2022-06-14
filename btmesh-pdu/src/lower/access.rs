@@ -1,6 +1,6 @@
 use crate::System;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Aid, ParseError, SeqZero};
+use btmesh_common::{Aid, InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
 pub struct UnsegmentedLowerAccessPDU<S: System> {
@@ -70,6 +70,18 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             segment_m,
             meta: Default::default(),
         })
+    }
+
+    pub fn new(akf_aid: Option<Aid>, szmic: SzMic, seq_zero: SeqZero, seg_o: u8, seg_n: u8, segment_m: &[u8]) -> Result<Self, InsufficientBuffer> {
+        Ok( Self {
+            akf_aid,
+            szmic,
+            seq_zero,
+            seg_o,
+            seg_n,
+            segment_m: Vec::from_slice(segment_m)?,
+            meta: Default::default()
+        } )
     }
 
     pub fn seq_zero(&self) -> SeqZero {

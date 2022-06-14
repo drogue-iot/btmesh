@@ -3,7 +3,7 @@ use crate::System;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum UpperControlOpcode {
     FriendPoll = 0x01,

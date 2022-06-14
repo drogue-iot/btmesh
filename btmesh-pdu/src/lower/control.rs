@@ -1,6 +1,6 @@
 use crate::upper::control::UpperControlOpcode;
 use crate::System;
-use btmesh_common::{ParseError, SeqZero};
+use btmesh_common::{InsufficientBuffer, ParseError, Seq, SeqZero};
 use heapless::Vec;
 
 pub struct UnsegmentedLowerControlPDU<S: System> {
@@ -64,6 +64,18 @@ impl<S: System> SegmentedLowerControlPDU<S> {
             segment_m: Vec::from_slice(segment_m)?,
             meta: Default::default(),
         })
+    }
+
+    pub fn new(opcode: UpperControlOpcode, seq_zero: SeqZero, seg_o: u8, seg_n: u8, segment_m: &[u8]) -> Result<Self, InsufficientBuffer> {
+        Ok( Self {
+            opcode,
+            seq_zero,
+            seg_o,
+            seg_n,
+            segment_m: Vec::from_slice(segment_m)?,
+            meta: Default::default()
+        } )
+
     }
 
     pub fn opcode(&self) -> UpperControlOpcode {
