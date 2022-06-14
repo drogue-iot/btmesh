@@ -66,7 +66,7 @@ impl Driver {
         let nonce = NetworkNonce::new(
             unobfuscated[0],
             seq,
-            [unobfuscated[4], unobfuscated[5]],
+            UnicastAddress::parse([unobfuscated[4], unobfuscated[5]])?,
             iv_index,
         );
 

@@ -8,7 +8,7 @@ pub struct NetworkNonce([u8; 13]);
 impl NetworkNonce {
     const NONCE_TYPE: u8 = 0x00;
 
-    pub fn new(ctl_ttl: u8, seq: Seq, src: [u8; 2], iv_index: IvIndex) -> Self {
+    pub fn new(ctl_ttl: u8, seq: Seq, src: UnicastAddress, iv_index: IvIndex) -> Self {
         let mut nonce = [0; 13];
         nonce[0] = Self::NONCE_TYPE;
         nonce[1] = ctl_ttl;
@@ -18,6 +18,7 @@ impl NetworkNonce {
         nonce[3] = seq[2];
         nonce[4] = seq[3];
 
+        let src = src.as_bytes();
         nonce[5] = src[0];
         nonce[6] = src[1];
 
@@ -133,3 +134,27 @@ impl Deref for DeviceNonce {
 }
 
 pub struct ProxyNonce([u8; 13]);
+
+#[cfg(test)]
+mod test {
+    use crate::address::UnicastAddress;
+    use crate::crypto::nonce::NetworkNonce;
+    use crate::{IvIndex, Seq};
+
+    #[test]
+    fn network_nonce() {
+        // Test Message #1, Network PDU
+        let expected = [
+            0x00, 0x80, 0x00, 0x00, 0x01, 0x12, 0x01, 0x00, 0x00, 0x12, 0x34, 0x56, 0x78,
+        ];
+
+        let ctl_ttl = 0x80;
+        let seq = Seq::parse(0x000001).unwrap();
+        let src = UnicastAddress::parse([0x12, 0x01]).unwrap();
+        let iv_index = IvIndex::parse(&[0x12, 0x34, 0x56, 0x78]).unwrap();
+
+        let result = NetworkNonce::new(ctl_ttl, seq, src, iv_index);
+
+        assert_eq!(expected, result.into_bytes())
+    }
+}

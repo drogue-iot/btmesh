@@ -103,6 +103,19 @@ impl From<u8> for Aid {
 pub struct IvIndex(u32);
 
 impl IvIndex {
+    pub fn parse(iv_index: &[u8]) -> Result<Self, ParseError> {
+        if iv_index.len() == 4 {
+            Ok(Self(u32::from_be_bytes([
+                iv_index[0],
+                iv_index[1],
+                iv_index[2],
+                iv_index[3],
+            ])))
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+
     pub fn to_be_bytes(&self) -> [u8; 4] {
         self.0.to_be_bytes()
     }

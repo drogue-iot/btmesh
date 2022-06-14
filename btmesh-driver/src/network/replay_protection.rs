@@ -12,10 +12,12 @@ struct CacheEntry {
     iv_index: u16,
 }
 
+#[derive(Default)]
 pub struct ReplayProtection<const N: usize = 100> {
     lru: LRUCache<CacheEntry, N>,
 }
 
+/*
 impl<const N: usize> Default for ReplayProtection<N> {
     fn default() -> Self {
         Self {
@@ -23,6 +25,7 @@ impl<const N: usize> Default for ReplayProtection<N> {
         }
     }
 }
+ */
 
 impl<const N: usize> ReplayProtection<N> {
     pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<Driver>) {

@@ -163,17 +163,17 @@ mod tests {
 
         assert_eq!(Ok(false), block_ack.is_acked(1));
 
-        block_ack.ack(1);
+        block_ack.ack(1).unwrap();
 
         assert_eq!(Ok(true), block_ack.is_acked(1));
 
-        block_ack.ack(1);
+        block_ack.ack(1).unwrap();
 
         assert_eq!(Ok(true), block_ack.is_acked(1));
 
         assert_eq!(Ok(false), block_ack.is_acked(4));
 
-        block_ack.ack(4);
+        block_ack.ack(4).unwrap();
 
         assert_eq!(Ok(true), block_ack.is_acked(4));
 

@@ -303,7 +303,7 @@ impl Reassembly {
 mod tests {
     use crate::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
     use crate::{Driver, DriverError};
-    use btmesh_common::mic::{Bit32TransMic, SzMic, TransMic};
+    use btmesh_common::mic::SzMic;
     use btmesh_common::SeqZero;
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
@@ -399,7 +399,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
-        reassembly.ingest(&pdu);
+        reassembly.ingest(&pdu).unwrap();
 
         let pdu = SegmentedLowerAccessPDU::<Driver>::new(
             None,
@@ -413,7 +413,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
-        reassembly.ingest(&pdu);
+        reassembly.ingest(&pdu).unwrap();
 
         if let UpperPDU::Access(result) = reassembly.reassemble().unwrap() {
             let payload = result.payload();
