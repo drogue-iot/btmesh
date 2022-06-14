@@ -11,7 +11,8 @@ mod lower;
 mod network;
 mod secrets;
 
-#[derive(Debug)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DriverError {
     InvalidState,
     InvalidKeyLength,

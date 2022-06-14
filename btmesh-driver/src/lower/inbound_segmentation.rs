@@ -90,6 +90,9 @@ impl Blocks {
     ///
     /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
     fn ack(&mut self, seg_o: u8) -> Result<(), DriverError>{
+        if seg_o > self.seg_n {
+            Err(DriverError::InvalidState)?
+        }
         Ok(self.block_ack.ack(seg_o)?)
     }
 
@@ -108,7 +111,7 @@ impl Blocks {
     ///
     /// Returns `true` if all blocks have been processed, otherwise `false`.
     fn is_complete(&self) -> Result<bool, DriverError> {
-        for seg_o in 0..self.seg_n {
+        for seg_o in 0..=self.seg_n {
             if !self.block_ack.is_acked(seg_o)? {
                 return Ok(false);
             }
@@ -282,3 +285,30 @@ impl Reassembly {
 }
 
 
+#[cfg(test)]
+mod tests {
+    use crate::DriverError;
+    use crate::lower::inbound_segmentation::Blocks;
+
+    #[test]
+    fn blocks() {
+        let mut blocks = Blocks::new(3);
+
+        assert_eq!(Ok(false), blocks.is_complete());
+        assert_eq!(Ok(()), blocks.ack(0));
+        assert_eq!(Ok(false), blocks.is_complete());
+        assert_eq!(Ok(()), blocks.ack(1));
+        assert_eq!(Ok(false), blocks.is_complete());
+        assert_eq!(Ok(()), blocks.ack(2));
+        assert_eq!(Ok(()), blocks.ack(2));
+        assert_eq!(Ok(()), blocks.ack(2));
+        assert_eq!(Ok(()), blocks.ack(2));
+        assert_eq!(Ok(false), blocks.is_complete());
+        assert_eq!(Ok(()), blocks.ack(3));
+        assert_eq!(Ok(true), blocks.is_complete());
+
+        assert_eq!(Err(DriverError::InvalidState), blocks.ack(4));
+    }
+
+
+}

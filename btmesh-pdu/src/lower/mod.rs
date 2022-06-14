@@ -128,6 +128,10 @@ impl<S: System> LowerPDU<S> {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InvalidBlock;
 
+
+/// Structure for tracking and communicating "block acks",
+/// indicating which segment(s) have been received and should
+/// be ACK'd for a given segmented lower PDU.
 #[derive(Copy, Clone)]
 pub struct BlockAck(u32);
 
@@ -205,7 +209,5 @@ mod tests {
 
         assert_eq!(Err(InvalidBlock), block_ack.ack(99));
         assert_eq!(Err(InvalidBlock), block_ack.is_acked(99));
-
-
     }
 }

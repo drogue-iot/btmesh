@@ -19,7 +19,7 @@ impl From<u8> for InsufficientBuffer {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 pub enum ParseError {
     InvalidPDUFormat,
     InvalidValue,
