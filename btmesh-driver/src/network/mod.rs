@@ -99,7 +99,8 @@ impl Driver {
 
             let meta = NetworkMetadata {
                 iv_index,
-                ..Default::default()
+                replay_protected: false,
+                should_relay: false
             };
 
             Ok(CleartextNetworkPDU::new(

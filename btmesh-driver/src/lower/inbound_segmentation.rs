@@ -1,6 +1,6 @@
 use heapless::FnvIndexMap;
 
-use crate::{Driver, DriverError};
+use crate::{Driver, DriverError, UpperMetadata};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
@@ -32,39 +32,37 @@ impl<const N: usize> InboundSegmentation<N> {
         &mut self,
         pdu: &SegmentedLowerPDU<Driver>,
     ) -> Result<(BlockAck, Option<UpperPDU<Driver>>), DriverError> {
-        if let Some(src) = &pdu.meta().src {
-            let in_flight = if let Some(current) = self.current.get_mut(src) {
-                current
-            } else {
-                let in_flight = InFlight::new(pdu);
-                self.current
-                    .insert(*src, in_flight)
-                    .map_err(|_| DriverError::InsufficientSpace)?;
-                self.current.get_mut(src).unwrap()
-            };
-
-            if !in_flight.is_valid(pdu) {
-                return Err(DriverError::InvalidPDU);
-            }
-
-            if in_flight.already_seen(pdu)? {
-                Ok((in_flight.block_ack(), None))
-            } else {
-                in_flight.ingest(pdu)?;
-
-                Ok((
-                    in_flight.block_ack(),
-                    if in_flight.is_complete()? {
-                        let reassembled = Some(in_flight.reassemble()?);
-                        self.current.remove(src);
-                        reassembled
-                    } else {
-                        None
-                    },
-                ))
-            }
+        let src = pdu.meta().src();
+        let in_flight = if let Some(current) = self.current.get_mut(&src) {
+            current
         } else {
-            Err(DriverError::InvalidPDU)
+            let in_flight = InFlight::new(pdu);
+            self.current
+                .insert(src, in_flight)
+                .map_err(|_| DriverError::InsufficientSpace)?;
+            self.current.get_mut(&src).unwrap()
+        };
+
+        if !in_flight.is_valid(pdu) {
+            return Err(DriverError::InvalidPDU);
+        }
+
+        if in_flight.already_seen(pdu)? {
+            Ok((in_flight.block_ack(), None))
+        } else {
+            in_flight.ingest(pdu)?;
+
+            Ok((
+                in_flight.block_ack(),
+                if in_flight.is_complete()? {
+                    let reassembled =
+                        Some(in_flight.reassemble(UpperMetadata::from_segmented_lower_pdu(pdu))?);
+                    self.current.remove(&src);
+                    reassembled
+                } else {
+                    None
+                },
+            ))
         }
     }
 }
@@ -213,11 +211,11 @@ impl InFlight {
     /// Reassemble a complete set of segments into a single `UpperPDU`.
     ///
     /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
-    fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
+    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<Driver>, DriverError> {
         if !self.is_complete()? {
             return Err(DriverError::InvalidState);
         }
-        self.reassembly.reassemble()
+        self.reassembly.reassemble(meta)
     }
 }
 
@@ -287,13 +285,13 @@ impl Reassembly {
         Ok(())
     }
 
-    fn reassemble(&self) -> Result<UpperPDU<Driver>, DriverError> {
+    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<Driver>, DriverError> {
         match self {
             Reassembly::Control { data, opcode, len } => {
-                Ok(UpperControlPDU::parse(*opcode, &data[0..*len])?.into())
+                Ok(UpperControlPDU::parse(*opcode, &data[0..*len], meta)?.into())
             }
             Reassembly::Access { data, szmic, len } => {
-                Ok(UpperAccessPDU::parse(&data[0..*len], *szmic)?.into())
+                Ok(UpperAccessPDU::parse(&data[0..*len], *szmic, meta)?.into())
             }
         }
     }
@@ -302,9 +300,10 @@ impl Reassembly {
 #[cfg(test)]
 mod tests {
     use crate::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
-    use crate::{Driver, DriverError};
+    use crate::{Driver, DriverError, LowerMetadata, UpperMetadata};
+    use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
-    use btmesh_common::SeqZero;
+    use btmesh_common::{IvIndex, Seq, SeqZero};
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::lower::SegmentedLowerPDU;
@@ -318,15 +317,41 @@ mod tests {
         let szmic = SzMic::Bit64;
         let in_flight = InFlight::new_access(seq_zero, seg_n, szmic);
 
-        let pdu =
-            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(42), 0, seg_n, &[]).unwrap();
+        let pdu = SegmentedLowerAccessPDU::new(
+            None,
+            szmic,
+            SeqZero::new(42),
+            0,
+            seg_n,
+            &[],
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
+        )
+        .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
         assert_eq!(true, in_flight.is_valid(&pdu));
 
-        let pdu =
-            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(88), 0, seg_n, &[]).unwrap();
+        let pdu = SegmentedLowerAccessPDU::new(
+            None,
+            szmic,
+            SeqZero::new(88),
+            0,
+            seg_n,
+            &[],
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
+        )
+        .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
@@ -340,8 +365,21 @@ mod tests {
         let szmic = SzMic::Bit64;
         let in_flight = InFlight::new_control(seq_zero, seg_n, UpperControlOpcode::FriendPoll);
 
-        let pdu =
-            SegmentedLowerAccessPDU::new(None, szmic, SeqZero::new(42), 0, seg_n, &[]).unwrap();
+        let pdu = SegmentedLowerAccessPDU::new(
+            None,
+            szmic,
+            SeqZero::new(42),
+            0,
+            seg_n,
+            &[],
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
+        )
+        .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
@@ -355,6 +393,12 @@ mod tests {
             0,
             seg_n,
             &[],
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
         )
         .unwrap();
 
@@ -394,6 +438,12 @@ mod tests {
             0,
             1,
             b"ABCDEFGHIJKL",
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
         )
         .unwrap();
 
@@ -408,14 +458,22 @@ mod tests {
             1,
             1,
             b"ZYX",
+            LowerMetadata::new(
+                IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0A]).unwrap(),
+                UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
+                Seq::parse(1001).unwrap(),
+            ),
         )
         .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
+        let upper_meta = UpperMetadata::from_segmented_lower_pdu(&pdu);
+
         reassembly.ingest(&pdu).unwrap();
 
-        if let UpperPDU::Access(result) = reassembly.reassemble().unwrap() {
+        if let UpperPDU::Access(result) = reassembly.reassemble(upper_meta).unwrap() {
             let payload = result.payload();
             // last 4 go to the transmic
             assert_eq!(b"ABCDEFGHIJK", payload);

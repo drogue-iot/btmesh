@@ -41,7 +41,7 @@ impl<S: System> NetworkPDU<S> {
         self.nid
     }
 
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::NetworkMetadata) -> Result<Self, ParseError> {
         let ivi_nid = data[0];
         let ivi = (ivi_nid & 0b10000000) >> 7;
         let nid = ivi_nid & 0b01111111;
@@ -54,7 +54,7 @@ impl<S: System> NetworkPDU<S> {
             nid: Nid::parse(nid)?,
             obfuscated,
             encrypted_and_mic,
-            meta: Default::default(),
+            meta,
         })
     }
 

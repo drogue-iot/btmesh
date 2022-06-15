@@ -10,13 +10,13 @@ pub struct UnsegmentedLowerControlPDU<S: System> {
 }
 
 impl<S: System> UnsegmentedLowerControlPDU<S> {
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let opcode = UpperControlOpcode::parse(data[0] & 0b01111111)?;
         let parameters = &data[1..];
         Ok(Self {
             opcode,
             parameters: Vec::from_slice(parameters)?,
-            meta: Default::default(),
+            meta,
         })
     }
 
@@ -49,7 +49,7 @@ pub struct SegmentedLowerControlPDU<S: System> {
 impl<S: System> SegmentedLowerControlPDU<S> {
     pub const SEGMENT_SIZE: usize = 8;
 
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let opcode = UpperControlOpcode::parse(data[0] & 0b01111111)?;
         let seq_zero =
             SeqZero::parse(u16::from_be_bytes([data[1] & 0b01111111, data[2] & 0b11111100]) >> 2)?;
@@ -62,7 +62,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
             seg_o,
             seg_n,
             segment_m: Vec::from_slice(segment_m)?,
-            meta: Default::default(),
+            meta,
         })
     }
 
@@ -72,6 +72,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
         seg_o: u8,
         seg_n: u8,
         segment_m: &[u8],
+        meta: S::LowerMetadata,
     ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             opcode,
@@ -79,7 +80,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
             seg_o,
             seg_n,
             segment_m: Vec::from_slice(segment_m)?,
-            meta: Default::default(),
+            meta,
         })
     }
 

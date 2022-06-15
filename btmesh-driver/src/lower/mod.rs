@@ -2,7 +2,7 @@
 mod inbound_segmentation;
 
 use crate::lower::inbound_segmentation::InboundSegmentation;
-use crate::{Driver, DriverError};
+use crate::{Driver, DriverError, LowerMetadata, UpperMetadata};
 use btmesh_common::mic::SzMic;
 use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
@@ -21,32 +21,42 @@ impl LowerDriver {
         &mut self,
         network_pdu: &CleartextNetworkPDU<Driver>,
     ) -> Result<(Option<BlockAck>, Option<UpperPDU<Driver>>), DriverError> {
-        match &apply_metadata(network_pdu, LowerPDU::parse(network_pdu)?) {
-            LowerPDU::Unsegmented(lower_pdu) => match lower_pdu {
+        let lower_pdu = LowerPDU::parse(network_pdu, LowerMetadata::from_network_pdu(network_pdu))?;
+
+        match &lower_pdu {
+            LowerPDU::Unsegmented(inner) => match inner {
                 UnsegmentedLowerPDU::Access(access_pdu) => Ok((
                     None,
-                    Some(UpperAccessPDU::parse(access_pdu.upper_pdu(), SzMic::Bit32)?.into()),
+                    Some(
+                        UpperAccessPDU::parse(
+                            access_pdu.upper_pdu(),
+                            SzMic::Bit32,
+                            UpperMetadata::from_unsegmented_lower_pdu(inner),
+                        )?
+                        .into(),
+                    ),
                 )),
                 UnsegmentedLowerPDU::Control(control_pdu) => Ok((
                     None,
                     Some(
-                        UpperControlPDU::new(control_pdu.opcode(), control_pdu.parameters())?
-                            .into(),
+                        UpperControlPDU::new(
+                            control_pdu.opcode(),
+                            control_pdu.parameters(),
+                            UpperMetadata::from_unsegmented_lower_pdu(inner),
+                        )?
+                        .into(),
                     ),
                 )),
             },
-            LowerPDU::Segmented(lower_pdu) => {
-                let (block_ack, upper_pdu) = self.inbound_segmentation.process(lower_pdu)?;
+            LowerPDU::Segmented(inner) => {
+                let (block_ack, upper_pdu) = self.inbound_segmentation.process(inner)?;
+                let upper_pdu = if let Some(upper_pdu) = upper_pdu {
+                    Some(upper_pdu)
+                } else {
+                    None
+                };
                 Ok((Some(block_ack), upper_pdu))
             }
         }
     }
-}
-
-fn apply_metadata(
-    network_pdu: &CleartextNetworkPDU<Driver>,
-    mut lower_pdu: LowerPDU<Driver>,
-) -> LowerPDU<Driver> {
-    lower_pdu.meta_mut().apply(network_pdu);
-    lower_pdu
 }

@@ -17,16 +17,6 @@ pub struct ReplayProtection<const N: usize = 100> {
     lru: LRUCache<CacheEntry, N>,
 }
 
-/*
-impl<const N: usize> Default for ReplayProtection<N> {
-    fn default() -> Self {
-        Self {
-            lru: Default::default(),
-        }
-    }
-}
- */
-
 impl<const N: usize> ReplayProtection<N> {
     pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<Driver>) {
         let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;

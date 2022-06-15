@@ -3,14 +3,23 @@ use crate::mic::SzMic;
 use crate::{IvIndex, Seq};
 use core::ops::Deref;
 
+struct NonceType(u8);
+
+pub enum Nonce {
+    Network(NetworkNonce),
+    Application(ApplicationNonce),
+    Device(DeviceNonce),
+    Proxy(ProxyNonce),
+}
+
 pub struct NetworkNonce([u8; 13]);
 
 impl NetworkNonce {
-    const NONCE_TYPE: u8 = 0x00;
+    const NONCE_TYPE: NonceType = NonceType(0x00);
 
     pub fn new(ctl_ttl: u8, seq: Seq, src: UnicastAddress, iv_index: IvIndex) -> Self {
         let mut nonce = [0; 13];
-        nonce[0] = Self::NONCE_TYPE;
+        nonce[0] = Self::NONCE_TYPE.0;
         nonce[1] = ctl_ttl;
 
         let seq = seq.to_be_bytes();
@@ -40,15 +49,15 @@ impl NetworkNonce {
 }
 
 fn build_nonce(
-    nonce_type: u8,
+    nonce_type: NonceType,
     aszmic: SzMic,
-    seq: u32,
+    seq: Seq,
     src: UnicastAddress,
     dst: Address,
-    iv_index: u32,
+    iv_index: IvIndex,
 ) -> [u8; 13] {
     let mut nonce = [0; 13];
-    nonce[0] = nonce_type;
+    nonce[0] = nonce_type.0;
     match aszmic {
         SzMic::Bit32 => {
             nonce[1] = 0b00000000;
@@ -84,9 +93,9 @@ fn build_nonce(
 pub struct ApplicationNonce([u8; 13]);
 
 impl ApplicationNonce {
-    const NONCE_TYPE: u8 = 0x01;
+    const NONCE_TYPE: NonceType = NonceType(0x01);
 
-    pub fn new(aszmic: SzMic, seq: u32, src: UnicastAddress, dst: Address, iv_index: u32) -> Self {
+    pub fn new(aszmic: SzMic, seq: Seq, src: UnicastAddress, dst: Address, iv_index: IvIndex) -> Self {
         Self(build_nonce(
             Self::NONCE_TYPE,
             aszmic,
@@ -111,9 +120,9 @@ impl Deref for ApplicationNonce {
 pub struct DeviceNonce([u8; 13]);
 
 impl DeviceNonce {
-    const NONCE_TYPE: u8 = 0x02;
+    const NONCE_TYPE: NonceType = NonceType(0x02);
 
-    pub fn new(aszmic: SzMic, seq: u32, src: UnicastAddress, dst: Address, iv_index: u32) -> Self {
+    pub fn new(aszmic: SzMic, seq: Seq, src: UnicastAddress, dst: Address, iv_index: IvIndex) -> Self {
         Self(build_nonce(
             Self::NONCE_TYPE,
             aszmic,

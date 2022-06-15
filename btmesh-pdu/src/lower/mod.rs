@@ -57,6 +57,12 @@ pub enum SegmentedLowerPDU<S: System> {
     Control(SegmentedLowerControlPDU<S>),
 }
 
+impl<S:System> From<SegmentedLowerPDU<S>> for LowerPDU<S> {
+    fn from(inner: SegmentedLowerPDU<S>) -> Self {
+        Self::Segmented( inner )
+    }
+}
+
 impl<S: System> SegmentedLowerPDU<S> {
     pub fn meta(&self) -> &S::LowerMetadata {
         match self {
@@ -93,7 +99,7 @@ impl<S: System> SegmentedLowerPDU<S> {
 }
 
 impl<S: System> LowerPDU<S> {
-    pub fn parse(network_pdu: &CleartextNetworkPDU<S>) -> Result<Self, ParseError> {
+    pub fn parse(network_pdu: &CleartextNetworkPDU<S>, meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let data = network_pdu.transport_pdu();
 
         if data.len() >= 2 {
@@ -101,16 +107,16 @@ impl<S: System> LowerPDU<S> {
 
             match (network_pdu.ctl(), seg) {
                 (Ctl::Access, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(
-                    UnsegmentedLowerAccessPDU::parse(&data[1..])?,
+                    UnsegmentedLowerAccessPDU::parse(&data[1..], meta)?,
                 ))),
                 (Ctl::Access, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Access(
-                    SegmentedLowerAccessPDU::parse(&data[1..])?,
+                    SegmentedLowerAccessPDU::parse(&data[1..], meta)?,
                 ))),
                 (Ctl::Control, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Control(
-                    UnsegmentedLowerControlPDU::parse(&data[1..])?,
+                    UnsegmentedLowerControlPDU::parse(&data[1..], meta)?,
                 ))),
                 (Ctl::Control, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Control(
-                    SegmentedLowerControlPDU::parse(&data[1..])?,
+                    SegmentedLowerControlPDU::parse(&data[1..], meta)?,
                 ))),
             }
         } else {

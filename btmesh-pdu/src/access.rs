@@ -21,19 +21,19 @@ impl<S: System> AccessMessage<S> {
         &self.parameters
     }
 
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::AccessMetadata) -> Result<Self, ParseError> {
         let (opcode, parameters) = Opcode::split(data).ok_or(ParseError::InvalidPDUFormat)?;
         Ok(Self {
             opcode,
             parameters: Vec::from_slice(parameters)?,
-            meta: Default::default(),
+            meta,
         })
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         self.opcode.emit(xmit)?;
-        xmit.extend_from_slice(&self.parameters)
-            .map_err(|_| InsufficientBuffer)
+        xmit.extend_from_slice(&self.parameters)?;
+        Ok(())
     }
 }
 

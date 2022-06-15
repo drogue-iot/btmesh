@@ -1,8 +1,10 @@
 #![allow(dead_code)]
+
+use std::ops::Add;
 use crate::network::replay_protection::ReplayProtection;
-use btmesh_common::address::{InvalidAddress, UnicastAddress};
-use btmesh_common::{InsufficientBuffer, IvIndex, ParseError};
-use btmesh_pdu::lower::InvalidBlock;
+use btmesh_common::address::{Address, InvalidAddress, UnicastAddress};
+use btmesh_common::{Aid, InsufficientBuffer, IvIndex, ParseError, Seq};
+use btmesh_pdu::lower::{InvalidBlock, LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
 use hash32_derive::Hash32;
@@ -11,6 +13,7 @@ use secrets::Secrets;
 mod lower;
 mod network;
 mod secrets;
+mod upper;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -70,11 +73,11 @@ impl System for Driver {
     type AccessMetadata = AccessMetadata;
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct NetworkMetadata {
     iv_index: IvIndex,
-    replay_protected: Option<bool>,
-    should_relay: Option<bool>,
+    replay_protected: bool,
+    should_relay: bool,
 }
 
 impl NetworkMetadata {
@@ -83,32 +86,139 @@ impl NetworkMetadata {
     }
 
     pub fn replay_protected(&mut self, protected: bool) {
-        self.replay_protected.replace(protected);
+        self.replay_protected = protected;
     }
 
     pub fn should_relay(&mut self, relay: bool) {
-        self.should_relay.replace(relay);
+        self.should_relay = relay;
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct LowerMetadata {
-    src: Option<UnicastAddress>,
-    iv_index: Option<IvIndex>,
+    iv_index: IvIndex,
+    src: UnicastAddress,
+    dst: Address,
+    seq: Seq,
 }
 
 impl LowerMetadata {
-    pub(crate) fn apply(&mut self, pdu: &CleartextNetworkPDU<Driver>) {
-        self.src.replace(pdu.src());
+
+    pub fn new(iv_index: IvIndex, src: UnicastAddress, dst: Address, seq: Seq) -> Self {
+        Self {
+            iv_index,
+            src,
+            dst,
+            seq
+        }
+    }
+
+    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<Driver>) -> Self {
+        Self {
+            iv_index: pdu.meta().iv_index(),
+            src: pdu.src(),
+            dst: pdu.dst(),
+            seq: pdu.seq()
+        }
+    }
+
+    pub fn src(&self) -> UnicastAddress {
+        self.src
+    }
+
+    pub fn dst(&self) -> Address {
+        self.dst
+    }
+
+    pub fn seq(&self) -> Seq {
+        self.seq
+    }
+
+    pub fn iv_index(&self) -> IvIndex {
+        self.iv_index
     }
 }
 
-#[derive(Copy, Clone, Default)]
+#[derive(Copy, Clone)]
 pub struct UpperMetadata {
     iv_index: IvIndex,
+    akf_aid: Option<Aid>,
+    seq: Seq,
+    src: UnicastAddress,
+    dst: Address,
 }
 
-#[derive(Copy, Clone, Default)]
+impl UpperMetadata {
+
+    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<Driver>) -> Self {
+        Self {
+            iv_index: pdu.meta().iv_index(),
+            akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu { inner.aid() } else {None},
+            seq: pdu.meta().seq(),
+            src: pdu.meta().src(),
+            dst: pdu.meta().dst(),
+        }
+    }
+
+    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<Driver>) -> Self {
+        Self {
+            iv_index: pdu.meta().iv_index(),
+            akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu { inner.aid() } else {None},
+            seq: pdu.meta().seq(),
+            src: pdu.meta().src(),
+            dst: pdu.meta().dst(),
+        }
+    }
+
+    pub fn from_lower_pdu(pdu: &LowerPDU<Driver>) -> Self {
+        match pdu {
+            LowerPDU::Unsegmented(inner) => Self::from_unsegmented_lower_pdu(inner),
+            LowerPDU::Segmented(inner) => Self::from_segmented_lower_pdu(inner),
+        }
+    }
+
+    pub fn iv_index(&self) -> IvIndex {
+        self.iv_index
+    }
+
+    pub fn aid(&self) -> Option<Aid> {
+        self.akf_aid
+    }
+
+    pub fn seq(&self) -> Seq {
+        self.seq
+    }
+
+    pub fn src(&self) -> UnicastAddress {
+        self.src
+    }
+
+    pub fn dst(&self) -> Address {
+        self.dst
+    }
+
+
+    /*
+    pub(crate) fn apply(&mut self, pdu: &LowerPDU<Driver>) {
+        match pdu {
+            LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(access)) => {
+                self.akf_aid = access.aid().clone();
+            }
+            LowerPDU::Segmented(SegmentedLowerPDU::Access(access)) => {
+                self.akf_aid = access.aid().clone();
+            }
+            _ => { /* nothing */ }
+        }
+
+        self.iv_index = pdu.meta().iv_index().clone();
+        self.seq = pdu.meta().seq().clone();
+        self.src = pdu.meta().src().clone();
+        self.dst = pdu.meta().dst().clone();
+    }
+     */
+}
+
+#[derive(Copy, Clone)]
 pub struct AccessMetadata {
     iv_index: IvIndex,
 }

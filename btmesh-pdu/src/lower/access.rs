@@ -10,12 +10,12 @@ pub struct UnsegmentedLowerAccessPDU<S: System> {
 }
 
 impl<S: System> UnsegmentedLowerAccessPDU<S> {
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let akf_aid = Aid::parse(data[0])?;
         Ok(Self {
             akf_aid,
             upper_pdu: Vec::from_slice(&data[1..])?,
-            meta: Default::default(),
+            meta,
         })
     }
 
@@ -53,7 +53,7 @@ pub struct SegmentedLowerAccessPDU<S: System> {
 impl<S: System> SegmentedLowerAccessPDU<S> {
     pub const SEGMENT_SIZE: usize = 12;
 
-    pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let akf_aid = Aid::parse(data[0])?;
         let szmic = SzMic::parse(data[1] & 0b10000000);
         let seq_zero =
@@ -68,7 +68,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             seg_o,
             seg_n,
             segment_m,
-            meta: Default::default(),
+            meta,
         })
     }
 
@@ -79,6 +79,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
         seg_o: u8,
         seg_n: u8,
         segment_m: &[u8],
+        meta: S::LowerMetadata,
     ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             akf_aid,
@@ -87,8 +88,12 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             seg_o,
             seg_n,
             segment_m: Vec::from_slice(segment_m)?,
-            meta: Default::default(),
+            meta,
         })
+    }
+
+    pub fn aid(&self) -> Option<Aid> {
+        self.akf_aid
     }
 
     pub fn seq_zero(&self) -> SeqZero {

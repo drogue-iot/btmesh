@@ -10,10 +10,10 @@ pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 
-    type NetworkMetadata: Default + Copy;
-    type LowerMetadata: Default + Copy;
-    type UpperMetadata: Default + Copy;
-    type AccessMetadata: Default + Copy;
+    type NetworkMetadata: Copy;
+    type LowerMetadata: Copy;
+    type UpperMetadata: Copy;
+    type AccessMetadata: Copy;
 }
 
 impl System for () {
