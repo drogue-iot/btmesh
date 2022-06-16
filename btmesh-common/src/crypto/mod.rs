@@ -13,6 +13,7 @@ use core::convert::TryInto;
 use heapless::Vec;
 
 pub mod nonce;
+pub mod application;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 

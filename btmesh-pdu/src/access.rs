@@ -7,7 +7,7 @@ use heapless::Vec;
 #[allow(dead_code)]
 pub struct AccessMessage<S: System> {
     opcode: Opcode,
-    parameters: Vec<u8, 384>,
+    parameters: Vec<u8, 379>,
     meta: S::AccessMetadata,
 }
 

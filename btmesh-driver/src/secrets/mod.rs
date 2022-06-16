@@ -2,16 +2,23 @@ use crate::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
 use crate::secrets::network::NetworkKeys;
 use btmesh_common::{Aid, crypto, Nid};
 use crate::secrets::application::ApplicationKeys;
+use crate::secrets::device::DeviceKey;
 
+pub mod device;
 pub mod network;
 pub mod application;
 
 pub(crate) struct Secrets {
+    device_key: DeviceKey,
     network_keys: NetworkKeys,
     application_keys: ApplicationKeys,
 }
 
 impl Secrets {
+    pub(crate) fn device_key(&self) -> [u8;16] {
+        self.device_key.device_key()
+    }
+
     pub(crate) fn network_keys_by_nid(
         &self,
         nid: Nid,

@@ -3,11 +3,53 @@ use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
+use std::ops::Add;
 
 pub mod replay_protection;
 
+pub struct DeviceInfo {
+    number_of_elements: u8,
+    primary_unicast_address: UnicastAddress,
+}
+
+impl DeviceInfo {
+    fn new(primary_unicast_address: UnicastAddress, number_of_elements: u8) -> Self {
+        Self {
+            number_of_elements,
+            primary_unicast_address
+        }
+    }
+
+    fn local_element_index(&self, dst: Address) -> Option<u8> {
+        if let Address::Unicast(dst) = dst {
+            if dst >= self.primary_unicast_address {
+                let diff = dst - self.primary_unicast_address;
+                if diff < self.number_of_elements {
+                    return Some(diff);
+                }
+            }
+        }
+        None
+    }
+}
+
 pub struct NetworkDriver {
+    device_info: DeviceInfo,
     replay_protection: ReplayProtection,
+}
+
+impl NetworkDriver {
+    fn new(device_info: DeviceInfo) -> Self {
+        Self {
+            device_info,
+            replay_protection: ReplayProtection::default(),
+        }
+    }
+
+    #[inline]
+    fn local_element_index(&self, dst: Address) -> Option<u8> {
+        self.device_info.local_element_index(dst)
+    }
 }
 
 impl Driver {
@@ -92,15 +134,14 @@ impl Driver {
             ]))?;
 
             let src = UnicastAddress::parse([unobfuscated[4], unobfuscated[5]])?;
-
             let dst = Address::parse([payload[0], payload[1]]);
-
             let transport_pdu = &payload[2..];
 
             let meta = NetworkMetadata {
                 iv_index,
                 replay_protected: false,
-                should_relay: false
+                should_relay: false,
+                local_element_index: self.network.local_element_index(dst),
             };
 
             Ok(CleartextNetworkPDU::new(
@@ -119,4 +160,31 @@ impl Driver {
             Err(DriverError::CryptoError)
         }
     }
+}
+
+
+#[cfg(test)]
+mod test {
+    use btmesh_common::address::{Address, GroupAddress, UnicastAddress};
+    use crate::network::DeviceInfo;
+
+    #[test]
+    fn local_element_index() {
+        let device_info = DeviceInfo::new(UnicastAddress::parse([ 0x00, 0x0A]).unwrap(), 3);
+
+        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x01]).unwrap().into() ));
+        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x02]).unwrap().into() ));
+        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x09]).unwrap().into() ));
+
+        assert_eq!( Some(0), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0A]).unwrap().into() ));
+        assert_eq!( Some(1), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0B]).unwrap().into() ));
+        assert_eq!( Some(2), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0C]).unwrap().into() ));
+
+        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0D]).unwrap().into() ));
+        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0E]).unwrap().into() ));
+
+        assert_eq!( None, device_info.local_element_index( Address::Unassigned ));
+        assert_eq!( None, device_info.local_element_index( Address::Group(GroupAddress::AllNodes) ));
+    }
+
 }

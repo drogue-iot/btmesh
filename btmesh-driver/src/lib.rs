@@ -8,6 +8,7 @@ use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
 use heapless::Vec;
 use hash32_derive::Hash32;
+use btmesh_pdu::upper::access::UpperAccessPDU;
 use secrets::Secrets;
 
 mod lower;
@@ -54,8 +55,16 @@ impl From<InvalidBlock> for DriverError {
 
 pub struct Driver {
     secrets: Secrets,
+    upper: upper::UpperDriver,
     lower: lower::LowerDriver,
     network: network::NetworkDriver,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
+pub enum KeyHandle {
+    Device,
+    Network(NetworkKeyHandle),
+    Application(ApplicationKeyHandle)
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
@@ -78,6 +87,7 @@ pub struct NetworkMetadata {
     iv_index: IvIndex,
     replay_protected: bool,
     should_relay: bool,
+    local_element_index: Option<u8>,
 }
 
 impl NetworkMetadata {
@@ -91,6 +101,10 @@ impl NetworkMetadata {
 
     pub fn should_relay(&mut self, relay: bool) {
         self.should_relay = relay;
+    }
+
+    pub fn local_element_index(&self) -> Option<u8> {
+        self.local_element_index
     }
 }
 
@@ -233,4 +247,21 @@ impl UpperMetadata {
 #[derive(Copy, Clone)]
 pub struct AccessMetadata {
     iv_index: IvIndex,
+    key_handle: KeyHandle,
+    src: UnicastAddress,
+    dst: Address,
+    label_uuid: Option<LabelUuid>,
+}
+
+impl AccessMetadata {
+    pub fn from_upper_access_pdu(key_handle: KeyHandle, label_uuid: Option<LabelUuid>, pdu: UpperAccessPDU<Driver>) -> Self {
+        Self {
+            iv_index: pdu.meta().iv_index,
+            key_handle,
+            src: pdu.meta().src,
+            dst: pdu.meta().dst,
+            label_uuid,
+        }
+    }
+
 }

@@ -14,7 +14,7 @@ pub struct LowerDriver {
     inbound_segmentation: InboundSegmentation,
 }
 
-impl LowerDriver {
+impl Driver {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
     fn process_cleartext_network_pdu(
@@ -49,7 +49,7 @@ impl LowerDriver {
                 )),
             },
             LowerPDU::Segmented(inner) => {
-                let (block_ack, upper_pdu) = self.inbound_segmentation.process(inner)?;
+                let (block_ack, upper_pdu) = self.lower.inbound_segmentation.process(inner)?;
                 let upper_pdu = if let Some(upper_pdu) = upper_pdu {
                     Some(upper_pdu)
                 } else {
