@@ -74,6 +74,7 @@ impl UpperDriver {
         pdu: UpperAccessPDU<Driver>,
     ) -> Result<AccessMessage<Driver>, DriverError> {
         if let Some(aid) = pdu.meta().aid() {
+            // akf=true and an AID was provided.
             let nonce = ApplicationNonce::new(
                 pdu.transmic().szmic(),
                 pdu.meta().seq(),

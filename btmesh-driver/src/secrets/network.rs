@@ -72,7 +72,7 @@ impl NetworkKey {
 
 #[cfg(test)]
 mod tests {
-    use crate::secrets::{NetworkKey, NetworkKeys};
+    use crate::secrets::network::{NetworkKey, NetworkKeys};
     use btmesh_common::Nid;
 
     #[test]
