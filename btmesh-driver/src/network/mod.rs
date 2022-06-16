@@ -3,11 +3,10 @@ use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
-use std::ops::Add;
 
 pub mod replay_protection;
 
-pub struct DeviceInfo {
+pub(crate) struct DeviceInfo {
     number_of_elements: u8,
     primary_unicast_address: UnicastAddress,
 }
@@ -39,7 +38,7 @@ pub struct NetworkDriver {
 }
 
 impl NetworkDriver {
-    fn new(device_info: DeviceInfo) -> Self {
+    pub(crate) fn new(device_info: DeviceInfo) -> Self {
         Self {
             device_info,
             replay_protection: ReplayProtection::default(),
@@ -71,9 +70,9 @@ impl Driver {
 
     pub fn try_decrypt_network_pdu(
         &self,
-        pdu: &NetworkPDU<Self>,
+        pdu: &NetworkPDU,
         iv_index: IvIndex,
-    ) -> Result<Option<CleartextNetworkPDU<Self>>, DriverError> {
+    ) -> Result<Option<CleartextNetworkPDU<Driver>>, DriverError> {
         for network_key in self.network_keys_by_nid(pdu.nid()) {
             if let Ok(result) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
                 return Ok(Some(result));
@@ -85,7 +84,7 @@ impl Driver {
 
     pub fn try_decrypt_network_pdu_with_key(
         &self,
-        pdu: &NetworkPDU<Self>,
+        pdu: &NetworkPDU,
         iv_index: IvIndex,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
@@ -137,11 +136,13 @@ impl Driver {
             let dst = Address::parse([payload[0], payload[1]]);
             let transport_pdu = &payload[2..];
 
+            let local_element_index = self.network.local_element_index(dst);
+
             let meta = NetworkMetadata {
                 iv_index,
                 replay_protected: false,
                 should_relay: false,
-                local_element_index: self.network.local_element_index(dst),
+                local_element_index,
             };
 
             Ok(CleartextNetworkPDU::new(

@@ -7,7 +7,6 @@ use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::UpperPDU;
 use core::ops::ControlFlow;
 use heapless::Vec;
-use std::iter::repeat;
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
@@ -33,22 +32,28 @@ impl Driver {
         self.upper
             .label_uuids
             .iter_mut()
-            .filter(|e| matches!(e, Some(label_uuid)))
+            .filter(|e| {
+                if let Some(inner) = e {
+                    *inner == label_uuid
+                } else {
+                    false
+                }
+            })
             .for_each(|slot| {
                 slot.take();
             })
     }
 
-    fn process_upper_pdu(&mut self, mut pdu: UpperPDU<Driver>) -> Result<(), DriverError> {
+    pub fn process_upper_pdu(&mut self, mut pdu: UpperPDU<Driver>) -> Result<AccessMessage<Driver>, DriverError> {
         self.apply_label_uuids(&mut pdu)?;
         match pdu {
             UpperPDU::Access(access) => {
-                self.decrypt_access(access);
+                return self.decrypt_access(access);
             }
-            UpperPDU::Control(control) => {}
+            UpperPDU::Control(control) => {
+                return todo!()
+            }
         }
-
-        Ok(())
     }
 
     /// Apply potential candidate label-uuids if the destination of the PDU
@@ -97,13 +102,13 @@ impl Driver {
                 if pdu.meta().label_uuids().is_empty() {
                     let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                         .map_err(|_| DriverError::InsufficientSpace)?;
-                    if let Ok(_) = crypto::application::try_decrypt_application_key(
+                    if crypto::application::try_decrypt_application_key(
                         application_key,
                         nonce,
                         &mut bytes,
                         pdu.transmic().as_slice(),
                         None,
-                    ) {
+                    ).is_ok() {
                         decrypt_result.replace((application_key_handle, None, bytes));
                         break 'outer;
                     }
@@ -115,13 +120,13 @@ impl Driver {
                     for label_uuid in pdu.meta().label_uuids() {
                         let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                             .map_err(|_| DriverError::InsufficientSpace)?;
-                        if let Ok(_) = crypto::application::try_decrypt_application_key(
+                        if crypto::application::try_decrypt_application_key(
                             application_key,
                             nonce,
                             &mut bytes,
                             pdu.transmic().as_slice(),
                             Some(label_uuid.label_uuid()),
-                        ) {
+                        ).is_ok() {
                             decrypt_result.replace((
                                 application_key_handle,
                                 Some(*label_uuid),
@@ -156,12 +161,12 @@ impl Driver {
 
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;
-            if let Ok(_) = crypto::application::try_decrypt_device_key(
+            if crypto::application::try_decrypt_device_key(
                 device_key,
                 nonce,
                 &mut bytes,
                 pdu.transmic().as_slice(),
-            ) {
+            ).is_ok() {
                 return Ok(AccessMessage::parse(
                     &*bytes,
                     AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, pdu),

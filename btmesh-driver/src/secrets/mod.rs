@@ -1,6 +1,6 @@
 use crate::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
 use crate::secrets::network::NetworkKeys;
-use btmesh_common::{Aid, crypto, Nid};
+use btmesh_common::{Aid, Nid};
 use crate::secrets::application::ApplicationKeys;
 use crate::secrets::device::DeviceKey;
 

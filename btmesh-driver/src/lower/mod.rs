@@ -10,6 +10,7 @@ use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::UpperControlPDU;
 use btmesh_pdu::upper::UpperPDU;
 
+#[derive(Default)]
 pub struct LowerDriver {
     inbound_segmentation: InboundSegmentation,
 }
@@ -17,7 +18,7 @@ pub struct LowerDriver {
 impl Driver {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
-    fn process_cleartext_network_pdu(
+    pub fn process_cleartext_network_pdu(
         &mut self,
         network_pdu: &CleartextNetworkPDU<Driver>,
     ) -> Result<(Option<BlockAck>, Option<UpperPDU<Driver>>), DriverError> {
@@ -50,11 +51,6 @@ impl Driver {
             },
             LowerPDU::Segmented(inner) => {
                 let (block_ack, upper_pdu) = self.lower.inbound_segmentation.process(inner)?;
-                let upper_pdu = if let Some(upper_pdu) = upper_pdu {
-                    Some(upper_pdu)
-                } else {
-                    None
-                };
                 Ok((Some(block_ack), upper_pdu))
             }
         }

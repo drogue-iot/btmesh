@@ -4,12 +4,15 @@ use crate::network::replay_protection::ReplayProtection;
 use btmesh_common::address::{Address, InvalidAddress, LabelUuid, UnicastAddress};
 use btmesh_common::{Aid, InsufficientBuffer, IvIndex, ParseError, Seq};
 use btmesh_pdu::lower::{InvalidBlock, LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
-use btmesh_pdu::network::CleartextNetworkPDU;
+use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::System;
 use heapless::Vec;
 use hash32_derive::Hash32;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use secrets::Secrets;
+use crate::lower::LowerDriver;
+use crate::network::{DeviceInfo, NetworkDriver};
+use crate::upper::UpperDriver;
 
 mod lower;
 mod network;
@@ -53,11 +56,47 @@ impl From<InvalidBlock> for DriverError {
     }
 }
 
+// TODO: rename to ProvisionedDriver or somesuch.
 pub struct Driver {
     secrets: Secrets,
-    upper: upper::UpperDriver,
-    lower: lower::LowerDriver,
-    network: network::NetworkDriver,
+    upper: UpperDriver,
+    lower: LowerDriver,
+    network: NetworkDriver,
+}
+
+impl Driver {
+
+    fn new(device_info: DeviceInfo, secrets: Secrets) -> Self {
+        Self {
+            secrets,
+            upper: Default::default(),
+            lower: Default::default(),
+            network: NetworkDriver::new( device_info ),
+        }
+    }
+
+    fn process(&mut self, data: &[u8]) -> Result<(), DriverError> {
+        let network_pdu = NetworkPDU::parse(data)?;
+        let iv_index = todo!();
+        if let Some(mut cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
+            self.validate_cleartext_network_pdu(&mut cleartext_network_pdu);
+
+            let (block_ack, upper_pdu) = self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
+
+            if let Some(block_ack) = block_ack {
+
+            }
+
+            if let Some(upper_pdu) = upper_pdu {
+                let access_message = self.process_upper_pdu(upper_pdu)?;
+
+            }
+
+        }
+
+        Ok(())
+    }
+
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
