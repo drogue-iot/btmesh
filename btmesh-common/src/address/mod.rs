@@ -35,7 +35,6 @@ pub enum Address {
     Unicast(UnicastAddress),
     Virtual(VirtualAddress),
     Group(GroupAddress),
-    LabelUuid(LabelUuid),
 }
 
 impl Address {
@@ -46,7 +45,6 @@ impl Address {
             Address::Unicast(inner) => inner.as_bytes(),
             Address::Virtual(inner) => inner.as_bytes(),
             Address::Group(inner) => inner.as_bytes(),
-            Address::LabelUuid(inner) => inner.virtual_address().as_bytes(),
         }
     }
 

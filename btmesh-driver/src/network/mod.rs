@@ -16,11 +16,11 @@ impl Driver {
     }
 
     fn privacy_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.secrets.privacy_key(network_key)
+        self.secrets.network_privacy_key(network_key)
     }
 
     fn encryption_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.secrets.encryption_key(network_key)
+        self.secrets.network_encryption_key(network_key)
     }
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {

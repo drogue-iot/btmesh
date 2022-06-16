@@ -1,41 +1,8 @@
 use crate::{DriverError, NetworkKeyHandle};
 use btmesh_common::{crypto, Nid};
 
-pub(crate) struct Secrets {
-    network_keys: NetworkKeys,
-}
-
-impl Secrets {
-    pub(crate) fn network_keys_by_nid(
-        &self,
-        nid: Nid,
-    ) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
-        self.network_keys.by_nid_iter(nid)
-    }
-
-    pub(crate) fn privacy_key(
-        &self,
-        network_key: NetworkKeyHandle,
-    ) -> Result<[u8; 16], DriverError> {
-        self.network_keys.keys[network_key.0 as usize]
-            .as_ref()
-            .ok_or(DriverError::InvalidKeyHandle)
-            .map(|key| key.privacy_key)
-    }
-
-    pub(crate) fn encryption_key(
-        &self,
-        network_key: NetworkKeyHandle,
-    ) -> Result<[u8; 16], DriverError> {
-        self.network_keys.keys[network_key.0 as usize]
-            .as_ref()
-            .ok_or(DriverError::InvalidKeyHandle)
-            .map(|key| key.encryption_key)
-    }
-}
-
-struct NetworkKeys<const N: usize = 4> {
-    keys: [Option<NetworkKey>; N],
+pub(crate) struct NetworkKeys<const N: usize = 4> {
+    pub(crate) keys: [Option<NetworkKey>; N],
 }
 
 impl<const N: usize> Default for NetworkKeys<N> {
@@ -46,7 +13,7 @@ impl<const N: usize> Default for NetworkKeys<N> {
 }
 
 impl<const N: usize> NetworkKeys<N> {
-    fn by_nid_iter(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
+    pub(crate) fn by_nid_iter(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.keys
             .iter()
             .enumerate()
@@ -60,7 +27,7 @@ impl<const N: usize> NetworkKeys<N> {
             .map(|(index, _)| NetworkKeyHandle(index as u8))
     }
 
-    fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
+    pub(crate) fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
         if index as usize >= N {
             return Err(DriverError::InsufficientSpace);
         }
@@ -88,6 +55,18 @@ impl NetworkKey {
             encryption_key,
             nid: Nid::new(nid),
         })
+    }
+
+    pub(crate) fn privacy_key(&self) -> [u8; 16] {
+        self.privacy_key
+    }
+
+    pub(crate) fn encryption_key(&self) -> [u8; 16] {
+        self.encryption_key
+    }
+
+    pub(crate) fn nid(&self) -> Nid {
+        self.nid
     }
 }
 

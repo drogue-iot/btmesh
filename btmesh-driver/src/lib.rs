@@ -1,12 +1,12 @@
 #![allow(dead_code)]
 
-use std::ops::Add;
 use crate::network::replay_protection::ReplayProtection;
-use btmesh_common::address::{Address, InvalidAddress, UnicastAddress};
+use btmesh_common::address::{Address, InvalidAddress, LabelUuid, UnicastAddress};
 use btmesh_common::{Aid, InsufficientBuffer, IvIndex, ParseError, Seq};
 use btmesh_pdu::lower::{InvalidBlock, LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::System;
+use heapless::Vec;
 use hash32_derive::Hash32;
 use secrets::Secrets;
 
@@ -139,13 +139,14 @@ impl LowerMetadata {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 pub struct UpperMetadata {
     iv_index: IvIndex,
     akf_aid: Option<Aid>,
     seq: Seq,
     src: UnicastAddress,
     dst: Address,
+    label_uuids: Vec<LabelUuid, 3>,
 }
 
 impl UpperMetadata {
@@ -157,6 +158,7 @@ impl UpperMetadata {
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
+            label_uuids: Default::default()
         }
     }
 
@@ -167,6 +169,7 @@ impl UpperMetadata {
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
+            label_uuids: Default::default()
         }
     }
 
@@ -195,6 +198,15 @@ impl UpperMetadata {
 
     pub fn dst(&self) -> Address {
         self.dst
+    }
+
+    pub fn label_uuids(&self) -> &[LabelUuid] {
+        &*self.label_uuids
+    }
+
+    pub fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {
+        self.label_uuids.push(label_uuid).map_err(|_| DriverError::InsufficientSpace)?;
+        Ok(())
     }
 
 
