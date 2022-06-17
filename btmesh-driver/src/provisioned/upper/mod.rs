@@ -7,7 +7,9 @@ use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::UpperPDU;
 use core::ops::ControlFlow;
 use heapless::Vec;
-use crate::provisioned::system::{AccessMetadata, KeyHandle};
+use btmesh_pdu::control::ControlMessage;
+use btmesh_pdu::Message;
+use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle};
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
@@ -48,13 +50,19 @@ impl ProvisionedDriver {
     pub fn process_upper_pdu(
         &mut self,
         mut pdu: UpperPDU<ProvisionedDriver>,
-    ) -> Result<AccessMessage<ProvisionedDriver>, DriverError> {
+    ) -> Result<Message<ProvisionedDriver>, DriverError> {
         self.apply_label_uuids(&mut pdu)?;
         match pdu {
             UpperPDU::Access(access) => {
-                return self.decrypt_access(access);
+                Ok(self.decrypt_access(access)?.into())
             }
-            UpperPDU::Control(control) => return todo!(),
+            UpperPDU::Control(control) =>  {
+                Ok( ControlMessage::new(
+                    control.opcode(),
+                    control.parameters(),
+                    ControlMetadata::from_upper_control_pdu(&control)
+                )?.into())
+            }
         }
     }
 
@@ -150,7 +158,7 @@ impl ProvisionedDriver {
                     AccessMetadata::from_upper_access_pdu(
                         KeyHandle::Application(application_key_handle),
                         label_uuid,
-                        pdu,
+                        &pdu,
                     ),
                 )?);
             }
@@ -177,7 +185,7 @@ impl ProvisionedDriver {
             {
                 return Ok(AccessMessage::parse(
                     &*bytes,
-                    AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, pdu),
+                    AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, &pdu),
                 )?);
             }
         }

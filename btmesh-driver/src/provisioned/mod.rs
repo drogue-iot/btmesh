@@ -3,17 +3,23 @@ use crate::provisioned::network::replay_protection::ReplayProtection;
 use crate::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::{Ivi, IvIndex, IvUpdateFlag};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
+use btmesh_pdu::access::AccessMessage;
+use btmesh_pdu::lower::BlockAck;
 use btmesh_pdu::network::NetworkPDU;
-use btmesh_pdu::System;
+use btmesh_pdu::upper::UpperPDU;
+use btmesh_pdu::{Message, System};
 use secrets::Secrets;
-use system::{AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata, UpperMetadata};
+use system::{
+    AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata,
+    UpperMetadata,
+};
 
 pub mod lower;
 pub mod network;
 pub mod secrets;
-pub mod upper;
 pub mod system;
+pub mod upper;
 
 #[derive(Copy, Clone)]
 pub struct IvIndexState {
@@ -43,6 +49,11 @@ pub struct ProvisionedDriver {
     network: NetworkDriver,
 }
 
+struct ReceiveResult {
+    block_ack: Option<BlockAck>,
+    message: Option<Message<ProvisionedDriver>>,
+}
+
 impl ProvisionedDriver {
     fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
@@ -54,7 +65,7 @@ impl ProvisionedDriver {
         }
     }
 
-    fn receive(&mut self, data: &[u8]) -> Result<(), DriverError> {
+    fn process_inbound(&mut self, data: &[u8]) -> Result<Option<ReceiveResult>, DriverError> {
         let network_pdu = NetworkPDU::parse(data)?;
         let iv_index = self
             .network_state
@@ -64,24 +75,19 @@ impl ProvisionedDriver {
             let (block_ack, upper_pdu) =
                 self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 
-            if let Some(block_ack) = block_ack {
+            let message = if let Some(upper_pdu) = upper_pdu {
+                Some(self.process_upper_pdu(upper_pdu)?)
+            } else {
+                None
+            };
 
+            match (&block_ack, &message) {
+                (None, None) => Ok(None),
+                _ => Ok(Some(ReceiveResult { block_ack, message })),
             }
-
-            if let Some(upper_pdu) = upper_pdu {
-                let access_message = self.process_upper_pdu(upper_pdu)?;
-            }
+        } else {
+            // nothing doing, bad result, nothing parsed, keep on truckin'
+            Ok(None)
         }
-
-        Ok(())
     }
-}
-
-impl System for ProvisionedDriver {
-    type NetworkKeyHandle = NetworkKeyHandle;
-    type ApplicationKeyHandle = ApplicationKeyHandle;
-    type NetworkMetadata = NetworkMetadata;
-    type LowerMetadata = LowerMetadata;
-    type UpperMetadata = UpperMetadata;
-    type AccessMetadata = AccessMetadata;
 }

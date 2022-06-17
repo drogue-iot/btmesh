@@ -4,7 +4,9 @@ use btmesh_common::{Aid, IvIndex, Seq};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use heapless::Vec;
 use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
+use btmesh_pdu::System;
 use btmesh_pdu::upper::access::UpperAccessPDU;
+use btmesh_pdu::upper::control::UpperControlPDU;
 use crate::DriverError;
 use crate::provisioned::ProvisionedDriver;
 
@@ -170,25 +172,6 @@ impl UpperMetadata {
             .map_err(|_| DriverError::InsufficientSpace)?;
         Ok(())
     }
-
-    /*
-    pub(crate) fn apply(&mut self, pdu: &LowerPDU<Driver>) {
-        match pdu {
-            LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(access)) => {
-                self.akf_aid = access.aid().clone();
-            }
-            LowerPDU::Segmented(SegmentedLowerPDU::Access(access)) => {
-                self.akf_aid = access.aid().clone();
-            }
-            _ => { /* nothing */ }
-        }
-
-        self.iv_index = pdu.meta().iv_index().clone();
-        self.seq = pdu.meta().seq().clone();
-        self.src = pdu.meta().src().clone();
-        self.dst = pdu.meta().dst().clone();
-    }
-     */
 }
 
 #[derive(Copy, Clone)]
@@ -204,7 +187,7 @@ impl AccessMetadata {
     pub fn from_upper_access_pdu(
         key_handle: KeyHandle,
         label_uuid: Option<LabelUuid>,
-        pdu: UpperAccessPDU<ProvisionedDriver>,
+        pdu: &UpperAccessPDU<ProvisionedDriver>,
     ) -> Self {
         Self {
             iv_index: pdu.meta().iv_index,
@@ -214,4 +197,31 @@ impl AccessMetadata {
             label_uuid,
         }
     }
+}
+
+#[derive(Copy, Clone)]
+pub struct ControlMetadata {
+
+}
+
+impl ControlMetadata {
+    pub fn from_upper_control_pdu(
+        pdu: &UpperControlPDU<ProvisionedDriver>
+    ) -> Self {
+        Self {
+
+        }
+
+    }
+
+}
+
+impl System for ProvisionedDriver {
+    type NetworkKeyHandle = NetworkKeyHandle;
+    type ApplicationKeyHandle = ApplicationKeyHandle;
+    type NetworkMetadata = NetworkMetadata;
+    type LowerMetadata = LowerMetadata;
+    type UpperMetadata = UpperMetadata;
+    type AccessMetadata = AccessMetadata;
+    type ControlMetadata = ControlMetadata;
 }

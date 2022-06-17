@@ -1,17 +1,17 @@
-use crate::upper::control::UpperControlOpcode;
+use crate::upper::control::ControlOpcode;
 use crate::System;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
 pub struct UnsegmentedLowerControlPDU<S: System> {
-    opcode: UpperControlOpcode,
+    opcode: ControlOpcode,
     parameters: Vec<u8, 88>,
     meta: S::LowerMetadata,
 }
 
 impl<S: System> UnsegmentedLowerControlPDU<S> {
     pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
-        let opcode = UpperControlOpcode::parse(data[0] & 0b01111111)?;
+        let opcode = ControlOpcode::parse(data[0] & 0b01111111)?;
         let parameters = &data[1..];
         Ok(Self {
             opcode,
@@ -20,7 +20,7 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
         })
     }
 
-    pub fn opcode(&self) -> UpperControlOpcode {
+    pub fn opcode(&self) -> ControlOpcode {
         self.opcode
     }
 
@@ -38,7 +38,7 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
 }
 
 pub struct SegmentedLowerControlPDU<S: System> {
-    opcode: UpperControlOpcode,
+    opcode: ControlOpcode,
     seq_zero: SeqZero,
     seg_o: u8,
     seg_n: u8,
@@ -50,7 +50,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
     pub const SEGMENT_SIZE: usize = 8;
 
     pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
-        let opcode = UpperControlOpcode::parse(data[0] & 0b01111111)?;
+        let opcode = ControlOpcode::parse(data[0] & 0b01111111)?;
         let seq_zero =
             SeqZero::parse(u16::from_be_bytes([data[1] & 0b01111111, data[2] & 0b11111100]) >> 2)?;
         let seg_o = (u16::from_be_bytes([data[2] & 0b00000011, data[3] & 0b11100000]) >> 5) as u8;
@@ -67,7 +67,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
     }
 
     pub fn new(
-        opcode: UpperControlOpcode,
+        opcode: ControlOpcode,
         seq_zero: SeqZero,
         seg_o: u8,
         seg_n: u8,
@@ -84,7 +84,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
         })
     }
 
-    pub fn opcode(&self) -> UpperControlOpcode {
+    pub fn opcode(&self) -> ControlOpcode {
         self.opcode
     }
 

@@ -1,4 +1,4 @@
-use crate::System;
+use crate::{Message, System};
 use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
@@ -9,6 +9,12 @@ pub struct AccessMessage<S: System> {
     opcode: Opcode,
     parameters: Vec<u8, 379>,
     meta: S::AccessMetadata,
+}
+
+impl<S:System> From<AccessMessage<S>> for Message<S> {
+    fn from(inner: AccessMessage<S>) -> Self {
+        Self::Access(inner)
+    }
 }
 
 #[allow(unused)]

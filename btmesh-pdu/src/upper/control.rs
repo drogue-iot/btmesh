@@ -5,7 +5,8 @@ use heapless::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum UpperControlOpcode {
+pub enum ControlOpcode {
+    SegmentAcknowledgement = 0x00,
     FriendPoll = 0x01,
     FriendUpdate = 0x02,
     FriendRequest = 0x03,
@@ -18,9 +19,10 @@ pub enum UpperControlOpcode {
     Heartbeat = 0x0A,
 }
 
-impl UpperControlOpcode {
+impl ControlOpcode {
     pub fn parse(data: u8) -> Result<Self, ParseError> {
         match data {
+            0x00 => Ok(Self::SegmentAcknowledgement),
             0x01 => Ok(Self::FriendPoll),
             0x02 => Ok(Self::FriendUpdate),
             0x03 => Ok(Self::FriendRequest),
@@ -37,16 +39,15 @@ impl UpperControlOpcode {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[allow(dead_code)]
 pub struct UpperControlPDU<S: System> {
-    opcode: UpperControlOpcode,
+    opcode: ControlOpcode,
     parameters: Vec<u8, 256>,
     meta: S::UpperMetadata,
 }
 
 impl<S: System> UpperControlPDU<S> {
     pub fn new(
-        opcode: UpperControlOpcode,
+        opcode: ControlOpcode,
         parameters: &[u8],
         meta: S::UpperMetadata,
     ) -> Result<Self, InsufficientBuffer> {
@@ -58,7 +59,7 @@ impl<S: System> UpperControlPDU<S> {
     }
 
     pub fn parse(
-        opcode: UpperControlOpcode,
+        opcode: ControlOpcode,
         data: &[u8],
         meta: S::UpperMetadata,
     ) -> Result<Self, ParseError> {
@@ -67,6 +68,14 @@ impl<S: System> UpperControlPDU<S> {
             parameters: Vec::from_slice(data)?,
             meta,
         })
+    }
+
+    pub fn opcode(&self) -> ControlOpcode {
+        self.opcode
+    }
+
+    pub fn parameters(&self) -> &[u8] {
+        &*self.parameters
     }
 
     pub fn meta(&self) -> &S::UpperMetadata {

@@ -8,7 +8,7 @@ use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
 use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
 use btmesh_pdu::lower::{BlockAck, SegmentedLowerPDU};
 use btmesh_pdu::upper::access::UpperAccessPDU;
-use btmesh_pdu::upper::control::{UpperControlOpcode, UpperControlPDU};
+use btmesh_pdu::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::upper::UpperPDU;
 use crate::provisioned::system::UpperMetadata;
 
@@ -148,7 +148,7 @@ impl InFlight {
         }
     }
 
-    fn new_control(seq_zero: SeqZero, seg_n: u8, opcode: UpperControlOpcode) -> Self {
+    fn new_control(seq_zero: SeqZero, seg_n: u8, opcode: ControlOpcode) -> Self {
         Self {
             seq_zero,
             blocks: Blocks::new(seg_n),
@@ -228,7 +228,7 @@ enum Reassembly {
         len: usize,
     },
     Control {
-        opcode: UpperControlOpcode,
+        opcode: ControlOpcode,
         data: [u8; 256],
         len: usize,
     },
@@ -243,7 +243,7 @@ impl Reassembly {
         }
     }
 
-    fn new_control(opcode: UpperControlOpcode) -> Self {
+    fn new_control(opcode: ControlOpcode) -> Self {
         Self::Control {
             opcode,
             data: [0; 256],
@@ -308,7 +308,7 @@ mod tests {
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::lower::SegmentedLowerPDU;
-    use btmesh_pdu::upper::control::UpperControlOpcode;
+    use btmesh_pdu::upper::control::ControlOpcode;
     use btmesh_pdu::upper::UpperPDU;
     use crate::provisioned::system::{LowerMetadata, UpperMetadata};
 
@@ -365,7 +365,7 @@ mod tests {
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
-        let in_flight = InFlight::new_control(seq_zero, seg_n, UpperControlOpcode::FriendPoll);
+        let in_flight = InFlight::new_control(seq_zero, seg_n, ControlOpcode::FriendPoll);
 
         let pdu = SegmentedLowerAccessPDU::new(
             None,
@@ -390,7 +390,7 @@ mod tests {
         let in_flight = InFlight::new_access(seq_zero, seg_n, SzMic::Bit32);
 
         let pdu = SegmentedLowerControlPDU::new(
-            UpperControlOpcode::FriendPoll,
+            ControlOpcode::FriendPoll,
             SeqZero::new(42),
             0,
             seg_n,
