@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), no_std)]
 #![allow(dead_code)]
 
 use btmesh_common::address::InvalidAddress;

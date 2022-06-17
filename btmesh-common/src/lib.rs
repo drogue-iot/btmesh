@@ -1,3 +1,4 @@
+#![cfg_attr(not(test), no_std)]
 use core::array::TryFromSliceError;
 use core::ops::{Add, Sub};
 
