@@ -1,4 +1,4 @@
-use crate::provisioned::{AccessMetadata, Driver, DriverError, KeyHandle};
+use crate::provisioned::{AccessMetadata, ProvisionedDriver, DriverError, KeyHandle};
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
@@ -13,7 +13,7 @@ pub struct UpperDriver<const N: usize = 20> {
     label_uuids: Vec<Option<LabelUuid>, N>,
 }
 
-impl Driver {
+impl ProvisionedDriver {
     fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {
         if let Some(empty_slot) = self
             .upper
@@ -46,8 +46,8 @@ impl Driver {
 
     pub fn process_upper_pdu(
         &mut self,
-        mut pdu: UpperPDU<Driver>,
-    ) -> Result<AccessMessage<Driver>, DriverError> {
+        mut pdu: UpperPDU<ProvisionedDriver>,
+    ) -> Result<AccessMessage<ProvisionedDriver>, DriverError> {
         self.apply_label_uuids(&mut pdu)?;
         match pdu {
             UpperPDU::Access(access) => {
@@ -59,7 +59,7 @@ impl Driver {
 
     /// Apply potential candidate label-uuids if the destination of the PDU
     /// is a virtual-address.
-    fn apply_label_uuids(&self, pdu: &mut UpperPDU<Driver>) -> Result<(), DriverError> {
+    fn apply_label_uuids(&self, pdu: &mut UpperPDU<ProvisionedDriver>) -> Result<(), DriverError> {
         if let Address::Virtual(virtual_address) = pdu.meta().dst() {
             let result = self.upper.label_uuids.iter().try_for_each(|slot| {
                 if let Some(label_uuid) = slot {
@@ -84,8 +84,8 @@ impl Driver {
 
     fn decrypt_access(
         &mut self,
-        pdu: UpperAccessPDU<Driver>,
-    ) -> Result<AccessMessage<Driver>, DriverError> {
+        pdu: UpperAccessPDU<ProvisionedDriver>,
+    ) -> Result<AccessMessage<ProvisionedDriver>, DriverError> {
         if let Some(aid) = pdu.meta().aid() {
             // akf=true and an AID was provided.
             let nonce = ApplicationNonce::new(

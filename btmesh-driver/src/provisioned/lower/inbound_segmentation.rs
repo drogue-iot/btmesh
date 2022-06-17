@@ -1,6 +1,6 @@
 use heapless::FnvIndexMap;
 
-use crate::provisioned::{Driver, DriverError, UpperMetadata};
+use crate::provisioned::{ProvisionedDriver, DriverError, UpperMetadata};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
@@ -30,8 +30,8 @@ impl<const N: usize> InboundSegmentation<N> {
     /// reassembled `UpperPDU`, if all segments have been processed.
     pub fn process(
         &mut self,
-        pdu: &SegmentedLowerPDU<Driver>,
-    ) -> Result<(BlockAck, Option<UpperPDU<Driver>>), DriverError> {
+        pdu: &SegmentedLowerPDU<ProvisionedDriver>,
+    ) -> Result<(BlockAck, Option<UpperPDU<ProvisionedDriver>>), DriverError> {
         let src = pdu.meta().src();
         let in_flight = if let Some(current) = self.current.get_mut(&src) {
             current
@@ -128,7 +128,7 @@ struct InFlight {
 impl InFlight {
     /// Construct a new `InFlight` initialized with expected number of segments
     /// and other access- or control-specific details, such as `SzMic` or `UpperControlOpcode`.
-    fn new(pdu: &SegmentedLowerPDU<Driver>) -> Self {
+    fn new(pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Self {
         match pdu {
             SegmentedLowerPDU::Access(pdu) => {
                 Self::new_access(pdu.seq_zero(), pdu.seg_n(), pdu.szmic())
@@ -162,7 +162,7 @@ impl InFlight {
     /// Determine if the proposed segment is valid for the current in-flight reassembly.
     ///
     /// Returns `true` if it is valid, otherwise `false`.
-    fn is_valid(&self, pdu: &SegmentedLowerPDU<Driver>) -> bool {
+    fn is_valid(&self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> bool {
         // TODO: check pdu-specific details such as SzMic or UpperControlOpcode.
         match (&self.reassembly, pdu) {
             (Reassembly::Access { szmic, .. }, SegmentedLowerPDU::Access(pdu)) => {
@@ -185,14 +185,14 @@ impl InFlight {
     /// Determine if the proposed segment has already been seen for the current in-flight reassembly.
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
-    fn already_seen(&self, pdu: &SegmentedLowerPDU<Driver>) -> Result<bool, DriverError> {
+    fn already_seen(&self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Result<bool, DriverError> {
         self.blocks.already_seen(pdu.seg_n())
     }
 
     /// Ingest a segment.
     ///
     /// Returns a result of `()` or a `DriverError`.
-    fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
+    fn ingest(&mut self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Result<(), DriverError> {
         if !self.is_valid(pdu) {
             return Err(DriverError::InvalidPDU);
         }
@@ -211,7 +211,7 @@ impl InFlight {
     /// Reassemble a complete set of segments into a single `UpperPDU`.
     ///
     /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
-    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<Driver>, DriverError> {
+    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<ProvisionedDriver>, DriverError> {
         if !self.is_complete()? {
             return Err(DriverError::InvalidState);
         }
@@ -250,10 +250,10 @@ impl Reassembly {
         }
     }
 
-    fn ingest(&mut self, pdu: &SegmentedLowerPDU<Driver>) -> Result<(), DriverError> {
+    fn ingest(&mut self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Result<(), DriverError> {
         match (self, pdu) {
             (Reassembly::Access { data, len, .. }, SegmentedLowerPDU::Access(pdu)) => {
-                const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<Driver>::SEGMENT_SIZE;
+                const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<ProvisionedDriver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment, we now know the length.
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
@@ -267,7 +267,7 @@ impl Reassembly {
                 }
             }
             (Reassembly::Control { data, len, .. }, SegmentedLowerPDU::Control(pdu)) => {
-                const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<Driver>::SEGMENT_SIZE;
+                const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<ProvisionedDriver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
@@ -285,7 +285,7 @@ impl Reassembly {
         Ok(())
     }
 
-    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<Driver>, DriverError> {
+    fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<ProvisionedDriver>, DriverError> {
         match self {
             Reassembly::Control { data, opcode, len } => {
                 Ok(UpperControlPDU::parse(*opcode, &data[0..*len], meta)?.into())
@@ -300,7 +300,7 @@ impl Reassembly {
 #[cfg(test)]
 mod tests {
     use crate::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
-    use crate::provisioned::{Driver, DriverError, LowerMetadata, UpperMetadata};
+    use crate::provisioned::{ProvisionedDriver, DriverError, LowerMetadata, UpperMetadata};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero};
@@ -431,7 +431,7 @@ mod tests {
     fn reassembly() {
         let mut reassembly = Reassembly::new_access(SzMic::Bit32);
 
-        let pdu = SegmentedLowerAccessPDU::<Driver>::new(
+        let pdu = SegmentedLowerAccessPDU::<ProvisionedDriver>::new(
             None,
             SzMic::Bit32,
             SeqZero::new(42),
@@ -451,7 +451,7 @@ mod tests {
 
         reassembly.ingest(&pdu).unwrap();
 
-        let pdu = SegmentedLowerAccessPDU::<Driver>::new(
+        let pdu = SegmentedLowerAccessPDU::<ProvisionedDriver>::new(
             None,
             SzMic::Bit32,
             SeqZero::new(42),

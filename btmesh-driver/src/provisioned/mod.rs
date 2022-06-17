@@ -38,7 +38,7 @@ pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
 
-pub struct Driver {
+pub struct ProvisionedDriver {
     network_state: NetworkState,
     secrets: Secrets,
     upper: UpperDriver,
@@ -46,7 +46,7 @@ pub struct Driver {
     network: NetworkDriver,
 }
 
-impl Driver {
+impl ProvisionedDriver {
     fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
             secrets,
@@ -67,7 +67,9 @@ impl Driver {
             let (block_ack, upper_pdu) =
                 self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 
-            if let Some(block_ack) = block_ack {}
+            if let Some(block_ack) = block_ack {
+
+            }
 
             if let Some(upper_pdu) = upper_pdu {
                 let access_message = self.process_upper_pdu(upper_pdu)?;
@@ -91,7 +93,7 @@ pub struct NetworkKeyHandle(u8);
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
 pub struct ApplicationKeyHandle(u8);
 
-impl System for Driver {
+impl System for ProvisionedDriver {
     type NetworkKeyHandle = NetworkKeyHandle;
     type ApplicationKeyHandle = ApplicationKeyHandle;
     type NetworkMetadata = NetworkMetadata;
@@ -144,7 +146,7 @@ impl LowerMetadata {
         }
     }
 
-    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<Driver>) -> Self {
+    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<ProvisionedDriver>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
             src: pdu.src(),
@@ -181,7 +183,7 @@ pub struct UpperMetadata {
 }
 
 impl UpperMetadata {
-    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<Driver>) -> Self {
+    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
             akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu {
@@ -196,7 +198,7 @@ impl UpperMetadata {
         }
     }
 
-    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<Driver>) -> Self {
+    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<ProvisionedDriver>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
             akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu {
@@ -211,7 +213,7 @@ impl UpperMetadata {
         }
     }
 
-    pub fn from_lower_pdu(pdu: &LowerPDU<Driver>) -> Self {
+    pub fn from_lower_pdu(pdu: &LowerPDU<ProvisionedDriver>) -> Self {
         match pdu {
             LowerPDU::Unsegmented(inner) => Self::from_unsegmented_lower_pdu(inner),
             LowerPDU::Segmented(inner) => Self::from_segmented_lower_pdu(inner),
@@ -282,7 +284,7 @@ impl AccessMetadata {
     pub fn from_upper_access_pdu(
         key_handle: KeyHandle,
         label_uuid: Option<LabelUuid>,
-        pdu: UpperAccessPDU<Driver>,
+        pdu: UpperAccessPDU<ProvisionedDriver>,
     ) -> Self {
         Self {
             iv_index: pdu.meta().iv_index,

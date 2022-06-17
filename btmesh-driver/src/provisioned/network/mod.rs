@@ -1,5 +1,5 @@
 use crate::provisioned::{
-    Driver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection,
+    ProvisionedDriver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection,
 };
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
@@ -54,7 +54,7 @@ impl NetworkDriver {
     }
 }
 
-impl Driver {
+impl ProvisionedDriver {
     fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.secrets.network_keys_by_nid(nid)
     }
@@ -75,7 +75,7 @@ impl Driver {
         &mut self,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
-    ) -> Result<Option<CleartextNetworkPDU<Driver>>, DriverError> {
+    ) -> Result<Option<CleartextNetworkPDU<ProvisionedDriver>>, DriverError> {
         let mut result = None;
         for network_key in self.network_keys_by_nid(pdu.nid()) {
             if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
@@ -96,7 +96,7 @@ impl Driver {
         pdu: &NetworkPDU,
         iv_index: IvIndex,
         network_key: NetworkKeyHandle,
-    ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
+    ) -> Result<CleartextNetworkPDU<ProvisionedDriver>, DriverError> {
         let mut encrypted_and_mic = Vec::<_, 28>::from_slice(pdu.encrypted_and_mic())
             .map_err(|_| DriverError::InsufficientSpace)?;
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);

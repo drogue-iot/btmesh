@@ -2,7 +2,7 @@
 mod inbound_segmentation;
 
 use crate::provisioned::lower::inbound_segmentation::InboundSegmentation;
-use crate::provisioned::{Driver, LowerMetadata, UpperMetadata};
+use crate::provisioned::{ProvisionedDriver, LowerMetadata, UpperMetadata};
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
 use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
@@ -16,13 +16,13 @@ pub struct LowerDriver {
     inbound_segmentation: InboundSegmentation,
 }
 
-impl Driver {
+impl ProvisionedDriver {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
     pub fn process_cleartext_network_pdu(
         &mut self,
-        network_pdu: &CleartextNetworkPDU<Driver>,
-    ) -> Result<(Option<BlockAck>, Option<UpperPDU<Driver>>), DriverError> {
+        network_pdu: &CleartextNetworkPDU<ProvisionedDriver>,
+    ) -> Result<(Option<BlockAck>, Option<UpperPDU<ProvisionedDriver>>), DriverError> {
         let lower_pdu = LowerPDU::parse(network_pdu, LowerMetadata::from_network_pdu(network_pdu))?;
 
         match &lower_pdu {
