@@ -2,8 +2,9 @@ use crate::provisioned::lower::LowerDriver;
 use crate::provisioned::network::replay_protection::ReplayProtection;
 use crate::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::provisioned::upper::UpperDriver;
+use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
-use btmesh_common::{Aid, Ivi, IvIndex, IvUpdateFlag, Seq};
+use btmesh_common::{Aid, IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::upper::access::UpperAccessPDU;
@@ -11,7 +12,6 @@ use btmesh_pdu::System;
 use hash32_derive::Hash32;
 use heapless::Vec;
 use secrets::Secrets;
-use crate::DriverError;
 
 pub mod lower;
 pub mod network;
@@ -59,16 +59,15 @@ impl Driver {
 
     fn receive(&mut self, data: &[u8]) -> Result<(), DriverError> {
         let network_pdu = NetworkPDU::parse(data)?;
-        let iv_index = self.network_state.iv_index_state.accepted_iv_index(network_pdu.ivi());
-        if let Some(cleartext_network_pdu) =
-            self.try_decrypt_network_pdu(&network_pdu, iv_index)?
-        {
+        let iv_index = self
+            .network_state
+            .iv_index_state
+            .accepted_iv_index(network_pdu.ivi());
+        if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
             let (block_ack, upper_pdu) =
                 self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 
-            if let Some(block_ack) = block_ack {
-
-            }
+            if let Some(block_ack) = block_ack {}
 
             if let Some(upper_pdu) = upper_pdu {
                 let access_message = self.process_upper_pdu(upper_pdu)?;

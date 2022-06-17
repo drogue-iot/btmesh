@@ -97,7 +97,8 @@ impl Driver {
         iv_index: IvIndex,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
-        let mut encrypted_and_mic = Vec::<_, 28>::from_slice( pdu.encrypted_and_mic() ).map_err(|_|DriverError::InsufficientSpace)?;
+        let mut encrypted_and_mic = Vec::<_, 28>::from_slice(pdu.encrypted_and_mic())
+            .map_err(|_| DriverError::InsufficientSpace)?;
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);
 
         let pecb = crypto::e(&self.privacy_key(network_key)?, privacy_plaintext)
