@@ -6,6 +6,7 @@ use btmesh_common::{InsufficientBuffer, ParseError};
 use btmesh_pdu::lower::InvalidBlock;
 
 pub mod provisioned;
+pub mod unprovisioned;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
