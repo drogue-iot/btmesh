@@ -1,6 +1,6 @@
 use heapless::FnvIndexMap;
 
-use crate::{Driver, DriverError, UpperMetadata};
+use crate::provisioned::{Driver, DriverError, UpperMetadata};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
@@ -299,8 +299,8 @@ impl Reassembly {
 
 #[cfg(test)]
 mod tests {
-    use crate::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
-    use crate::{Driver, DriverError, LowerMetadata, UpperMetadata};
+    use crate::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
+    use crate::provisioned::{Driver, DriverError, LowerMetadata, UpperMetadata};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero};

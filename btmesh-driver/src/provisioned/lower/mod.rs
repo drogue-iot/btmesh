@@ -1,14 +1,15 @@
 //mod old_inbound_segmentation;
 mod inbound_segmentation;
 
-use crate::lower::inbound_segmentation::InboundSegmentation;
-use crate::{Driver, DriverError, LowerMetadata, UpperMetadata};
+use crate::provisioned::lower::inbound_segmentation::InboundSegmentation;
 use btmesh_common::mic::SzMic;
 use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::UpperControlPDU;
 use btmesh_pdu::upper::UpperPDU;
+use crate::DriverError;
+use crate::provisioned::{Driver, LowerMetadata, UpperMetadata};
 
 #[derive(Default)]
 pub struct LowerDriver {

@@ -1,4 +1,4 @@
-use crate::{
+use crate::provisioned::{
     Driver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection,
 };
 use btmesh_common::address::{Address, UnicastAddress};
@@ -174,7 +174,7 @@ impl Driver {
 
 #[cfg(test)]
 mod test {
-    use crate::network::DeviceInfo;
+    use crate::provisioned::network::DeviceInfo;
     use btmesh_common::address::{Address, GroupAddress, UnicastAddress};
 
     #[test]

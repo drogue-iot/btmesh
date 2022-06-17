@@ -1,8 +1,8 @@
-use crate::Driver;
+use crate::provisioned::Driver;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
 use btmesh_pdu::network::CleartextNetworkPDU;
-use std::cmp::Ordering;
+use core::cmp::Ordering;
 use uluru::LRUCache;
 
 #[derive(PartialEq)]

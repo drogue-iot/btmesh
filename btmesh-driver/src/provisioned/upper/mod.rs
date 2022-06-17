@@ -1,4 +1,4 @@
-use crate::{AccessMetadata, Driver, DriverError, KeyHandle};
+use crate::provisioned::{AccessMetadata, Driver, DriverError, KeyHandle};
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};

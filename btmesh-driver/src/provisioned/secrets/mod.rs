@@ -1,7 +1,7 @@
-use crate::secrets::application::ApplicationKeys;
-use crate::secrets::device::DeviceKey;
-use crate::secrets::network::NetworkKeys;
-use crate::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
+use crate::provisioned::secrets::application::ApplicationKeys;
+use crate::provisioned::secrets::device::DeviceKey;
+use crate::provisioned::secrets::network::NetworkKeys;
+use crate::provisioned::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
 use btmesh_common::{Aid, Nid};
 
 pub mod application;
