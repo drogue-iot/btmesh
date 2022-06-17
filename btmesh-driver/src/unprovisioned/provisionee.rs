@@ -1,3 +1,30 @@
+use super::provisioning::ProvisioningPDU;
+
+enum Provisioning {
+    Beaconing(Provisionee<Beaconing>),
+    Invitation(Provisionee<Invitation>),
+    KeyExchange(Provisionee<KeyExchange>),
+    Authentication(Provisionee<Authentication>),
+    DataDistribution(Provisionee<DataDistribution>),
+}
+
+impl Provisioning {
+    fn next(self, pdu: ProvisioningPDU) -> Self {
+        match pdu {
+            ProvisioningPDU::Invite(_) => self,
+            ProvisioningPDU::Capabilities(_) => self,
+            ProvisioningPDU::Start(_) => self,
+            ProvisioningPDU::PublicKey(_) => self,
+            ProvisioningPDU::InputComplete => self,
+            ProvisioningPDU::Confirmation(_) => self,
+            ProvisioningPDU::Random(_) => self,
+            ProvisioningPDU::Data(_) => self,
+            ProvisioningPDU::Complete => self,
+            ProvisioningPDU::Failed(_) => self,
+        }
+    }
+}
+
 struct Provisionee<S> {
     state: S,
 }
