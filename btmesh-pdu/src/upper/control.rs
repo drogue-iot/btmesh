@@ -45,7 +45,11 @@ pub struct UpperControlPDU<S: System> {
 }
 
 impl<S: System> UpperControlPDU<S> {
-    pub fn new(opcode: UpperControlOpcode, parameters: &[u8], meta: S::UpperMetadata) -> Result<Self, InsufficientBuffer> {
+    pub fn new(
+        opcode: UpperControlOpcode,
+        parameters: &[u8],
+        meta: S::UpperMetadata,
+    ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             opcode,
             parameters: Vec::from_slice(parameters)?,
@@ -53,7 +57,11 @@ impl<S: System> UpperControlPDU<S> {
         })
     }
 
-    pub fn parse(opcode: UpperControlOpcode, data: &[u8], meta: S::UpperMetadata) -> Result<Self, ParseError> {
+    pub fn parse(
+        opcode: UpperControlOpcode,
+        data: &[u8],
+        meta: S::UpperMetadata,
+    ) -> Result<Self, ParseError> {
         Ok(Self {
             opcode,
             parameters: Vec::from_slice(data)?,

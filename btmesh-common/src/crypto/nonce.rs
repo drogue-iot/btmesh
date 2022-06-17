@@ -95,7 +95,13 @@ pub struct ApplicationNonce([u8; 13]);
 impl ApplicationNonce {
     const NONCE_TYPE: NonceType = NonceType(0x01);
 
-    pub fn new(aszmic: SzMic, seq: Seq, src: UnicastAddress, dst: Address, iv_index: IvIndex) -> Self {
+    pub fn new(
+        aszmic: SzMic,
+        seq: Seq,
+        src: UnicastAddress,
+        dst: Address,
+        iv_index: IvIndex,
+    ) -> Self {
         Self(build_nonce(
             Self::NONCE_TYPE,
             aszmic,
@@ -122,7 +128,13 @@ pub struct DeviceNonce([u8; 13]);
 impl DeviceNonce {
     const NONCE_TYPE: NonceType = NonceType(0x02);
 
-    pub fn new(aszmic: SzMic, seq: Seq, src: UnicastAddress, dst: Address, iv_index: IvIndex) -> Self {
+    pub fn new(
+        aszmic: SzMic,
+        seq: Seq,
+        src: UnicastAddress,
+        dst: Address,
+        iv_index: IvIndex,
+    ) -> Self {
         Self(build_nonce(
             Self::NONCE_TYPE,
             aszmic,

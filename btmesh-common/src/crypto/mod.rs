@@ -12,8 +12,8 @@ use cmac::{Cmac, Mac, NewMac};
 use core::convert::TryInto;
 use heapless::Vec;
 
-pub mod nonce;
 pub mod application;
+pub mod nonce;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 

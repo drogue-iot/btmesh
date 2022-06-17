@@ -44,15 +44,16 @@ impl Driver {
             })
     }
 
-    pub fn process_upper_pdu(&mut self, mut pdu: UpperPDU<Driver>) -> Result<AccessMessage<Driver>, DriverError> {
+    pub fn process_upper_pdu(
+        &mut self,
+        mut pdu: UpperPDU<Driver>,
+    ) -> Result<AccessMessage<Driver>, DriverError> {
         self.apply_label_uuids(&mut pdu)?;
         match pdu {
             UpperPDU::Access(access) => {
                 return self.decrypt_access(access);
             }
-            UpperPDU::Control(control) => {
-                return todo!()
-            }
+            UpperPDU::Control(control) => return todo!(),
         }
     }
 
@@ -108,7 +109,9 @@ impl Driver {
                         &mut bytes,
                         pdu.transmic().as_slice(),
                         None,
-                    ).is_ok() {
+                    )
+                    .is_ok()
+                    {
                         decrypt_result.replace((application_key_handle, None, bytes));
                         break 'outer;
                     }
@@ -126,7 +129,9 @@ impl Driver {
                             &mut bytes,
                             pdu.transmic().as_slice(),
                             Some(label_uuid.label_uuid()),
-                        ).is_ok() {
+                        )
+                        .is_ok()
+                        {
                             decrypt_result.replace((
                                 application_key_handle,
                                 Some(*label_uuid),
@@ -166,7 +171,9 @@ impl Driver {
                 nonce,
                 &mut bytes,
                 pdu.transmic().as_slice(),
-            ).is_ok() {
+            )
+            .is_ok()
+            {
                 return Ok(AccessMessage::parse(
                     &*bytes,
                     AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, pdu),

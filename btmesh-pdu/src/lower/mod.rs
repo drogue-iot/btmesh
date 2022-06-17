@@ -57,9 +57,9 @@ pub enum SegmentedLowerPDU<S: System> {
     Control(SegmentedLowerControlPDU<S>),
 }
 
-impl<S:System> From<SegmentedLowerPDU<S>> for LowerPDU<S> {
+impl<S: System> From<SegmentedLowerPDU<S>> for LowerPDU<S> {
     fn from(inner: SegmentedLowerPDU<S>) -> Self {
-        Self::Segmented( inner )
+        Self::Segmented(inner)
     }
 }
 
@@ -99,7 +99,10 @@ impl<S: System> SegmentedLowerPDU<S> {
 }
 
 impl<S: System> LowerPDU<S> {
-    pub fn parse(network_pdu: &CleartextNetworkPDU<S>, meta: S::LowerMetadata) -> Result<Self, ParseError> {
+    pub fn parse(
+        network_pdu: &CleartextNetworkPDU<S>,
+        meta: S::LowerMetadata,
+    ) -> Result<Self, ParseError> {
         let data = network_pdu.transport_pdu();
 
         if data.len() >= 2 {

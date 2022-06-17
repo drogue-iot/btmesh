@@ -1,18 +1,18 @@
 #![allow(dead_code)]
 
+use crate::lower::LowerDriver;
 use crate::network::replay_protection::ReplayProtection;
+use crate::network::{DeviceInfo, NetworkDriver};
+use crate::upper::UpperDriver;
 use btmesh_common::address::{Address, InvalidAddress, LabelUuid, UnicastAddress};
 use btmesh_common::{Aid, InsufficientBuffer, IvIndex, ParseError, Seq};
 use btmesh_pdu::lower::{InvalidBlock, LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
-use btmesh_pdu::System;
-use heapless::Vec;
-use hash32_derive::Hash32;
 use btmesh_pdu::upper::access::UpperAccessPDU;
+use btmesh_pdu::System;
+use hash32_derive::Hash32;
+use heapless::Vec;
 use secrets::Secrets;
-use crate::lower::LowerDriver;
-use crate::network::{DeviceInfo, NetworkDriver};
-use crate::upper::UpperDriver;
 
 mod lower;
 mod network;
@@ -65,45 +65,42 @@ pub struct Driver {
 }
 
 impl Driver {
-
     fn new(device_info: DeviceInfo, secrets: Secrets) -> Self {
         Self {
             secrets,
             upper: Default::default(),
             lower: Default::default(),
-            network: NetworkDriver::new( device_info ),
+            network: NetworkDriver::new(device_info),
         }
     }
 
     fn process(&mut self, data: &[u8]) -> Result<(), DriverError> {
         let network_pdu = NetworkPDU::parse(data)?;
         let iv_index = todo!();
-        if let Some(mut cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
+        if let Some(mut cleartext_network_pdu) =
+            self.try_decrypt_network_pdu(&network_pdu, iv_index)?
+        {
             self.validate_cleartext_network_pdu(&mut cleartext_network_pdu);
 
-            let (block_ack, upper_pdu) = self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
+            let (block_ack, upper_pdu) =
+                self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 
-            if let Some(block_ack) = block_ack {
-
-            }
+            if let Some(block_ack) = block_ack {}
 
             if let Some(upper_pdu) = upper_pdu {
                 let access_message = self.process_upper_pdu(upper_pdu)?;
-
             }
-
         }
 
         Ok(())
     }
-
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum KeyHandle {
     Device,
     Network(NetworkKeyHandle),
-    Application(ApplicationKeyHandle)
+    Application(ApplicationKeyHandle),
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
@@ -156,13 +153,12 @@ pub struct LowerMetadata {
 }
 
 impl LowerMetadata {
-
     pub fn new(iv_index: IvIndex, src: UnicastAddress, dst: Address, seq: Seq) -> Self {
         Self {
             iv_index,
             src,
             dst,
-            seq
+            seq,
         }
     }
 
@@ -171,7 +167,7 @@ impl LowerMetadata {
             iv_index: pdu.meta().iv_index(),
             src: pdu.src(),
             dst: pdu.dst(),
-            seq: pdu.seq()
+            seq: pdu.seq(),
         }
     }
 
@@ -203,26 +199,33 @@ pub struct UpperMetadata {
 }
 
 impl UpperMetadata {
-
     pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<Driver>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
-            akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu { inner.aid() } else {None},
+            akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu {
+                inner.aid()
+            } else {
+                None
+            },
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
-            label_uuids: Default::default()
+            label_uuids: Default::default(),
         }
     }
 
     pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<Driver>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
-            akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu { inner.aid() } else {None},
+            akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu {
+                inner.aid()
+            } else {
+                None
+            },
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
-            label_uuids: Default::default()
+            label_uuids: Default::default(),
         }
     }
 
@@ -258,10 +261,11 @@ impl UpperMetadata {
     }
 
     pub fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {
-        self.label_uuids.push(label_uuid).map_err(|_| DriverError::InsufficientSpace)?;
+        self.label_uuids
+            .push(label_uuid)
+            .map_err(|_| DriverError::InsufficientSpace)?;
         Ok(())
     }
-
 
     /*
     pub(crate) fn apply(&mut self, pdu: &LowerPDU<Driver>) {
@@ -293,7 +297,11 @@ pub struct AccessMetadata {
 }
 
 impl AccessMetadata {
-    pub fn from_upper_access_pdu(key_handle: KeyHandle, label_uuid: Option<LabelUuid>, pdu: UpperAccessPDU<Driver>) -> Self {
+    pub fn from_upper_access_pdu(
+        key_handle: KeyHandle,
+        label_uuid: Option<LabelUuid>,
+        pdu: UpperAccessPDU<Driver>,
+    ) -> Self {
         Self {
             iv_index: pdu.meta().iv_index,
             key_handle,
@@ -302,5 +310,4 @@ impl AccessMetadata {
             label_uuid,
         }
     }
-
 }

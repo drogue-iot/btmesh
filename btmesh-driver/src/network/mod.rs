@@ -15,7 +15,7 @@ impl DeviceInfo {
     fn new(primary_unicast_address: UnicastAddress, number_of_elements: u8) -> Self {
         Self {
             number_of_elements,
-            primary_unicast_address
+            primary_unicast_address,
         }
     }
 
@@ -163,29 +163,54 @@ impl Driver {
     }
 }
 
-
 #[cfg(test)]
 mod test {
-    use btmesh_common::address::{Address, GroupAddress, UnicastAddress};
     use crate::network::DeviceInfo;
+    use btmesh_common::address::{Address, GroupAddress, UnicastAddress};
 
     #[test]
     fn local_element_index() {
-        let device_info = DeviceInfo::new(UnicastAddress::parse([ 0x00, 0x0A]).unwrap(), 3);
+        let device_info = DeviceInfo::new(UnicastAddress::parse([0x00, 0x0A]).unwrap(), 3);
 
-        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x01]).unwrap().into() ));
-        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x02]).unwrap().into() ));
-        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x09]).unwrap().into() ));
+        assert_eq!(
+            None,
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x01]).unwrap().into())
+        );
+        assert_eq!(
+            None,
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x02]).unwrap().into())
+        );
+        assert_eq!(
+            None,
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x09]).unwrap().into())
+        );
 
-        assert_eq!( Some(0), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0A]).unwrap().into() ));
-        assert_eq!( Some(1), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0B]).unwrap().into() ));
-        assert_eq!( Some(2), device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0C]).unwrap().into() ));
+        assert_eq!(
+            Some(0),
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x0A]).unwrap().into())
+        );
+        assert_eq!(
+            Some(1),
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x0B]).unwrap().into())
+        );
+        assert_eq!(
+            Some(2),
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x0C]).unwrap().into())
+        );
 
-        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0D]).unwrap().into() ));
-        assert_eq!( None, device_info.local_element_index( UnicastAddress::parse( [0x00, 0x0E]).unwrap().into() ));
+        assert_eq!(
+            None,
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x0D]).unwrap().into())
+        );
+        assert_eq!(
+            None,
+            device_info.local_element_index(UnicastAddress::parse([0x00, 0x0E]).unwrap().into())
+        );
 
-        assert_eq!( None, device_info.local_element_index( Address::Unassigned ));
-        assert_eq!( None, device_info.local_element_index( Address::Group(GroupAddress::AllNodes) ));
+        assert_eq!(None, device_info.local_element_index(Address::Unassigned));
+        assert_eq!(
+            None,
+            device_info.local_element_index(Address::Group(GroupAddress::AllNodes))
+        );
     }
-
 }

@@ -11,8 +11,7 @@ pub enum UpperPDU<S: System> {
     Control(UpperControlPDU<S>),
 }
 
-impl<S:System> UpperPDU<S> {
-
+impl<S: System> UpperPDU<S> {
     pub fn meta(&self) -> &S::UpperMetadata {
         match self {
             UpperPDU::Access(pdu) => pdu.meta(),
@@ -26,5 +25,4 @@ impl<S:System> UpperPDU<S> {
             UpperPDU::Control(pdu) => pdu.meta_mut(),
         }
     }
-
 }

@@ -1,4 +1,5 @@
 use core::array::TryFromSliceError;
+use core::ops::{Add, Sub};
 
 pub mod address;
 pub mod crypto;
@@ -98,7 +99,12 @@ impl From<u8> for Aid {
     }
 }
 
-#[derive(Copy, Clone, Default)]
+pub enum IvUpdateFlag {
+    Normal,
+    InProgress,
+}
+
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IvIndex(u32);
 
@@ -131,9 +137,44 @@ impl IvIndex {
             Ivi::Zero
         }
     }
+
+    pub fn accepted_iv_index(&self, ivi: Ivi) -> IvIndex {
+        if self.ivi() == ivi {
+            *self
+        } else {
+            *self - 1
+        }
+    }
+
+    pub fn transmission_iv_index(&self, flag: IvUpdateFlag) -> IvIndex {
+        match flag {
+            IvUpdateFlag::Normal => *self,
+            IvUpdateFlag::InProgress => *self - 1,
+        }
+    }
 }
 
-#[derive(Copy, Clone)]
+impl Sub<u8> for IvIndex {
+    type Output = Self;
+
+    fn sub(self, rhs: u8) -> Self::Output {
+        if self.0 > rhs as u32 {
+            Self(self.0 - rhs as u32)
+        } else {
+            self
+        }
+    }
+}
+
+impl Add<u8> for IvIndex {
+    type Output = Self;
+
+    fn add(self, rhs: u8) -> Self::Output {
+        Self(self.0 + rhs as u32)
+    }
+}
+
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Ivi {
     Zero,
@@ -218,5 +259,45 @@ impl Ctl {
             Ctl::Access => 4,
             Ctl::Control => 8,
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::{IvIndex, IvUpdateFlag, Ivi};
+
+    #[test]
+    fn iv_index_zero() {
+        let iv_index = IvIndex::parse(&[0x00, 0x00, 0x00, 0x00]).unwrap();
+        assert_eq!(Ivi::Zero, iv_index.ivi());
+
+        assert_eq!(iv_index, iv_index.accepted_iv_index(Ivi::Zero));
+        // special case, non-valid but don't break.
+        assert_eq!(iv_index, iv_index.accepted_iv_index(Ivi::One));
+
+        assert_eq!(
+            iv_index,
+            iv_index.transmission_iv_index(IvUpdateFlag::Normal)
+        );
+
+        // special case, non-valid but don't break.
+        assert_eq!(
+            iv_index,
+            iv_index.transmission_iv_index(IvUpdateFlag::InProgress)
+        );
+    }
+
+    #[test]
+    fn iv_index_non_zero() {
+        let iv_index = IvIndex::parse(&[0x00, 0x00, 0x00, 0x03]).unwrap();
+        let prev_iv_index = iv_index - 1;
+
+        assert_eq!(iv_index.value(), 3);
+        assert_eq!(prev_iv_index.value(), 2);
+
+        assert_eq!(Ivi::One, iv_index.ivi());
+
+        assert_eq!(iv_index, iv_index.accepted_iv_index(Ivi::One));
+        assert_eq!(prev_iv_index, iv_index.accepted_iv_index(Ivi::Zero));
     }
 }

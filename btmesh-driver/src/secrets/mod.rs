@@ -1,12 +1,12 @@
-use crate::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
-use crate::secrets::network::NetworkKeys;
-use btmesh_common::{Aid, Nid};
 use crate::secrets::application::ApplicationKeys;
 use crate::secrets::device::DeviceKey;
+use crate::secrets::network::NetworkKeys;
+use crate::{ApplicationKeyHandle, DriverError, NetworkKeyHandle};
+use btmesh_common::{Aid, Nid};
 
+pub mod application;
 pub mod device;
 pub mod network;
-pub mod application;
 
 pub(crate) struct Secrets {
     device_key: DeviceKey,
@@ -15,7 +15,7 @@ pub(crate) struct Secrets {
 }
 
 impl Secrets {
-    pub(crate) fn device_key(&self) -> [u8;16] {
+    pub(crate) fn device_key(&self) -> [u8; 16] {
         self.device_key.device_key()
     }
 
@@ -48,15 +48,18 @@ impl Secrets {
 
     pub(crate) fn application_keys_by_aid(
         &self,
-        aid: Aid
+        aid: Aid,
     ) -> impl Iterator<Item = ApplicationKeyHandle> + '_ {
         self.application_keys.by_aid_iter(aid)
     }
 
-    pub(crate) fn application_key(&self, application_key: ApplicationKeyHandle) -> Result<[u8; 16], DriverError> {
+    pub(crate) fn application_key(
+        &self,
+        application_key: ApplicationKeyHandle,
+    ) -> Result<[u8; 16], DriverError> {
         self.application_keys.keys[application_key.0 as usize]
             .as_ref()
-            .ok_or( DriverError::InvalidKeyHandle)
-            .map(|key| key.application_key() )
+            .ok_or(DriverError::InvalidKeyHandle)
+            .map(|key| key.application_key())
     }
 }
