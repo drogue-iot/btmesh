@@ -102,8 +102,6 @@ impl Driver {
         if let Some(mut cleartext_network_pdu) =
             self.try_decrypt_network_pdu(&network_pdu, iv_index)?
         {
-            self.validate_cleartext_network_pdu(&mut cleartext_network_pdu);
-
             let (block_ack, upper_pdu) =
                 self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 

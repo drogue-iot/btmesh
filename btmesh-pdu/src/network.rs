@@ -24,8 +24,8 @@ pub struct NetworkPDU {
 }
 
 impl NetworkPDU {
-    pub fn encrypted_and_mic(&self) -> &Vec<u8, 28> {
-        &self.encrypted_and_mic
+    pub fn encrypted_and_mic(&self) -> &[u8] {
+        &*self.encrypted_and_mic
     }
 
     pub fn obfuscated(&self) -> &[u8; 6] {

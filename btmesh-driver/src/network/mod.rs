@@ -1,8 +1,11 @@
-use crate::{Driver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
+use crate::{
+    Driver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection,
+};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
+use heapless::Vec;
 
 pub mod replay_protection;
 
@@ -69,17 +72,23 @@ impl Driver {
     }
 
     pub fn try_decrypt_network_pdu(
-        &self,
+        &mut self,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
     ) -> Result<Option<CleartextNetworkPDU<Driver>>, DriverError> {
+        let mut result = None;
         for network_key in self.network_keys_by_nid(pdu.nid()) {
-            if let Ok(result) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
-                return Ok(Some(result));
+            if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
+                result.replace(pdu);
+                break;
             }
         }
 
-        Ok(None)
+        if let Some(result) = &mut result {
+            self.validate_cleartext_network_pdu(result);
+        }
+
+        Ok(result)
     }
 
     pub fn try_decrypt_network_pdu_with_key(
@@ -88,8 +97,7 @@ impl Driver {
         iv_index: IvIndex,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
-
-        let mut encrypted_and_mic = pdu.encrypted_and_mic().clone();
+        let mut encrypted_and_mic = Vec::<_, 28>::from_slice( pdu.encrypted_and_mic() ).map_err(|_|DriverError::InsufficientSpace)?;
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);
 
         let pecb = crypto::e(&self.privacy_key(network_key)?, privacy_plaintext)
