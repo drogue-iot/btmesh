@@ -99,6 +99,7 @@ impl From<u8> for Aid {
     }
 }
 
+#[derive(Copy, Clone)]
 pub enum IvUpdateFlag {
     Normal,
     InProgress,

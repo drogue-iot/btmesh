@@ -1,4 +1,4 @@
-use crate::{Driver, DriverError, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
+use crate::{Driver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
@@ -88,6 +88,7 @@ impl Driver {
         iv_index: IvIndex,
         network_key: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<Driver>, DriverError> {
+
         let mut encrypted_and_mic = pdu.encrypted_and_mic().clone();
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);
 

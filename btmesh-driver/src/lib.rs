@@ -5,7 +5,7 @@ use crate::network::replay_protection::ReplayProtection;
 use crate::network::{DeviceInfo, NetworkDriver};
 use crate::upper::UpperDriver;
 use btmesh_common::address::{Address, InvalidAddress, LabelUuid, UnicastAddress};
-use btmesh_common::{Aid, InsufficientBuffer, IvIndex, ParseError, Seq};
+use btmesh_common::{Aid, InsufficientBuffer, Ivi, IvIndex, IvUpdateFlag, ParseError, Seq};
 use btmesh_pdu::lower::{InvalidBlock, LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::upper::access::UpperAccessPDU;
@@ -56,8 +56,29 @@ impl From<InvalidBlock> for DriverError {
     }
 }
 
+#[derive(Copy, Clone)]
+pub struct IvIndexState {
+    iv_index: IvIndex,
+    iv_update_flag: IvUpdateFlag,
+}
+
+impl IvIndexState {
+    pub fn accepted_iv_index(&self, ivi: Ivi) -> IvIndex {
+        self.iv_index.accepted_iv_index(ivi)
+    }
+
+    pub fn transmission_iv_index(&self) -> IvIndex {
+        self.iv_index.transmission_iv_index(self.iv_update_flag)
+    }
+}
+
+pub struct NetworkState {
+    iv_index_state: IvIndexState,
+}
+
 // TODO: rename to ProvisionedDriver or somesuch.
 pub struct Driver {
+    network_state: NetworkState,
     secrets: Secrets,
     upper: UpperDriver,
     lower: LowerDriver,
@@ -65,9 +86,10 @@ pub struct Driver {
 }
 
 impl Driver {
-    fn new(device_info: DeviceInfo, secrets: Secrets) -> Self {
+    fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
             secrets,
+            network_state,
             upper: Default::default(),
             lower: Default::default(),
             network: NetworkDriver::new(device_info),
@@ -76,7 +98,7 @@ impl Driver {
 
     fn process(&mut self, data: &[u8]) -> Result<(), DriverError> {
         let network_pdu = NetworkPDU::parse(data)?;
-        let iv_index = todo!();
+        let iv_index = self.network_state.iv_index_state.accepted_iv_index(network_pdu.ivi());
         if let Some(mut cleartext_network_pdu) =
             self.try_decrypt_network_pdu(&network_pdu, iv_index)?
         {
