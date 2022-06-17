@@ -96,7 +96,7 @@ impl Driver {
         }
     }
 
-    fn process(&mut self, data: &[u8]) -> Result<(), DriverError> {
+    fn receive(&mut self, data: &[u8]) -> Result<(), DriverError> {
         let network_pdu = NetworkPDU::parse(data)?;
         let iv_index = self.network_state.iv_index_state.accepted_iv_index(network_pdu.ivi());
         if let Some(mut cleartext_network_pdu) =
@@ -105,7 +105,9 @@ impl Driver {
             let (block_ack, upper_pdu) =
                 self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
 
-            if let Some(block_ack) = block_ack {}
+            if let Some(block_ack) = block_ack {
+
+            }
 
             if let Some(upper_pdu) = upper_pdu {
                 let access_message = self.process_upper_pdu(upper_pdu)?;
