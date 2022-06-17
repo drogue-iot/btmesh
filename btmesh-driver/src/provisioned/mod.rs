@@ -3,20 +3,17 @@ use crate::provisioned::network::replay_protection::ReplayProtection;
 use crate::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
-use btmesh_common::{Aid, IvIndex, IvUpdateFlag, Ivi, Seq};
-use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
-use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
-use btmesh_pdu::upper::access::UpperAccessPDU;
+use btmesh_common::{Ivi, IvIndex, IvUpdateFlag};
+use btmesh_pdu::network::NetworkPDU;
 use btmesh_pdu::System;
-use hash32_derive::Hash32;
-use heapless::Vec;
 use secrets::Secrets;
+use system::{AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata, UpperMetadata};
 
 pub mod lower;
 pub mod network;
 pub mod secrets;
 pub mod upper;
+pub mod system;
 
 #[derive(Copy, Clone)]
 pub struct IvIndexState {
@@ -80,19 +77,6 @@ impl ProvisionedDriver {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
-pub enum KeyHandle {
-    Device,
-    Network(NetworkKeyHandle),
-    Application(ApplicationKeyHandle),
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
-pub struct NetworkKeyHandle(u8);
-
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
-pub struct ApplicationKeyHandle(u8);
-
 impl System for ProvisionedDriver {
     type NetworkKeyHandle = NetworkKeyHandle;
     type ApplicationKeyHandle = ApplicationKeyHandle;
@@ -100,198 +84,4 @@ impl System for ProvisionedDriver {
     type LowerMetadata = LowerMetadata;
     type UpperMetadata = UpperMetadata;
     type AccessMetadata = AccessMetadata;
-}
-
-#[derive(Copy, Clone)]
-pub struct NetworkMetadata {
-    iv_index: IvIndex,
-    replay_protected: bool,
-    should_relay: bool,
-    local_element_index: Option<u8>,
-}
-
-impl NetworkMetadata {
-    pub fn iv_index(&self) -> IvIndex {
-        self.iv_index
-    }
-
-    pub fn replay_protected(&mut self, protected: bool) {
-        self.replay_protected = protected;
-    }
-
-    pub fn should_relay(&mut self, relay: bool) {
-        self.should_relay = relay;
-    }
-
-    pub fn local_element_index(&self) -> Option<u8> {
-        self.local_element_index
-    }
-}
-
-#[derive(Copy, Clone)]
-pub struct LowerMetadata {
-    iv_index: IvIndex,
-    src: UnicastAddress,
-    dst: Address,
-    seq: Seq,
-}
-
-impl LowerMetadata {
-    pub fn new(iv_index: IvIndex, src: UnicastAddress, dst: Address, seq: Seq) -> Self {
-        Self {
-            iv_index,
-            src,
-            dst,
-            seq,
-        }
-    }
-
-    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<ProvisionedDriver>) -> Self {
-        Self {
-            iv_index: pdu.meta().iv_index(),
-            src: pdu.src(),
-            dst: pdu.dst(),
-            seq: pdu.seq(),
-        }
-    }
-
-    pub fn src(&self) -> UnicastAddress {
-        self.src
-    }
-
-    pub fn dst(&self) -> Address {
-        self.dst
-    }
-
-    pub fn seq(&self) -> Seq {
-        self.seq
-    }
-
-    pub fn iv_index(&self) -> IvIndex {
-        self.iv_index
-    }
-}
-
-#[derive(Clone)]
-pub struct UpperMetadata {
-    iv_index: IvIndex,
-    akf_aid: Option<Aid>,
-    seq: Seq,
-    src: UnicastAddress,
-    dst: Address,
-    label_uuids: Vec<LabelUuid, 3>,
-}
-
-impl UpperMetadata {
-    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Self {
-        Self {
-            iv_index: pdu.meta().iv_index(),
-            akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu {
-                inner.aid()
-            } else {
-                None
-            },
-            seq: pdu.meta().seq(),
-            src: pdu.meta().src(),
-            dst: pdu.meta().dst(),
-            label_uuids: Default::default(),
-        }
-    }
-
-    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<ProvisionedDriver>) -> Self {
-        Self {
-            iv_index: pdu.meta().iv_index(),
-            akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu {
-                inner.aid()
-            } else {
-                None
-            },
-            seq: pdu.meta().seq(),
-            src: pdu.meta().src(),
-            dst: pdu.meta().dst(),
-            label_uuids: Default::default(),
-        }
-    }
-
-    pub fn from_lower_pdu(pdu: &LowerPDU<ProvisionedDriver>) -> Self {
-        match pdu {
-            LowerPDU::Unsegmented(inner) => Self::from_unsegmented_lower_pdu(inner),
-            LowerPDU::Segmented(inner) => Self::from_segmented_lower_pdu(inner),
-        }
-    }
-
-    pub fn iv_index(&self) -> IvIndex {
-        self.iv_index
-    }
-
-    pub fn aid(&self) -> Option<Aid> {
-        self.akf_aid
-    }
-
-    pub fn seq(&self) -> Seq {
-        self.seq
-    }
-
-    pub fn src(&self) -> UnicastAddress {
-        self.src
-    }
-
-    pub fn dst(&self) -> Address {
-        self.dst
-    }
-
-    pub fn label_uuids(&self) -> &[LabelUuid] {
-        &*self.label_uuids
-    }
-
-    pub fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {
-        self.label_uuids
-            .push(label_uuid)
-            .map_err(|_| DriverError::InsufficientSpace)?;
-        Ok(())
-    }
-
-    /*
-    pub(crate) fn apply(&mut self, pdu: &LowerPDU<Driver>) {
-        match pdu {
-            LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(access)) => {
-                self.akf_aid = access.aid().clone();
-            }
-            LowerPDU::Segmented(SegmentedLowerPDU::Access(access)) => {
-                self.akf_aid = access.aid().clone();
-            }
-            _ => { /* nothing */ }
-        }
-
-        self.iv_index = pdu.meta().iv_index().clone();
-        self.seq = pdu.meta().seq().clone();
-        self.src = pdu.meta().src().clone();
-        self.dst = pdu.meta().dst().clone();
-    }
-     */
-}
-
-#[derive(Copy, Clone)]
-pub struct AccessMetadata {
-    iv_index: IvIndex,
-    key_handle: KeyHandle,
-    src: UnicastAddress,
-    dst: Address,
-    label_uuid: Option<LabelUuid>,
-}
-
-impl AccessMetadata {
-    pub fn from_upper_access_pdu(
-        key_handle: KeyHandle,
-        label_uuid: Option<LabelUuid>,
-        pdu: UpperAccessPDU<ProvisionedDriver>,
-    ) -> Self {
-        Self {
-            iv_index: pdu.meta().iv_index,
-            key_handle,
-            src: pdu.meta().src,
-            dst: pdu.meta().dst,
-            label_uuid,
-        }
-    }
 }

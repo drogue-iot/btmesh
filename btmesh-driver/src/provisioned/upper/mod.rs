@@ -1,4 +1,4 @@
-use crate::provisioned::{AccessMetadata, ProvisionedDriver, DriverError, KeyHandle};
+use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
@@ -7,6 +7,7 @@ use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::UpperPDU;
 use core::ops::ControlFlow;
 use heapless::Vec;
+use crate::provisioned::system::{AccessMetadata, KeyHandle};
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {

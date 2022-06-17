@@ -1,6 +1,6 @@
 use heapless::FnvIndexMap;
 
-use crate::provisioned::{ProvisionedDriver, DriverError, UpperMetadata};
+use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
@@ -10,6 +10,7 @@ use btmesh_pdu::lower::{BlockAck, SegmentedLowerPDU};
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::{UpperControlOpcode, UpperControlPDU};
 use btmesh_pdu::upper::UpperPDU;
+use crate::provisioned::system::UpperMetadata;
 
 pub struct InboundSegmentation<const N: usize = 5> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
@@ -300,7 +301,7 @@ impl Reassembly {
 #[cfg(test)]
 mod tests {
     use crate::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
-    use crate::provisioned::{ProvisionedDriver, DriverError, LowerMetadata, UpperMetadata};
+    use crate::provisioned::{DriverError, ProvisionedDriver};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero};
@@ -309,6 +310,7 @@ mod tests {
     use btmesh_pdu::lower::SegmentedLowerPDU;
     use btmesh_pdu::upper::control::UpperControlOpcode;
     use btmesh_pdu::upper::UpperPDU;
+    use crate::provisioned::system::{LowerMetadata, UpperMetadata};
 
     #[test]
     fn in_flight_is_valid_seq_zero() {

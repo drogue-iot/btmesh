@@ -1,5 +1,6 @@
-use crate::provisioned::{ApplicationKeyHandle, DriverError};
-use btmesh_common::{crypto, Aid};
+use crate::provisioned::DriverError;
+use btmesh_common::{Aid, crypto};
+use crate::provisioned::system::ApplicationKeyHandle;
 
 pub(crate) struct ApplicationKeys<const N: usize = 4> {
     pub(crate) keys: [Option<ApplicationKey>; N],

@@ -1,11 +1,12 @@
 use crate::provisioned::{
-    ProvisionedDriver, DriverError, IvIndexState, NetworkKeyHandle, NetworkMetadata, ReplayProtection,
+    DriverError, ProvisionedDriver, ReplayProtection,
 };
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
+use crate::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
 
 pub mod replay_protection;
 

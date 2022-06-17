@@ -1,5 +1,6 @@
-use crate::provisioned::{DriverError, NetworkKeyHandle};
+use crate::provisioned::DriverError;
 use btmesh_common::{crypto, Nid};
+use crate::provisioned::system::NetworkKeyHandle;
 
 pub(crate) struct NetworkKeys<const N: usize = 4> {
     pub(crate) keys: [Option<NetworkKey>; N],
