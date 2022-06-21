@@ -1,4 +1,4 @@
-use super::provisioning::ProvisioningPDU;
+use super::pdu::ProvisioningPDU;
 
 enum Provisioning {
     Beaconing(Provisionee<Beaconing>),
