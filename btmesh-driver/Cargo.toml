@@ -13,4 +13,7 @@ hash32 = "0.2.1"
 hash32-derive = "0.1.1"
 uluru = "3.0.0"
 serde = "1.0"
+cmac = { version = "0.6.0", default-features = false }
+aes = { version = "0.7", default-features = false }
+
 
