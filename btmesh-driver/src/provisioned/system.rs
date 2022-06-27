@@ -24,6 +24,13 @@ pub struct NetworkKeyHandle(pub(crate) u8, pub(crate) Nid);
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
 pub struct ApplicationKeyHandle(pub(crate) u8, pub(crate) Aid);
 
+impl ApplicationKeyHandle {
+    pub fn aid(&self) -> Aid {
+        self.1
+    }
+
+}
+
 
 #[derive(Copy, Clone)]
 pub struct NetworkMetadata {
@@ -146,7 +153,10 @@ impl UpperMetadata {
     pub fn from_access_message(message: AccessMessage<ProvisionedDriver>, seq: Seq) -> Self {
         Self {
             iv_index: message.meta().iv_index,
-            akf_aid: None, // TODO fix this
+            akf_aid: match message.meta().key_handle() {
+                KeyHandle::Device | KeyHandle::Network(_)=> None,
+                KeyHandle::Application(key_handle) => Some(key_handle.aid())
+            },
             seq,
             src: message.meta().src(),
             dst: message.meta().dst(),
