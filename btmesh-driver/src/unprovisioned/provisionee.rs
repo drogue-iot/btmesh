@@ -1,3 +1,5 @@
+use crate::DriverError;
+
 use super::pdu::{Capabilities, ProvisioningPDU};
 use super::transcript::Transcript;
 
@@ -10,24 +12,21 @@ enum Provisioning {
 }
 
 impl Provisioning {
-    fn next(self, pdu: ProvisioningPDU) -> Self {
+    fn next(self, pdu: ProvisioningPDU) -> Result<Self, DriverError> {
         match (self, pdu) {
             (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
-                // TODO: How best to use these Results?
-                device.transcript.add_invite(&invite);
-                device.transcript.add_capabilities(&device.capabilities);
+                device.transcript.add_invite(&invite)?;
+                device.transcript.add_capabilities(&device.capabilities)?;
                 // TODO: send a capabilities PDU or let caller do it?
-                Provisioning::Invitation(device.into())
+                Ok(Provisioning::Invitation(device.into()))
             }
             (Provisioning::Invitation(mut device), ProvisioningPDU::Start(start)) => {
-                // TODO: How best to use these Results?
-                device.transcript.add_start(&start);
-                Provisioning::KeyExchange(device.into())
+                device.transcript.add_start(&start)?;
+                Ok(Provisioning::KeyExchange(device.into()))
             }
             (Provisioning::Invitation(mut device), ProvisioningPDU::PublicKey(key)) => {
-                // TODO: How best to use these Results?
-                device.transcript.add_pubkey_provisioner(&key);
-                Provisioning::KeyExchange(device.into())
+                device.transcript.add_pubkey_provisioner(&key)?;
+                Ok(Provisioning::KeyExchange(device.into()))
             }
             _ => todo!(),
         }
