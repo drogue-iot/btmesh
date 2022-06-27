@@ -304,16 +304,17 @@ mod tests {
     use crate::provisioned::{DriverError, ProvisionedDriver};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
-    use btmesh_common::{IvIndex, Seq, SeqZero};
+    use btmesh_common::{IvIndex, Nid, Seq, SeqZero, Ttl};
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::lower::SegmentedLowerPDU;
     use btmesh_pdu::upper::control::ControlOpcode;
     use btmesh_pdu::upper::UpperPDU;
-    use crate::provisioned::system::{LowerMetadata, UpperMetadata};
+    use crate::provisioned::system::{LowerMetadata, NetworkKeyHandle, UpperMetadata};
 
     #[test]
     fn in_flight_is_valid_seq_zero() {
+        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
@@ -327,10 +328,12 @@ mod tests {
             seg_n,
             &[],
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();
@@ -347,10 +350,12 @@ mod tests {
             seg_n,
             &[],
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();
@@ -362,6 +367,8 @@ mod tests {
 
     #[test]
     fn in_flight_is_valid_pdu_type() {
+        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
+
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
@@ -375,10 +382,12 @@ mod tests {
             seg_n,
             &[],
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();
@@ -396,10 +405,12 @@ mod tests {
             seg_n,
             &[],
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();
@@ -431,6 +442,7 @@ mod tests {
 
     #[test]
     fn reassembly() {
+        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
         let mut reassembly = Reassembly::new_access(SzMic::Bit32);
 
         let pdu = SegmentedLowerAccessPDU::<ProvisionedDriver>::new(
@@ -441,10 +453,12 @@ mod tests {
             1,
             b"ABCDEFGHIJKL",
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();
@@ -461,10 +475,12 @@ mod tests {
             1,
             b"ZYX",
             LowerMetadata::new(
+                network_key_handle,
                 IvIndex::parse(&[1, 2, 3, 4]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0A]).unwrap(),
                 UnicastAddress::parse([0x00, 0x0B]).unwrap().into(),
                 Seq::parse(1001).unwrap(),
+                Ttl::new(128),
             ),
         )
         .unwrap();

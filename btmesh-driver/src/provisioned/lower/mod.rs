@@ -1,20 +1,24 @@
-//mod old_inbound_segmentation;
 mod inbound_segmentation;
+mod outbound_segmentation;
 
 use crate::provisioned::lower::inbound_segmentation::InboundSegmentation;
 use crate::provisioned::ProvisionedDriver;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
+use btmesh_common::{Seq, Ttl};
 use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::UpperControlPDU;
 use btmesh_pdu::upper::UpperPDU;
+use crate::provisioned::lower::outbound_segmentation::OutboundSegmentation;
+use crate::provisioned::sequence::Sequence;
 use crate::provisioned::system::{LowerMetadata, UpperMetadata};
 
 #[derive(Default)]
 pub struct LowerDriver {
     inbound_segmentation: InboundSegmentation,
+    outbound_segmentation: OutboundSegmentation,
 }
 
 impl ProvisionedDriver {
@@ -56,5 +60,13 @@ impl ProvisionedDriver {
                 Ok((Some(block_ack), upper_pdu))
             }
         }
+    }
+
+    pub fn process_outbound_upper_pdu(
+        &mut self,
+        sequence: &Sequence,
+        upper_pdu: &UpperPDU<ProvisionedDriver>
+    ) -> () {
+        self.lower.outbound_segmentation.process(sequence, upper_pdu, Ttl::new(42));
     }
 }

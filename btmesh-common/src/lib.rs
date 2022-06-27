@@ -2,7 +2,8 @@
 
 use hash32_derive::Hash32;
 use core::array::TryFromSliceError;
-use core::ops::{Add, Sub};
+use core::ops::{Add, BitAnd, Sub};
+use heapless::Vec;
 
 pub mod address;
 pub mod crypto;
@@ -87,6 +88,12 @@ impl Aid {
         } else {
             Ok(None)
         }
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        let akf_aid = 0b01000000 | self.0 & 0b00111111;
+        xmit.push(akf_aid)?;
+        Ok(())
     }
 }
 
@@ -209,14 +216,18 @@ impl From<Ivi> for u8 {
 pub struct Ttl(u8);
 
 impl Ttl {
-    pub fn parse(ttl: u8) -> Result<Ttl, ParseError> {
+    pub fn new(ttl: u8) -> Self {
+        Self(ttl)
+    }
+
+    pub fn parse(ttl: u8) -> Result<Self, ParseError> {
         Ok(Self(ttl))
     }
 }
 
 pub struct SeqRolloverError;
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Default, Copy, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Seq(u32);
 
@@ -243,6 +254,16 @@ impl Seq {
     pub fn to_be_bytes(&self) -> [u8; 4] {
         self.0.to_be_bytes()
     }
+
+    pub fn value(&self) -> u32 {
+        self.0
+    }
+}
+
+impl From<Seq> for SeqZero {
+    fn from(seq: Seq) -> Self {
+        Self( seq.0 as u16 )
+    }
 }
 
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
@@ -256,6 +277,14 @@ impl SeqZero {
 
     pub fn parse(data: u16) -> Result<Self, ParseError> {
         Ok(Self(data))
+    }
+}
+
+impl BitAnd<u16> for SeqZero {
+    type Output = u16;
+
+    fn bitand(self, rhs: u16) -> Self::Output {
+        self.0 & rhs
     }
 }
 

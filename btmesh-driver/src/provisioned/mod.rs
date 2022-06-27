@@ -14,7 +14,9 @@ use system::{
     AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata,
     UpperMetadata,
 };
+use crate::provisioned::sequence::Sequence;
 
+pub mod sequence;
 pub mod lower;
 pub mod network;
 pub mod secrets;
@@ -72,7 +74,7 @@ impl ProvisionedDriver {
         Self {
             secrets,
             network_state,
-            upper: UpperDriver::new(Seq::new(0)),
+            upper: Default::default(),
             lower: Default::default(),
             network: NetworkDriver::new(device_info),
         }
@@ -101,8 +103,10 @@ impl ProvisionedDriver {
         }
     }
 
-    fn process_outbound(&mut self, message: &Message<ProvisionedDriver>) -> Result<(), DriverError> {
-        let upper_pdu = self.process_outbound_message(message)?;
+    fn process_outbound(&mut self, sequence: &Sequence, message: &Message<ProvisionedDriver>) -> Result<(), DriverError> {
+        let upper_pdu = self.process_outbound_message(sequence, message)?;
+
+        let cleartext_network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu);
 
         todo!()
     }

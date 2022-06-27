@@ -11,25 +11,14 @@ use btmesh_pdu::upper::UpperPDU;
 use btmesh_pdu::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
+use crate::provisioned::sequence::Sequence;
 
+#[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
     label_uuids: Vec<Option<LabelUuid>, N>,
-    seq: Seq,
 }
 
 impl UpperDriver {
-    pub fn new(seq: Seq) -> Self {
-        Self {
-            label_uuids: Default::default(),
-            seq,
-        }
-    }
-
-    fn next_seq(&mut self) -> Result<Seq, SeqRolloverError> {
-        let seq = self.seq;
-        self.seq = (self.seq + 1)?;
-        Ok(seq)
-    }
 }
 
 impl ProvisionedDriver {
@@ -81,13 +70,17 @@ impl ProvisionedDriver {
 
     pub fn process_outbound_message(
         &mut self,
+        sequence: &Sequence,
         message: &Message<ProvisionedDriver>,
-    ) -> Result<(), DriverError> {
+    ) -> Result<UpperPDU<ProvisionedDriver>, DriverError> {
         match message {
-            Message::Access(access) => {}
-            Message::Control(control) => {}
+            Message::Access(access) => {
+                Ok(self.encrypt_access(sequence, access)?.into())
+            }
+            Message::Control(control) => {
+                todo!()
+            }
         }
-        todo!()
     }
 
     /// Apply potential candidate label-uuids if the destination of the PDU
@@ -117,9 +110,10 @@ impl ProvisionedDriver {
 
     fn encrypt_access(
         &mut self,
-        message: AccessMessage<ProvisionedDriver>,
+        sequence: &Sequence,
+        message: &AccessMessage<ProvisionedDriver>,
     ) -> Result<UpperAccessPDU<ProvisionedDriver>, DriverError> {
-        let seq_zero = self.upper.next_seq()?;
+        let seq_zero = sequence.next();
 
         let mut payload = Vec::<u8, 379>::new();
         message.emit(&mut payload)?;

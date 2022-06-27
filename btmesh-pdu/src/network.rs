@@ -70,9 +70,8 @@ impl NetworkPDU {
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[allow(dead_code)]
 pub struct CleartextNetworkPDU<S: System = ()> {
-    network_key: S::NetworkKeyHandle,
+    //network_key: S::NetworkKeyHandle,
     ivi: Ivi,
-    /* 1 bit */
     nid: Nid,
     /* 7 bits */
     ctl: Ctl,
@@ -90,7 +89,7 @@ pub struct CleartextNetworkPDU<S: System = ()> {
 impl<S: System> CleartextNetworkPDU<S> {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
-        network_key: S::NetworkKeyHandle,
+        //network_key: S::NetworkKeyHandle,
         ivi: Ivi,
         nid: Nid,
         ctl: Ctl,
@@ -102,7 +101,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         meta: S::NetworkMetadata,
     ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
-            network_key,
+            //network_key,
             ivi,
             nid,
             ctl,
@@ -115,12 +114,16 @@ impl<S: System> CleartextNetworkPDU<S> {
         })
     }
 
-    pub fn network_key(&self) -> S::NetworkKeyHandle {
-        self.network_key
-    }
+    //pub fn network_key(&self) -> S::NetworkKeyHandle {
+        //self.network_key
+    //}
 
     pub fn ivi(&self) -> Ivi {
         self.ivi
+    }
+
+    pub fn nid(&self) -> Nid {
+        self.nid
     }
 
     pub fn ttl(&self) -> Ttl {

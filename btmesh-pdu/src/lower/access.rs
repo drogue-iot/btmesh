@@ -40,7 +40,7 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
     }
 }
 
-pub struct SegmentedLowerAccessPDU<S: System> {
+pub struct SegmentedLowerAccessPDU<S: System=()> {
     akf_aid: Option<Aid>,
     szmic: SzMic,
     seq_zero: SeqZero,
@@ -70,6 +70,31 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             segment_m,
             meta,
         })
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        match self.akf_aid {
+            None => xmit.push(0)?,
+            Some(aid) => aid.emit(xmit)?,
+        }
+
+        let mut header = [0; 3];
+        match self.szmic {
+            // small szmic + first 7 bits of seq_zero
+            SzMic::Bit32 => {
+                header[0] = 0b00000000 | ((self.seq_zero & 0b1111111000000) >> 6) as u8;
+            }
+            // big szmic + first 7 bits of seq_zero
+            SzMic::Bit64 => {
+                header[0] = 0b10000000 | ((self.seq_zero & 0b1111111000000) >> 6) as u8;
+            }
+        }
+        // last 6 bits of seq_zero + first 2 bits of seg_o
+        header[1] = ((self.seq_zero & 0b111111) << 2) as u8 | ((self.seg_o & 0b00011000) >> 2) as u8;
+        header[2] = ((self.seg_o & 0b00000111) << 5) | (self.seg_n & 0b00011111);
+        xmit.extend_from_slice(&header)?;
+        xmit.extend_from_slice(&*self.segment_m)?;
+        Ok(())
     }
 
     pub fn new(

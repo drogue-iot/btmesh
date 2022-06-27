@@ -149,17 +149,15 @@ impl ProvisionedDriver {
 
             let local_element_index = self.network.local_element_index(dst);
 
-            let meta = NetworkMetadata {
+            let meta = NetworkMetadata::new(
                 iv_index,
-                replay_protected: false,
-                should_relay: false,
                 local_element_index,
-            };
+                network_key
+            );
 
             Ok(CleartextNetworkPDU::new(
-                network_key,
                 pdu.ivi(),
-                pdu.nid(),
+                network_key.nid(),
                 ctl,
                 ttl,
                 seq,
