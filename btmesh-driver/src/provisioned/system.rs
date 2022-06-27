@@ -197,6 +197,27 @@ impl AccessMetadata {
             label_uuid,
         }
     }
+
+    pub fn iv_index(&self) -> IvIndex {
+        self.iv_index
+    }
+
+    pub fn key_handle(&self) -> KeyHandle {
+        self.key_handle
+    }
+
+    pub fn src(&self) -> UnicastAddress {
+        self.src
+    }
+
+    pub fn dst(&self) -> Address {
+        self.dst
+    }
+
+    pub fn label_uuid(&self) -> Option<LabelUuid> {
+        self.label_uuid
+    }
+
 }
 
 #[derive(Copy, Clone)]

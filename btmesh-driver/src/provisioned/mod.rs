@@ -54,6 +54,19 @@ struct ReceiveResult {
     message: Option<Message<ProvisionedDriver>>,
 }
 
+impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedDriver>>)> for ReceiveResult {
+    type Error = ();
+
+    fn try_from(value: (Option<BlockAck>, Option<Message<ProvisionedDriver>>)) -> Result<Self, Self::Error> {
+        match value {
+            (None, None) => Err(()),
+            _ => Ok(
+                ReceiveResult { block_ack: value.0, message: value.1 }
+            ),
+        }
+    }
+}
+
 impl ProvisionedDriver {
     fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
@@ -73,21 +86,24 @@ impl ProvisionedDriver {
             .accepted_iv_index(network_pdu.ivi());
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
             let (block_ack, upper_pdu) =
-                self.process_cleartext_network_pdu(&cleartext_network_pdu)?;
+                self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
 
             let message = if let Some(upper_pdu) = upper_pdu {
-                Some(self.process_upper_pdu(upper_pdu)?)
+                Some(self.process_inbound_upper_pdu(upper_pdu)?)
             } else {
                 None
             };
 
-            match (&block_ack, &message) {
-                (None, None) => Ok(None),
-                _ => Ok(Some(ReceiveResult { block_ack, message })),
-            }
+            Ok((block_ack, message).try_into().ok())
         } else {
             // nothing doing, bad result, nothing parsed, keep on truckin'
             Ok(None)
         }
+    }
+
+    fn process_outbound(&mut self, message: &Message<ProvisionedDriver>) -> Result<(), DriverError> {
+        let upper_pdu = self.process_outbound_message(message)?;
+
+        todo!()
     }
 }

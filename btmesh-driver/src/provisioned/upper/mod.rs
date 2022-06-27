@@ -1,15 +1,15 @@
+use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle};
 use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
 use btmesh_pdu::access::AccessMessage;
+use btmesh_pdu::control::ControlMessage;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::UpperPDU;
+use btmesh_pdu::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
-use btmesh_pdu::control::ControlMessage;
-use btmesh_pdu::Message;
-use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle};
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
@@ -47,23 +47,31 @@ impl ProvisionedDriver {
             })
     }
 
-    pub fn process_upper_pdu(
+    pub fn process_inbound_upper_pdu(
         &mut self,
         mut pdu: UpperPDU<ProvisionedDriver>,
     ) -> Result<Message<ProvisionedDriver>, DriverError> {
         self.apply_label_uuids(&mut pdu)?;
         match pdu {
-            UpperPDU::Access(access) => {
-                Ok(self.decrypt_access(access)?.into())
-            }
-            UpperPDU::Control(control) =>  {
-                Ok( ControlMessage::new(
-                    control.opcode(),
-                    control.parameters(),
-                    ControlMetadata::from_upper_control_pdu(&control)
-                )?.into())
-            }
+            UpperPDU::Access(access) => Ok(self.decrypt_access(access)?.into()),
+            UpperPDU::Control(control) => Ok(ControlMessage::new(
+                control.opcode(),
+                control.parameters(),
+                ControlMetadata::from_upper_control_pdu(&control),
+            )?
+            .into()),
         }
+    }
+
+    pub fn process_outbound_message(
+        &mut self,
+        message: &Message<ProvisionedDriver>,
+    ) -> Result<(), DriverError> {
+        match message {
+            Message::Access(access) => {}
+            Message::Control(control) => {}
+        }
+        todo!()
     }
 
     /// Apply potential candidate label-uuids if the destination of the PDU
@@ -89,6 +97,19 @@ impl ProvisionedDriver {
         } else {
             Ok(())
         }
+    }
+
+    fn encrypt_access(
+        &mut self,
+        message: AccessMessage<ProvisionedDriver>,
+    ) -> Result<UpperAccessPDU<ProvisionedDriver>, DriverError> {
+        match message.meta().key_handle() {
+            KeyHandle::Device => {}
+            KeyHandle::Network(_) => {}
+            KeyHandle::Application(_) => {}
+        }
+
+        todo!()
     }
 
     fn decrypt_access(

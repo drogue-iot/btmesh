@@ -27,6 +27,14 @@ impl<S: System> AccessMessage<S> {
         &self.parameters
     }
 
+    pub fn meta(&self) -> &S::AccessMetadata {
+        &self.meta
+    }
+
+    pub fn meta_mut(&mut self) -> &mut S::AccessMetadata {
+        &mut self.meta
+    }
+
     pub fn parse(data: &[u8], meta: S::AccessMetadata) -> Result<Self, ParseError> {
         let (opcode, parameters) = Opcode::split(data).ok_or(ParseError::InvalidPDUFormat)?;
         Ok(Self {

@@ -20,7 +20,7 @@ pub struct LowerDriver {
 impl ProvisionedDriver {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
-    pub fn process_cleartext_network_pdu(
+    pub fn process_inbound_cleartext_network_pdu(
         &mut self,
         network_pdu: &CleartextNetworkPDU<ProvisionedDriver>,
     ) -> Result<(Option<BlockAck>, Option<UpperPDU<ProvisionedDriver>>), DriverError> {
