@@ -14,6 +14,7 @@ use heapless::Vec;
 
 pub mod application;
 pub mod nonce;
+pub mod device;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 

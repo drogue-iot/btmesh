@@ -25,7 +25,7 @@ impl<const N: usize> ApplicationKeys<N> {
                     false
                 }
             })
-            .map(|(index, _)| ApplicationKeyHandle(index as u8))
+            .map(move |(index, _)| ApplicationKeyHandle(index as u8, aid))
     }
 
     pub(crate) fn set(

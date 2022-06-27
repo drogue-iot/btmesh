@@ -32,6 +32,7 @@ pub enum TransMic {
 }
 
 impl TransMic {
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         match data.len() {
             4 => Ok(TransMic::Bit32(Bit32TransMic(data.try_into()?))),

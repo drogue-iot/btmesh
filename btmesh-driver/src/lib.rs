@@ -2,7 +2,7 @@
 #![allow(dead_code)]
 
 use btmesh_common::address::InvalidAddress;
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
 use btmesh_pdu::lower::InvalidBlock;
 
 pub mod provisioned;
@@ -19,6 +19,13 @@ pub enum DriverError {
     InvalidKeyHandle,
     InvalidPDU,
     ParseError(ParseError),
+    SeqRolloverError,
+}
+
+impl From<SeqRolloverError> for DriverError {
+    fn from(_: SeqRolloverError) -> Self {
+        Self::SeqRolloverError
+    }
 }
 
 impl From<InsufficientBuffer> for DriverError {

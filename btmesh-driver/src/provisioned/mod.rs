@@ -3,7 +3,7 @@ use crate::provisioned::network::replay_protection::ReplayProtection;
 use crate::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::BlockAck;
 use btmesh_pdu::network::NetworkPDU;
@@ -72,7 +72,7 @@ impl ProvisionedDriver {
         Self {
             secrets,
             network_state,
-            upper: Default::default(),
+            upper: UpperDriver::new(Seq::new(0)),
             lower: Default::default(),
             network: NetworkDriver::new(device_info),
         }

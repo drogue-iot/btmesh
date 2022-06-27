@@ -25,7 +25,7 @@ impl<const N: usize> NetworkKeys<N> {
                     false
                 }
             })
-            .map(|(index, _)| NetworkKeyHandle(index as u8))
+            .map(move |(index, _)| NetworkKeyHandle(index as u8, nid))
     }
 
     pub(crate) fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {

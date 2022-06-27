@@ -1,4 +1,6 @@
 #![cfg_attr(not(test), no_std)]
+
+use hash32_derive::Hash32;
 use core::array::TryFromSliceError;
 use core::ops::{Add, Sub};
 
@@ -44,7 +46,7 @@ impl From<TryFromSliceError> for ParseError {
 }
 
 /// Network key identifier.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Nid(u8);
@@ -72,7 +74,7 @@ impl From<u8> for Nid {
 }
 
 /// Application key identifier.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Aid(u8);
 
@@ -212,11 +214,28 @@ impl Ttl {
     }
 }
 
+pub struct SeqRolloverError;
+
 #[derive(Copy, Clone, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Seq(u32);
 
+impl Add<u32> for Seq {
+    type Output = Result<Seq, SeqRolloverError>;
+
+    fn add(self, rhs: u32) -> Self::Output {
+        match self.0.checked_add(rhs) {
+            None => Err(SeqRolloverError),
+            Some(val) => Ok(Self(val))
+        }
+    }
+}
+
 impl Seq {
+    pub fn new(seq: u32) -> Self {
+        Self(seq)
+    }
+
     pub fn parse(seq: u32) -> Result<Seq, ParseError> {
         Ok(Self(seq))
     }

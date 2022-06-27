@@ -1,8 +1,9 @@
 use hash32_derive::Hash32;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
-use btmesh_common::{Aid, IvIndex, Seq};
+use btmesh_common::{Aid, IvIndex, Nid, Seq};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use heapless::Vec;
+use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::System;
 use btmesh_pdu::upper::access::UpperAccessPDU;
@@ -18,10 +19,10 @@ pub enum KeyHandle {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
-pub struct NetworkKeyHandle(pub(crate) u8);
+pub struct NetworkKeyHandle(pub(crate) u8, pub(crate) Nid);
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
-pub struct ApplicationKeyHandle(pub(crate) u8);
+pub struct ApplicationKeyHandle(pub(crate) u8, pub(crate) Aid);
 
 
 #[derive(Copy, Clone)]
@@ -140,6 +141,18 @@ impl UpperMetadata {
             LowerPDU::Unsegmented(inner) => Self::from_unsegmented_lower_pdu(inner),
             LowerPDU::Segmented(inner) => Self::from_segmented_lower_pdu(inner),
         }
+    }
+
+    pub fn from_access_message(message: AccessMessage<ProvisionedDriver>, seq: Seq) -> Self {
+        Self {
+            iv_index: message.meta().iv_index,
+            akf_aid: None, // TODO fix this
+            seq,
+            src: message.meta().src(),
+            dst: message.meta().dst(),
+            label_uuids: Default::default()
+        }
+
     }
 
     pub fn iv_index(&self) -> IvIndex {

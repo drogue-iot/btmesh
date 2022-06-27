@@ -1,7 +1,7 @@
 use crate::upper::UpperPDU;
 use crate::System;
 use btmesh_common::mic::{SzMic, TransMic};
-use btmesh_common::ParseError;
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -13,6 +13,14 @@ pub struct UpperAccessPDU<S: System> {
 }
 
 impl<S: System> UpperAccessPDU<S> {
+    pub fn new(payload: &[u8], transmic: TransMic, meta: S::UpperMetadata) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
+            payload: Vec::from_slice(payload)?,
+            transmic,
+            meta,
+        })
+    }
+
     pub fn payload(&self) -> &[u8] {
         &*self.payload
     }

@@ -1,8 +1,9 @@
-use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle};
+use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle, UpperMetadata};
 use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::{Address, LabelUuid};
-use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
+use btmesh_common::mic::{SzMic, TransMic};
+use btmesh_common::{crypto, Seq, SeqRolloverError};
 use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::control::ControlMessage;
 use btmesh_pdu::upper::access::UpperAccessPDU;
@@ -11,9 +12,24 @@ use btmesh_pdu::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
 
-#[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
     label_uuids: Vec<Option<LabelUuid>, N>,
+    seq: Seq,
+}
+
+impl UpperDriver {
+    pub fn new(seq: Seq) -> Self {
+        Self {
+            label_uuids: Default::default(),
+            seq,
+        }
+    }
+
+    fn next_seq(&mut self) -> Result<Seq, SeqRolloverError> {
+        let seq = self.seq;
+        self.seq = (self.seq + 1)?;
+        Ok(seq)
+    }
 }
 
 impl ProvisionedDriver {
@@ -103,13 +119,72 @@ impl ProvisionedDriver {
         &mut self,
         message: AccessMessage<ProvisionedDriver>,
     ) -> Result<UpperAccessPDU<ProvisionedDriver>, DriverError> {
-        match message.meta().key_handle() {
-            KeyHandle::Device => {}
-            KeyHandle::Network(_) => {}
-            KeyHandle::Application(_) => {}
-        }
+        let seq_zero = self.upper.next_seq()?;
 
-        todo!()
+        let mut payload = Vec::<u8, 379>::new();
+        message.emit(&mut payload)?;
+
+        match message.meta().key_handle() {
+            KeyHandle::Device => {
+                let nonce = DeviceNonce::new(
+                    SzMic::Bit32,
+                    seq_zero,
+                    message.meta().src(),
+                    message.meta().dst(),
+                    message.meta().iv_index(),
+                );
+
+                let device_key = self.secrets.device_key();
+
+                let mut bytes = [0; 379];
+                let mut transmic = [0; 4];
+
+                crypto::device::encrypt_device_key(device_key, nonce, &mut bytes, &mut transmic)
+                    .map_err(|_| DriverError::CryptoError)?;
+
+                let transmic = TransMic::parse(&transmic)?;
+
+                Ok(UpperAccessPDU::new(
+                    &payload,
+                    transmic,
+                    UpperMetadata::from_access_message(message, seq_zero),
+                )?)
+            }
+            KeyHandle::Network(_) => {
+                todo!()
+            }
+            KeyHandle::Application(key_handle) => {
+                let nonce = ApplicationNonce::new(
+                    SzMic::Bit32,
+                    seq_zero,
+                    message.meta().src(),
+                    message.meta().dst(),
+                    message.meta().iv_index(),
+                );
+
+                let application_key = self.secrets.application_key(key_handle)?;
+
+                let mut bytes = [0; 379];
+                let mut transmic = [0; 4];
+
+                crypto::application::encrypt_application_key(
+                    application_key,
+                    nonce,
+                    &mut bytes,
+                    &mut transmic,
+                    message.meta().label_uuid()
+                )
+                .map_err(|_| DriverError::CryptoError)?;
+
+                let transmic = TransMic::parse(&transmic)?;
+
+                Ok(UpperAccessPDU::new(
+                    &payload,
+                    transmic,
+                    UpperMetadata::from_access_message(message, seq_zero),
+                )?)
+            }
+        }
     }
 
     fn decrypt_access(
@@ -158,7 +233,7 @@ impl ProvisionedDriver {
                             nonce,
                             &mut bytes,
                             pdu.transmic().as_slice(),
-                            Some(label_uuid.label_uuid()),
+                            Some(*label_uuid),
                         )
                         .is_ok()
                         {
@@ -196,7 +271,7 @@ impl ProvisionedDriver {
 
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;
-            if crypto::application::try_decrypt_device_key(
+            if crypto::device::try_decrypt_device_key(
                 device_key,
                 nonce,
                 &mut bytes,
