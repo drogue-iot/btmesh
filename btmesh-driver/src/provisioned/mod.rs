@@ -1,9 +1,10 @@
 use crate::provisioned::lower::LowerDriver;
 use crate::provisioned::network::replay_protection::ReplayProtection;
 use crate::provisioned::network::{DeviceInfo, NetworkDriver};
+use crate::provisioned::sequence::Sequence;
 use crate::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, Ttl};
 use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::BlockAck;
 use btmesh_pdu::network::NetworkPDU;
@@ -14,12 +15,11 @@ use system::{
     AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata,
     UpperMetadata,
 };
-use crate::provisioned::sequence::Sequence;
 
-pub mod sequence;
 pub mod lower;
 pub mod network;
 pub mod secrets;
+pub mod sequence;
 pub mod system;
 pub mod upper;
 
@@ -59,12 +59,15 @@ struct ReceiveResult {
 impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedDriver>>)> for ReceiveResult {
     type Error = ();
 
-    fn try_from(value: (Option<BlockAck>, Option<Message<ProvisionedDriver>>)) -> Result<Self, Self::Error> {
+    fn try_from(
+        value: (Option<BlockAck>, Option<Message<ProvisionedDriver>>),
+    ) -> Result<Self, Self::Error> {
         match value {
             (None, None) => Err(()),
-            _ => Ok(
-                ReceiveResult { block_ack: value.0, message: value.1 }
-            ),
+            _ => Ok(ReceiveResult {
+                block_ack: value.0,
+                message: value.1,
+            }),
         }
     }
 }
@@ -103,10 +106,17 @@ impl ProvisionedDriver {
         }
     }
 
-    fn process_outbound(&mut self, sequence: &Sequence, message: &Message<ProvisionedDriver>) -> Result<(), DriverError> {
+    fn process_outbound(
+        &mut self,
+        sequence: &Sequence,
+        default_ttl: Ttl,
+        message: &Message<ProvisionedDriver>,
+    ) -> Result<(), DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
 
-        let cleartext_network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu);
+        self.process_outbound_upper_pdu(sequence, default_ttl, &upper_pdu)?
+            .iter()
+            .map(|pdu| {});
 
         todo!()
     }

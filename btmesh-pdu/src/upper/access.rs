@@ -13,7 +13,11 @@ pub struct UpperAccessPDU<S: System> {
 }
 
 impl<S: System> UpperAccessPDU<S> {
-    pub fn new(payload: &[u8], transmic: TransMic, meta: S::UpperMetadata) -> Result<Self, InsufficientBuffer> {
+    pub fn new(
+        payload: &[u8],
+        transmic: TransMic,
+        meta: S::UpperMetadata,
+    ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             payload: Vec::from_slice(payload)?,
             transmic,

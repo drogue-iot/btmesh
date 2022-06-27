@@ -40,6 +40,20 @@ impl NetworkPDU {
         self.nid
     }
 
+    pub fn new(
+        ivi: Ivi,
+        nid: Nid,
+        obfuscated: [u8; 6],
+        encrypted_and_mic: &[u8],
+    ) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
+            ivi,
+            nid,
+            obfuscated,
+            encrypted_and_mic: Vec::from_slice(encrypted_and_mic)?,
+        })
+    }
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         let ivi_nid = data[0];
         let ivi = (ivi_nid & 0b10000000) >> 7;
@@ -115,7 +129,7 @@ impl<S: System> CleartextNetworkPDU<S> {
     }
 
     //pub fn network_key(&self) -> S::NetworkKeyHandle {
-        //self.network_key
+    //self.network_key
     //}
 
     pub fn ivi(&self) -> Ivi {
@@ -154,7 +168,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         &mut self.meta
     }
 
-    pub fn transport_pdu(&self) -> &Vec<u8, 16> {
-        &self.transport_pdu
+    pub fn transport_pdu(&self) -> &[u8] {
+        &*self.transport_pdu
     }
 }

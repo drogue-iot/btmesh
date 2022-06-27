@@ -11,7 +11,7 @@ pub struct AccessMessage<S: System> {
     meta: S::AccessMetadata,
 }
 
-impl<S:System> From<AccessMessage<S>> for Message<S> {
+impl<S: System> From<AccessMessage<S>> for Message<S> {
     fn from(inner: AccessMessage<S>) -> Self {
         Self::Access(inner)
     }

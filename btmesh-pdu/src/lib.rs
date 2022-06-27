@@ -5,13 +5,13 @@ use crate::access::AccessMessage;
 use crate::control::ControlMessage;
 
 pub mod access;
+pub mod control;
 pub mod lower;
 pub mod network;
 pub mod proxy;
 pub mod upper;
-pub mod control;
 
-pub enum Message<S:System> {
+pub enum Message<S: System> {
     Access(AccessMessage<S>),
     Control(ControlMessage<S>),
 }

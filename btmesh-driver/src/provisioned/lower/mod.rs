@@ -2,6 +2,9 @@ mod inbound_segmentation;
 mod outbound_segmentation;
 
 use crate::provisioned::lower::inbound_segmentation::InboundSegmentation;
+use crate::provisioned::lower::outbound_segmentation::OutboundSegmentation;
+use crate::provisioned::sequence::Sequence;
+use crate::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::provisioned::ProvisionedDriver;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
@@ -11,9 +14,7 @@ use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::UpperControlPDU;
 use btmesh_pdu::upper::UpperPDU;
-use crate::provisioned::lower::outbound_segmentation::OutboundSegmentation;
-use crate::provisioned::sequence::Sequence;
-use crate::provisioned::system::{LowerMetadata, UpperMetadata};
+use heapless::Vec;
 
 #[derive(Default)]
 pub struct LowerDriver {
@@ -65,8 +66,11 @@ impl ProvisionedDriver {
     pub fn process_outbound_upper_pdu(
         &mut self,
         sequence: &Sequence,
-        upper_pdu: &UpperPDU<ProvisionedDriver>
-    ) -> () {
-        self.lower.outbound_segmentation.process(sequence, upper_pdu, Ttl::new(42));
+        default_ttl: Ttl,
+        upper_pdu: &UpperPDU<ProvisionedDriver>,
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
+        self.lower
+            .outbound_segmentation
+            .process(sequence, default_ttl, upper_pdu)
     }
 }

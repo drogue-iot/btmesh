@@ -40,7 +40,7 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
     }
 }
 
-pub struct SegmentedLowerAccessPDU<S: System=()> {
+pub struct SegmentedLowerAccessPDU<S: System = ()> {
     akf_aid: Option<Aid>,
     szmic: SzMic,
     seq_zero: SeqZero,
@@ -90,7 +90,8 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             }
         }
         // last 6 bits of seq_zero + first 2 bits of seg_o
-        header[1] = ((self.seq_zero & 0b111111) << 2) as u8 | ((self.seg_o & 0b00011000) >> 2) as u8;
+        header[1] =
+            ((self.seq_zero & 0b111111) << 2) as u8 | ((self.seg_o & 0b00011000) >> 2) as u8;
         header[2] = ((self.seg_o & 0b00000111) << 5) | (self.seg_n & 0b00011111);
         xmit.extend_from_slice(&header)?;
         xmit.extend_from_slice(&*self.segment_m)?;

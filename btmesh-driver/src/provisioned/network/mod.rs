@@ -1,12 +1,10 @@
-use crate::provisioned::{
-    DriverError, ProvisionedDriver, ReplayProtection,
-};
+use crate::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
+use crate::provisioned::{DriverError, ProvisionedDriver, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
-use crate::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
 
 pub mod replay_protection;
 
@@ -70,6 +68,97 @@ impl ProvisionedDriver {
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
         self.network.replay_protection.check(pdu);
+    }
+
+    pub fn encrypt_network_pdu(
+        &self,
+        cleartext_pdu: &CleartextNetworkPDU<ProvisionedDriver>,
+    ) -> Result<NetworkPDU, DriverError> {
+        let ctl_ttl = match cleartext_pdu.ctl() {
+            Ctl::Access => 0,
+            Ctl::Control => 1,
+        } << 7
+            | cleartext_pdu.ttl().value();
+
+        let nonce = NetworkNonce::new(
+            ctl_ttl,
+            cleartext_pdu.seq(),
+            cleartext_pdu.src(),
+            cleartext_pdu.meta().iv_index(),
+        );
+
+        let mut encrypted_and_mic = Vec::<_, 28>::new();
+        encrypted_and_mic
+            .extend_from_slice(&cleartext_pdu.dst().as_bytes())
+            .map_err(|_| DriverError::InsufficientSpace)?;
+        encrypted_and_mic
+            .extend_from_slice(cleartext_pdu.transport_pdu())
+            .map_err(|_| DriverError::InsufficientSpace)?;
+
+        let encryption_key = self.encryption_key(cleartext_pdu.meta().network_key_handle())?;
+
+        match cleartext_pdu.ctl() {
+            Ctl::Access => {
+                let mut mic = [0; 4];
+
+                crypto::aes_ccm_encrypt_detached(
+                    &encryption_key,
+                    &nonce.into_bytes(),
+                    &mut encrypted_and_mic,
+                    &mut mic,
+                    None,
+                )
+                .map_err(|_| DriverError::CryptoError)?;
+
+                encrypted_and_mic
+                    .extend_from_slice(&mic)
+                    .map_err(|_| DriverError::InsufficientSpace)?;
+            }
+            Ctl::Control => {
+                let mut mic = [0; 8];
+
+                crypto::aes_ccm_encrypt_detached(
+                    &encryption_key,
+                    &nonce.into_bytes(),
+                    &mut encrypted_and_mic,
+                    &mut mic,
+                    None,
+                )
+                .map_err(|_| DriverError::CryptoError)?;
+
+                encrypted_and_mic
+                    .extend_from_slice(&mic)
+                    .map_err(|_| DriverError::InsufficientSpace)?;
+            }
+        }
+
+        let privacy_plaintext =
+            crypto::privacy_plaintext(cleartext_pdu.meta().iv_index(), &encrypted_and_mic);
+
+        let privacy_key = self.privacy_key(cleartext_pdu.meta().network_key_handle())?;
+
+        let pecb =
+            crypto::e(&privacy_key, privacy_plaintext).map_err(|_| DriverError::CryptoError)?;
+
+        let mut unobfuscated = [0; 6];
+        unobfuscated[0] = ctl_ttl;
+
+        let seq_bytes = cleartext_pdu.seq().to_be_bytes();
+        unobfuscated[1] = seq_bytes[1];
+        unobfuscated[2] = seq_bytes[2];
+        unobfuscated[3] = seq_bytes[3];
+
+        let src_bytes = cleartext_pdu.src().as_bytes();
+        unobfuscated[4] = src_bytes[0];
+        unobfuscated[5] = src_bytes[1];
+        let obfuscated = crypto::pecb_xor(pecb, unobfuscated);
+
+        Ok(NetworkPDU::new(
+            cleartext_pdu.ivi(),
+            cleartext_pdu.nid(),
+            obfuscated,
+            &*encrypted_and_mic,
+        )?)
     }
 
     pub fn try_decrypt_network_pdu(
@@ -149,11 +238,7 @@ impl ProvisionedDriver {
 
             let local_element_index = self.network.local_element_index(dst);
 
-            let meta = NetworkMetadata::new(
-                iv_index,
-                local_element_index,
-                network_key
-            );
+            let meta = NetworkMetadata::new(iv_index, local_element_index, network_key);
 
             Ok(CleartextNetworkPDU::new(
                 pdu.ivi(),

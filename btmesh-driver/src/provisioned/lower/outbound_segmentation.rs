@@ -1,34 +1,36 @@
+use crate::provisioned::sequence::Sequence;
+use crate::provisioned::system::{LowerMetadata, NetworkMetadata};
+use crate::provisioned::ProvisionedDriver;
+use crate::DriverError;
+use btmesh_common::mic::SzMic;
+use btmesh_common::{Ctl, InsufficientBuffer, Seq, Ttl};
+use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
+use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::UpperPDU;
 use heapless::Vec;
-use btmesh_common::{Ctl, InsufficientBuffer, Seq, Ttl};
-use btmesh_common::mic::SzMic;
-use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU};
-use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
-use crate::DriverError;
-use crate::provisioned::ProvisionedDriver;
-use crate::provisioned::sequence::Sequence;
-use crate::provisioned::system::{LowerMetadata, NetworkMetadata};
 
 const SEGMENTED_ACCESS_MTU: usize = 12;
 const NONSEGMENTED_ACCESS_MUT: usize = 15;
 
 #[derive(Default)]
-pub struct OutboundSegmentation {
-}
+pub struct OutboundSegmentation {}
 
 impl OutboundSegmentation {
-
-    pub fn process(&mut self, sequence: &Sequence, pdu: &UpperPDU<ProvisionedDriver>, default_ttl: Ttl) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError>{
-
+    pub fn process(
+        &mut self,
+        sequence: &Sequence,
+        default_ttl: Ttl,
+        pdu: &UpperPDU<ProvisionedDriver>,
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         let mut result = Vec::new();
 
         match pdu {
             UpperPDU::Access(inner) => {
                 if inner.payload().len() <= NONSEGMENTED_ACCESS_MUT {
-                    result.push(
-                        CleartextNetworkPDU::new(
+                    result
+                        .push(CleartextNetworkPDU::new(
                             pdu.meta().iv_index().ivi(),
                             pdu.meta().network_key_handle().nid(),
                             Ctl::Access,
@@ -38,8 +40,8 @@ impl OutboundSegmentation {
                             pdu.meta().dst(),
                             inner.payload(),
                             meta,
-                        )?
-                    ).map_err(|_|InsufficientBuffer)?;
+                        )?)
+                        .map_err(|_| InsufficientBuffer)?;
                 } else {
                     let seq_zero = inner.meta().seq().into();
                     let payload = inner.payload().chunks(SEGMENTED_ACCESS_MTU);
@@ -64,21 +66,21 @@ impl OutboundSegmentation {
                         )?;
 
                         let mut transport_pdu = Vec::<_, SEGMENTED_ACCESS_MTU>::new();
-                        lower_pdu.emit( &mut transport_pdu )?;
+                        lower_pdu.emit(&mut transport_pdu)?;
 
-                        result.push(
-                            CleartextNetworkPDU::new(
+                        result
+                            .push(CleartextNetworkPDU::new(
                                 pdu.meta().iv_index().ivi(),
                                 pdu.meta().network_key_handle().nid(),
                                 Ctl::Access,
                                 pdu.meta().ttl().unwrap_or(default_ttl),
-                                    seq,
+                                seq,
                                 pdu.meta().src(),
                                 pdu.meta().dst(),
                                 &*transport_pdu,
                                 meta,
-                            )?
-                        ).map_err(|_| InsufficientBuffer)?;
+                            )?)
+                            .map_err(|_| InsufficientBuffer)?;
                     }
                 }
             }

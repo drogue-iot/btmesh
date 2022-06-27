@@ -1,6 +1,6 @@
-use ccm::aead::Error;
 use crate::crypto;
 use crate::crypto::nonce::DeviceNonce;
+use ccm::aead::Error;
 
 pub fn try_decrypt_device_key(
     device_key: [u8; 16],

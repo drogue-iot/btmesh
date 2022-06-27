@@ -1,16 +1,16 @@
-use hash32_derive::Hash32;
+use crate::provisioned::ProvisionedDriver;
+use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::{Aid, IvIndex, Nid, Seq, Ttl};
-use btmesh_pdu::network::CleartextNetworkPDU;
-use heapless::Vec;
 use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
-use btmesh_pdu::System;
+use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::UpperControlPDU;
 use btmesh_pdu::upper::UpperPDU;
-use crate::DriverError;
-use crate::provisioned::ProvisionedDriver;
+use btmesh_pdu::System;
+use hash32_derive::Hash32;
+use heapless::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub enum KeyHandle {
@@ -26,7 +26,6 @@ impl NetworkKeyHandle {
     pub fn nid(&self) -> Nid {
         self.1
     }
-
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
@@ -36,9 +35,7 @@ impl ApplicationKeyHandle {
     pub fn aid(&self) -> Aid {
         self.1
     }
-
 }
-
 
 #[derive(Copy, Clone)]
 pub struct NetworkMetadata {
@@ -50,14 +47,17 @@ pub struct NetworkMetadata {
 }
 
 impl NetworkMetadata {
-
-    pub fn new(iv_index: IvIndex, local_element_index: Option<u8>, network_key: NetworkKeyHandle) -> Self {
+    pub fn new(
+        iv_index: IvIndex,
+        local_element_index: Option<u8>,
+        network_key: NetworkKeyHandle,
+    ) -> Self {
         Self {
             iv_index,
             replay_protected: false,
             should_relay: false,
             local_element_index,
-            network_key_handle: network_key
+            network_key_handle: network_key,
         }
     }
 
@@ -103,7 +103,14 @@ pub struct LowerMetadata {
 }
 
 impl LowerMetadata {
-    pub fn new(network_key_handle: NetworkKeyHandle, iv_index: IvIndex, src: UnicastAddress, dst: Address, seq: Seq, ttl: Ttl) -> Self {
+    pub fn new(
+        network_key_handle: NetworkKeyHandle,
+        iv_index: IvIndex,
+        src: UnicastAddress,
+        dst: Address,
+        seq: Seq,
+        ttl: Ttl,
+    ) -> Self {
         Self {
             network_key_handle,
             iv_index,
@@ -188,7 +195,7 @@ impl UpperMetadata {
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
-            ttl: Some( pdu.meta().ttl() ),
+            ttl: Some(pdu.meta().ttl()),
             label_uuids: Default::default(),
         }
     }
@@ -222,14 +229,14 @@ impl UpperMetadata {
             network_key_handle: message.meta().network_key_handle(),
             iv_index: message.meta().iv_index,
             akf_aid: match message.meta().key_handle() {
-                KeyHandle::Device | KeyHandle::Network(_)=> None,
-                KeyHandle::Application(key_handle) => Some(key_handle.aid())
+                KeyHandle::Device | KeyHandle::Network(_) => None,
+                KeyHandle::Application(key_handle) => Some(key_handle.aid()),
             },
             seq,
             src: message.meta().src(),
             dst: message.meta().dst(),
             ttl: message.meta().ttl(),
-            label_uuids: Default::default()
+            label_uuids: Default::default(),
         }
     }
 
@@ -328,24 +335,15 @@ impl AccessMetadata {
     pub fn label_uuid(&self) -> Option<LabelUuid> {
         self.label_uuid
     }
-
 }
 
 #[derive(Copy, Clone)]
-pub struct ControlMetadata {
-
-}
+pub struct ControlMetadata {}
 
 impl ControlMetadata {
-    pub fn from_upper_control_pdu(
-        pdu: &UpperControlPDU<ProvisionedDriver>
-    ) -> Self {
-        Self {
-
-        }
-
+    pub fn from_upper_control_pdu(pdu: &UpperControlPDU<ProvisionedDriver>) -> Self {
+        Self {}
     }
-
 }
 
 impl System for ProvisionedDriver {

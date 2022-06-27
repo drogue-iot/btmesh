@@ -1,8 +1,8 @@
 #![cfg_attr(not(test), no_std)]
 
-use hash32_derive::Hash32;
 use core::array::TryFromSliceError;
 use core::ops::{Add, BitAnd, Sub};
+use hash32_derive::Hash32;
 use heapless::Vec;
 
 pub mod address;
@@ -223,6 +223,10 @@ impl Ttl {
     pub fn parse(ttl: u8) -> Result<Self, ParseError> {
         Ok(Self(ttl))
     }
+
+    pub fn value(&self) -> u8 {
+        self.0
+    }
 }
 
 pub struct SeqRolloverError;
@@ -237,7 +241,7 @@ impl Add<u32> for Seq {
     fn add(self, rhs: u32) -> Self::Output {
         match self.0.checked_add(rhs) {
             None => Err(SeqRolloverError),
-            Some(val) => Ok(Self(val))
+            Some(val) => Ok(Self(val)),
         }
     }
 }
@@ -262,7 +266,7 @@ impl Seq {
 
 impl From<Seq> for SeqZero {
     fn from(seq: Seq) -> Self {
-        Self( seq.0 as u16 )
+        Self(seq.0 as u16)
     }
 }
 

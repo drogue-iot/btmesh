@@ -1,5 +1,6 @@
 use heapless::FnvIndexMap;
 
+use crate::provisioned::system::UpperMetadata;
 use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
@@ -10,7 +11,6 @@ use btmesh_pdu::lower::{BlockAck, SegmentedLowerPDU};
 use btmesh_pdu::upper::access::UpperAccessPDU;
 use btmesh_pdu::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::upper::UpperPDU;
-use crate::provisioned::system::UpperMetadata;
 
 pub struct InboundSegmentation<const N: usize = 5> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
@@ -186,7 +186,10 @@ impl InFlight {
     /// Determine if the proposed segment has already been seen for the current in-flight reassembly.
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
-    fn already_seen(&self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Result<bool, DriverError> {
+    fn already_seen(
+        &self,
+        pdu: &SegmentedLowerPDU<ProvisionedDriver>,
+    ) -> Result<bool, DriverError> {
         self.blocks.already_seen(pdu.seg_n())
     }
 
@@ -254,7 +257,8 @@ impl Reassembly {
     fn ingest(&mut self, pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Result<(), DriverError> {
         match (self, pdu) {
             (Reassembly::Access { data, len, .. }, SegmentedLowerPDU::Access(pdu)) => {
-                const SEGMENT_SIZE: usize = SegmentedLowerAccessPDU::<ProvisionedDriver>::SEGMENT_SIZE;
+                const SEGMENT_SIZE: usize =
+                    SegmentedLowerAccessPDU::<ProvisionedDriver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment, we now know the length.
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
@@ -268,7 +272,8 @@ impl Reassembly {
                 }
             }
             (Reassembly::Control { data, len, .. }, SegmentedLowerPDU::Control(pdu)) => {
-                const SEGMENT_SIZE: usize = SegmentedLowerControlPDU::<ProvisionedDriver>::SEGMENT_SIZE;
+                const SEGMENT_SIZE: usize =
+                    SegmentedLowerControlPDU::<ProvisionedDriver>::SEGMENT_SIZE;
                 if pdu.seg_o() == pdu.seg_n() {
                     // the last segment
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
@@ -301,6 +306,7 @@ impl Reassembly {
 #[cfg(test)]
 mod tests {
     use crate::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
+    use crate::provisioned::system::{LowerMetadata, NetworkKeyHandle, UpperMetadata};
     use crate::provisioned::{DriverError, ProvisionedDriver};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::mic::SzMic;
@@ -310,7 +316,6 @@ mod tests {
     use btmesh_pdu::lower::SegmentedLowerPDU;
     use btmesh_pdu::upper::control::ControlOpcode;
     use btmesh_pdu::upper::UpperPDU;
-    use crate::provisioned::system::{LowerMetadata, NetworkKeyHandle, UpperMetadata};
 
     #[test]
     fn in_flight_is_valid_seq_zero() {

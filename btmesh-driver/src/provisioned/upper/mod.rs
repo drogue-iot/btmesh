@@ -1,3 +1,4 @@
+use crate::provisioned::sequence::Sequence;
 use crate::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle, UpperMetadata};
 use crate::provisioned::{DriverError, ProvisionedDriver};
 use btmesh_common::address::{Address, LabelUuid};
@@ -11,15 +12,13 @@ use btmesh_pdu::upper::UpperPDU;
 use btmesh_pdu::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
-use crate::provisioned::sequence::Sequence;
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {
     label_uuids: Vec<Option<LabelUuid>, N>,
 }
 
-impl UpperDriver {
-}
+impl UpperDriver {}
 
 impl ProvisionedDriver {
     fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {
@@ -74,9 +73,7 @@ impl ProvisionedDriver {
         message: &Message<ProvisionedDriver>,
     ) -> Result<UpperPDU<ProvisionedDriver>, DriverError> {
         match message {
-            Message::Access(access) => {
-                Ok(self.encrypt_access(sequence, access)?.into())
-            }
+            Message::Access(access) => Ok(self.encrypt_access(sequence, access)?.into()),
             Message::Control(control) => {
                 todo!()
             }
@@ -166,7 +163,7 @@ impl ProvisionedDriver {
                     nonce,
                     &mut bytes,
                     &mut transmic,
-                    message.meta().label_uuid()
+                    message.meta().label_uuid(),
                 )
                 .map_err(|_| DriverError::CryptoError)?;
 
