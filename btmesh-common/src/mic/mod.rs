@@ -85,7 +85,7 @@ pub struct Bit32TransMic([u8; 4]);
 
 impl Bit32TransMic {
     pub fn new() -> Self {
-        Self([0;4])
+        Self([0; 4])
     }
 }
 
@@ -101,14 +101,13 @@ impl AsMut<[u8]> for Bit32TransMic {
     }
 }
 
-
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Bit64TransMic([u8; 8]);
 
 impl Bit64TransMic {
     pub fn new() -> Self {
-        Self([0;8])
+        Self([0; 8])
     }
 }
 

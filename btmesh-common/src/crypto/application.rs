@@ -1,10 +1,48 @@
 use crate::address::LabelUuid;
-use crate::crypto::nonce::{ApplicationNonce, DeviceNonce};
+use crate::crypto::nonce::ApplicationNonce;
 use crate::mic::TransMic;
-use crate::{crypto, Aid};
+use crate::{crypto, InsufficientBuffer, ParseError};
 use ccm::aead::Error;
 use cmac::crypto_mac::InvalidKeyLength;
 use core::ops::Deref;
+use hash32_derive::Hash32;
+
+use heapless::Vec;
+
+/// Application key identifier.
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Aid(u8);
+
+impl Aid {
+    pub fn parse(akf_aid: u8) -> Result<Option<Self>, ParseError> {
+        let akf = akf_aid & 0b01000000 != 0;
+        if akf {
+            let aid = akf_aid & 0b00111111;
+            Ok(Some(Self(aid)))
+        } else {
+            Ok(None)
+        }
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        let akf_aid = 0b01000000 | self.0 & 0b00111111;
+        xmit.push(akf_aid)?;
+        Ok(())
+    }
+}
+
+impl From<Aid> for u8 {
+    fn from(aid: Aid) -> Self {
+        aid.0
+    }
+}
+
+impl From<u8> for Aid {
+    fn from(val: u8) -> Self {
+        Self(val)
+    }
+}
 
 #[derive(Copy, Clone)]
 pub struct ApplicationKey {

@@ -1,11 +1,10 @@
 use crate::provisioned::sequence::Sequence;
-use crate::provisioned::system::{LowerMetadata, NetworkMetadata};
+use crate::provisioned::system::NetworkMetadata;
 use crate::provisioned::ProvisionedDriver;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Ctl, InsufficientBuffer, Seq, Ttl};
+use btmesh_common::{Ctl, InsufficientBuffer, Ttl};
 use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
-use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::UpperPDU;
 use heapless::Vec;
@@ -20,7 +19,6 @@ impl OutboundSegmentation {
     pub fn process(
         &mut self,
         sequence: &Sequence,
-        default_ttl: Ttl,
         pdu: &UpperPDU<ProvisionedDriver>,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
@@ -34,7 +32,7 @@ impl OutboundSegmentation {
                             pdu.meta().iv_index().ivi(),
                             pdu.meta().network_key_handle().nid(),
                             Ctl::Access,
-                            pdu.meta().ttl().unwrap_or(default_ttl),
+                            pdu.meta().ttl(),
                             pdu.meta().seq(),
                             pdu.meta().src(),
                             pdu.meta().dst(),
@@ -73,7 +71,7 @@ impl OutboundSegmentation {
                                 pdu.meta().iv_index().ivi(),
                                 pdu.meta().network_key_handle().nid(),
                                 Ctl::Access,
-                                pdu.meta().ttl().unwrap_or(default_ttl),
+                                pdu.meta().ttl(),
                                 seq,
                                 pdu.meta().src(),
                                 pdu.meta().dst(),

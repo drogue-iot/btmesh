@@ -2,7 +2,7 @@ use crate::crypto;
 use crate::crypto::nonce::DeviceNonce;
 use crate::mic::TransMic;
 use ccm::aead::Error;
-use core::ops::{Deref, DerefMut};
+use core::ops::Deref;
 
 #[derive(Copy, Clone)]
 pub struct DeviceKey {

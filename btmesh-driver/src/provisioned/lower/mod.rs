@@ -8,7 +8,7 @@ use crate::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::provisioned::ProvisionedDriver;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Seq, Ttl};
+use btmesh_common::Ttl;
 use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
 use btmesh_pdu::upper::access::UpperAccessPDU;
@@ -66,11 +66,10 @@ impl ProvisionedDriver {
     pub fn process_outbound_upper_pdu(
         &mut self,
         sequence: &Sequence,
-        default_ttl: Ttl,
         upper_pdu: &UpperPDU<ProvisionedDriver>,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
         self.lower
             .outbound_segmentation
-            .process(sequence, default_ttl, upper_pdu)
+            .process(sequence, upper_pdu)
     }
 }

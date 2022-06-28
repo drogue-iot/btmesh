@@ -5,16 +5,11 @@ use crate::provisioned::sequence::Sequence;
 use crate::provisioned::upper::UpperDriver;
 use crate::DriverError;
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, Ttl};
-use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::BlockAck;
 use btmesh_pdu::network::NetworkPDU;
-use btmesh_pdu::upper::UpperPDU;
-use btmesh_pdu::{Message, System};
+use btmesh_pdu::Message;
+use heapless::Vec;
 use secrets::Secrets;
-use system::{
-    AccessMetadata, ApplicationKeyHandle, LowerMetadata, NetworkKeyHandle, NetworkMetadata,
-    UpperMetadata,
-};
 
 pub mod lower;
 pub mod network;
@@ -109,14 +104,15 @@ impl ProvisionedDriver {
     fn process_outbound(
         &mut self,
         sequence: &Sequence,
-        default_ttl: Ttl,
         message: &Message<ProvisionedDriver>,
     ) -> Result<(), DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
 
-        self.process_outbound_upper_pdu(sequence, default_ttl, &upper_pdu)?
+        let result: Vec<_, 32> = self
+            .process_outbound_upper_pdu(sequence, &upper_pdu)?
             .iter()
-            .map(|pdu| {});
+            .map(|pdu| self.encrypt_network_pdu(pdu))
+            .collect();
 
         todo!()
     }

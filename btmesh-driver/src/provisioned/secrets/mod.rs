@@ -2,10 +2,9 @@ use crate::provisioned::secrets::application::ApplicationKeys;
 use crate::provisioned::secrets::network::NetworkKeys;
 use crate::provisioned::system::{ApplicationKeyHandle, NetworkKeyHandle};
 use crate::provisioned::DriverError;
-use btmesh_common::{Aid, Nid};
-use btmesh_common::crypto::application::ApplicationKey;
+use btmesh_common::crypto::application::{Aid, ApplicationKey};
 use btmesh_common::crypto::device::DeviceKey;
-use btmesh_common::crypto::network::{EncryptionKey, NetworkKey};
+use btmesh_common::crypto::network::{NetworkKey, Nid};
 
 pub mod application;
 pub mod network;
@@ -37,7 +36,6 @@ impl Secrets {
             .ok_or(DriverError::InvalidKeyHandle)
             .cloned()
     }
-
 
     pub(crate) fn application_keys_by_aid(
         &self,

@@ -1,3 +1,4 @@
+use crate::crypto::network::PrivacyKey;
 use crate::IvIndex;
 use aes::cipher::Block;
 use aes::{Aes128, BlockEncrypt, NewBlockCipher};
@@ -11,11 +12,10 @@ use cmac::crypto_mac::{InvalidKeyLength, Output};
 use cmac::{Cmac, Mac, NewMac};
 use core::convert::TryInto;
 use heapless::Vec;
-use crate::crypto::network::PrivacyKey;
 
-pub mod network;
 pub mod application;
 pub mod device;
+pub mod network;
 pub mod nonce;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];

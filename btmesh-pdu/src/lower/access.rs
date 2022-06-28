@@ -1,6 +1,7 @@
 use crate::System;
+use btmesh_common::crypto::application::Aid;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Aid, InsufficientBuffer, ParseError, SeqZero};
+use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
 pub struct UnsegmentedLowerAccessPDU<S: System> {

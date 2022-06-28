@@ -1,7 +1,9 @@
 use crate::provisioned::ProvisionedDriver;
 use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
-use btmesh_common::{Aid, IvIndex, Nid, Seq, Ttl};
+use btmesh_common::crypto::application::Aid;
+use btmesh_common::crypto::network::Nid;
+use btmesh_common::{IvIndex, Seq, Ttl};
 use btmesh_pdu::access::AccessMessage;
 use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::network::CleartextNetworkPDU;
@@ -178,7 +180,7 @@ pub struct UpperMetadata {
     seq: Seq,
     src: UnicastAddress,
     dst: Address,
-    ttl: Option<Ttl>,
+    ttl: Ttl,
     label_uuids: Vec<LabelUuid, 3>,
 }
 
@@ -195,7 +197,7 @@ impl UpperMetadata {
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
-            ttl: Some(pdu.meta().ttl()),
+            ttl: pdu.meta().ttl(),
             label_uuids: Default::default(),
         }
     }
@@ -212,7 +214,7 @@ impl UpperMetadata {
             seq: pdu.meta().seq(),
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
-            ttl: Some(pdu.meta().ttl()),
+            ttl: pdu.meta().ttl(),
             label_uuids: Default::default(),
         }
     }
@@ -264,7 +266,7 @@ impl UpperMetadata {
         self.dst
     }
 
-    pub fn ttl(&self) -> Option<Ttl> {
+    pub fn ttl(&self) -> Ttl {
         self.ttl
     }
 
@@ -287,7 +289,7 @@ pub struct AccessMetadata {
     key_handle: KeyHandle,
     src: UnicastAddress,
     dst: Address,
-    ttl: Option<Ttl>,
+    ttl: Ttl,
     label_uuid: Option<LabelUuid>,
 }
 
@@ -328,7 +330,7 @@ impl AccessMetadata {
         self.dst
     }
 
-    pub fn ttl(&self) -> Option<Ttl> {
+    pub fn ttl(&self) -> Ttl {
         self.ttl
     }
 

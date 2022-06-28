@@ -1,7 +1,6 @@
 use crate::provisioned::system::NetworkKeyHandle;
 use crate::provisioned::DriverError;
-use btmesh_common::{crypto, Nid};
-use btmesh_common::crypto::network::NetworkKey;
+use btmesh_common::crypto::network::{NetworkKey, Nid};
 
 pub(crate) struct NetworkKeys<const N: usize = 4> {
     pub(crate) keys: [Option<NetworkKey>; N],
@@ -40,13 +39,10 @@ impl<const N: usize> NetworkKeys<N> {
     }
 }
 
-
-
 #[cfg(test)]
 mod tests {
-    use btmesh_common::crypto::network::{EncryptionKey, NetworkKey, PrivacyKey};
     use crate::provisioned::secrets::network::NetworkKeys;
-    use btmesh_common::Nid;
+    use btmesh_common::crypto::network::{EncryptionKey, NetworkKey, Nid, PrivacyKey};
 
     #[test]
     fn network_key_iteration_empty() {
@@ -64,20 +60,21 @@ mod tests {
     #[test]
     fn network_key_derivation() {
         // 8.2.2 Encryption and privacy keys (Master)
-        let network_key = NetworkKey::new( [
+        let network_key = NetworkKey::new([
             0x7d, 0xd7, 0x36, 0x4c, 0xd8, 0x42, 0xad, 0x18, 0xc1, 0x7c, 0x2b, 0x82, 0x0c, 0x84,
             0xc3, 0xd6,
-        ] ).unwrap();
+        ])
+        .unwrap();
 
-        let encryption_key = EncryptionKey::new( [
+        let encryption_key = EncryptionKey::new([
             0x09, 0x53, 0xfa, 0x93, 0xe7, 0xca, 0xac, 0x96, 0x38, 0xf5, 0x88, 0x20, 0x22, 0x0a,
             0x39, 0x8e,
         ]);
 
-        let privacy_key = PrivacyKey::new( [
+        let privacy_key = PrivacyKey::new([
             0x8b, 0x84, 0xee, 0xde, 0xc1, 0x00, 0x06, 0x7d, 0x67, 0x09, 0x71, 0xdd, 0x2a, 0xa7,
             0x00, 0xcf,
-        ] );
+        ]);
 
         assert_eq!(Nid::new(0x68), network_key.nid());
         assert_eq!(privacy_key, network_key.privacy_key());

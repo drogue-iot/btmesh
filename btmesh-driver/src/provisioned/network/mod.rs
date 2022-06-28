@@ -1,11 +1,11 @@
 use crate::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
 use crate::provisioned::{DriverError, ProvisionedDriver, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
+use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
 use btmesh_common::crypto::nonce::NetworkNonce;
-use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
+use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
-use btmesh_common::crypto::network::{EncryptionKey, NetMic, NetworkKey};
 
 pub mod replay_protection;
 
@@ -96,49 +96,30 @@ impl ProvisionedDriver {
 
         match cleartext_pdu.ctl() {
             Ctl::Access => {
-                //let mut mic = [0; 4];
                 let mut mic = NetMic::new_access();
-
-                /*
-                crypto::aes_ccm_encrypt_detached(
-                    &encryption_key,
-                    &nonce.into_bytes(),
-                    &mut encrypted_and_mic,
-                    &mut mic,
-                    None,
-                )
-                .map_err(|_| DriverError::CryptoError)?;
-                 */
 
                 crypto::network::encrypt_network(
                     &network_key,
                     &nonce,
                     &mut encrypted_and_mic,
                     &mut mic,
-                ).map_err(|_| DriverError::CryptoError)?;
-
+                )
+                .map_err(|_| DriverError::CryptoError)?;
 
                 encrypted_and_mic
                     .extend_from_slice(mic.as_ref())
                     .map_err(|_| DriverError::InsufficientSpace)?;
             }
             Ctl::Control => {
-                //let mut mic = [0; 8];
                 let mut mic = NetMic::new_control();
 
-                /*
-                crypto::aes_ccm_encrypt_detached(
-                    &encryption_key,
-                    &nonce.into_bytes(),
+                crypto::network::encrypt_network(
+                    &network_key,
+                    &nonce,
                     &mut encrypted_and_mic,
                     &mut mic,
-                    None,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
-                 */
-
-                crypto::network::encrypt_network(&network_key, &nonce, &mut encrypted_and_mic, &mut mic)
-                    .map_err(|_| DriverError::CryptoError)?;
 
                 encrypted_and_mic
                     .extend_from_slice(mic.as_ref())
@@ -151,8 +132,8 @@ impl ProvisionedDriver {
 
         //let privacy_key = self.privacy_key(cleartext_pdu.meta().network_key_handle())?;
 
-        let pecb =
-            crypto::e(&network_key.privacy_key(), privacy_plaintext).map_err(|_| DriverError::CryptoError)?;
+        let pecb = crypto::e(&network_key.privacy_key(), privacy_plaintext)
+            .map_err(|_| DriverError::CryptoError)?;
 
         let mut unobfuscated = [0; 6];
         unobfuscated[0] = ctl_ttl;
@@ -232,14 +213,7 @@ impl ProvisionedDriver {
 
         let mic = NetMic::parse(mic)?;
 
-        if crypto::network::try_decrypt_network(
-            &network_key,
-            &nonce,
-            payload,
-            &mic,
-        )
-        .is_ok()
-        {
+        if crypto::network::try_decrypt_network(&network_key, &nonce, payload, &mic).is_ok() {
             let ttl = Ttl::parse(unobfuscated[0] & 0b01111111)?;
             let seq = Seq::parse(u32::from_be_bytes([
                 0,

@@ -1,10 +1,39 @@
 use crate::crypto::nonce::NetworkNonce;
 use crate::crypto::{aes_ccm_decrypt_detached, aes_ccm_encrypt_detached};
-use crate::mic::{InvalidLength, TransMic};
-use crate::{crypto, Nid};
+use crate::mic::InvalidLength;
+use crate::{crypto, ParseError};
 use ccm::aead::Error;
 use cmac::crypto_mac::InvalidKeyLength;
 use core::ops::Deref;
+use hash32_derive::Hash32;
+
+/// Network key identifier.
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub struct Nid(u8);
+
+impl Nid {
+    pub fn new(nid: u8) -> Self {
+        Self(nid)
+    }
+
+    pub fn parse(nid: u8) -> Result<Nid, ParseError> {
+        Ok(Self::new(nid))
+    }
+}
+
+impl From<Nid> for u8 {
+    fn from(nid: Nid) -> Self {
+        nid.0
+    }
+}
+
+impl From<u8> for Nid {
+    fn from(val: u8) -> Self {
+        Self(val)
+    }
+}
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum NetMic {
@@ -151,8 +180,7 @@ pub fn encrypt_network(
 
 #[cfg(test)]
 mod test {
-    use crate::crypto::network::{EncryptionKey, NetworkKey, PrivacyKey};
-    use crate::Nid;
+    use crate::crypto::network::{EncryptionKey, NetworkKey, Nid, PrivacyKey};
 
     #[test]
     fn network_key_derivation() {

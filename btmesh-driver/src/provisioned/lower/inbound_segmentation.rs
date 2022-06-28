@@ -309,8 +309,9 @@ mod tests {
     use crate::provisioned::system::{LowerMetadata, NetworkKeyHandle, UpperMetadata};
     use crate::provisioned::{DriverError, ProvisionedDriver};
     use btmesh_common::address::UnicastAddress;
+    use btmesh_common::crypto::network::Nid;
     use btmesh_common::mic::SzMic;
-    use btmesh_common::{IvIndex, Nid, Seq, SeqZero, Ttl};
+    use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};
     use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::lower::SegmentedLowerPDU;

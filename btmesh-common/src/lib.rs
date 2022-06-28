@@ -2,8 +2,6 @@
 
 use core::array::TryFromSliceError;
 use core::ops::{Add, BitAnd, Sub};
-use hash32_derive::Hash32;
-use heapless::Vec;
 
 pub mod address;
 pub mod crypto;
@@ -43,69 +41,6 @@ impl From<()> for ParseError {
 impl From<TryFromSliceError> for ParseError {
     fn from(_: TryFromSliceError) -> Self {
         Self::InvalidLength
-    }
-}
-
-/// Network key identifier.
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Nid(u8);
-
-impl Nid {
-    pub fn new(nid: u8) -> Self {
-        Self(nid)
-    }
-
-    pub fn parse(nid: u8) -> Result<Nid, ParseError> {
-        Ok(Self::new(nid))
-    }
-}
-
-impl From<Nid> for u8 {
-    fn from(nid: Nid) -> Self {
-        nid.0
-    }
-}
-
-impl From<u8> for Nid {
-    fn from(val: u8) -> Self {
-        Self(val)
-    }
-}
-
-/// Application key identifier.
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-pub struct Aid(u8);
-
-impl Aid {
-    pub fn parse(akf_aid: u8) -> Result<Option<Self>, ParseError> {
-        let akf = akf_aid & 0b01000000 != 0;
-        if akf {
-            let aid = akf_aid & 0b00111111;
-            Ok(Some(Self(aid)))
-        } else {
-            Ok(None)
-        }
-    }
-
-    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        let akf_aid = 0b01000000 | self.0 & 0b00111111;
-        xmit.push(akf_aid)?;
-        Ok(())
-    }
-}
-
-impl From<Aid> for u8 {
-    fn from(aid: Aid) -> Self {
-        aid.0
-    }
-}
-
-impl From<u8> for Aid {
-    fn from(val: u8) -> Self {
-        Self(val)
     }
 }
 
