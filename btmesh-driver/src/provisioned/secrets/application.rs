@@ -1,6 +1,10 @@
 use crate::provisioned::system::ApplicationKeyHandle;
 use crate::provisioned::DriverError;
-use btmesh_common::{crypto, Aid};
+use btmesh_common::Aid;
+use btmesh_common::crypto::{
+    self,
+    application::ApplicationKey,
+};
 
 pub(crate) struct ApplicationKeys<const N: usize = 4> {
     pub(crate) keys: [Option<ApplicationKey>; N],
@@ -20,7 +24,7 @@ impl<const N: usize> ApplicationKeys<N> {
             .enumerate()
             .filter(move |e| {
                 if let (_, Some(application_key)) = e {
-                    application_key.aid == aid
+                    application_key.aid() == aid
                 } else {
                     false
                 }
@@ -43,25 +47,4 @@ impl<const N: usize> ApplicationKeys<N> {
     }
 }
 
-#[derive(Copy, Clone)]
-pub(crate) struct ApplicationKey {
-    application_key: [u8; 16],
-    aid: Aid,
-}
 
-impl ApplicationKey {
-    pub fn new(application_key: [u8; 16]) -> Result<Self, DriverError> {
-        let aid = crypto::k4(&application_key)
-            .map_err(|_| DriverError::CryptoError)?
-            .into();
-
-        Ok(Self {
-            application_key,
-            aid,
-        })
-    }
-
-    pub(crate) fn application_key(&self) -> [u8; 16] {
-        self.application_key
-    }
-}

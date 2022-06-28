@@ -130,7 +130,7 @@ impl ProvisionedDriver {
                 let mut bytes = [0; 379];
                 let mut transmic = TransMic::new32();
 
-                crypto::device::encrypt_device_key(device_key, nonce, &mut bytes, &mut transmic)
+                crypto::device::encrypt_device_key(&device_key, &nonce, &mut bytes, &mut transmic)
                     .map_err(|_| DriverError::CryptoError)?;
 
                 Ok(UpperAccessPDU::new(
@@ -157,7 +157,7 @@ impl ProvisionedDriver {
                 let mut transmic = TransMic::new32();
 
                 crypto::application::encrypt_application_key(
-                    application_key,
+                    &application_key,
                     nonce,
                     &mut bytes,
                     &mut transmic,
@@ -196,7 +196,7 @@ impl ProvisionedDriver {
                     let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                         .map_err(|_| DriverError::InsufficientSpace)?;
                     if crypto::application::try_decrypt_application_key(
-                        application_key,
+                        &application_key,
                         nonce,
                         &mut bytes,
                         &pdu.transmic(),
@@ -216,7 +216,7 @@ impl ProvisionedDriver {
                         let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                             .map_err(|_| DriverError::InsufficientSpace)?;
                         if crypto::application::try_decrypt_application_key(
-                            application_key,
+                            &application_key,
                             nonce,
                             &mut bytes,
                             &pdu.transmic(),
@@ -259,8 +259,8 @@ impl ProvisionedDriver {
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;
             if crypto::device::try_decrypt_device_key(
-                device_key,
-                nonce,
+                &device_key,
+                &nonce,
                 &mut bytes,
                 &pdu.transmic(),
             )

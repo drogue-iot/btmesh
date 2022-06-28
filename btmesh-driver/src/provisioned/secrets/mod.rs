@@ -1,12 +1,12 @@
 use crate::provisioned::secrets::application::ApplicationKeys;
-use crate::provisioned::secrets::device::DeviceKey;
 use crate::provisioned::secrets::network::NetworkKeys;
 use crate::provisioned::system::{ApplicationKeyHandle, NetworkKeyHandle};
 use crate::provisioned::DriverError;
 use btmesh_common::{Aid, Nid};
+use btmesh_common::crypto::application::ApplicationKey;
+use btmesh_common::crypto::device::DeviceKey;
 
 pub mod application;
-pub mod device;
 pub mod network;
 
 pub(crate) struct Secrets {
@@ -16,8 +16,8 @@ pub(crate) struct Secrets {
 }
 
 impl Secrets {
-    pub(crate) fn device_key(&self) -> [u8; 16] {
-        self.device_key.device_key()
+    pub(crate) fn device_key(&self) -> DeviceKey {
+        self.device_key
     }
 
     pub(crate) fn network_keys_by_nid(
@@ -57,10 +57,10 @@ impl Secrets {
     pub(crate) fn application_key(
         &self,
         application_key: ApplicationKeyHandle,
-    ) -> Result<[u8; 16], DriverError> {
+    ) -> Result<ApplicationKey, DriverError> {
         self.application_keys.keys[application_key.0 as usize]
             .as_ref()
             .ok_or(DriverError::InvalidKeyHandle)
-            .map(|key| key.application_key())
+            .cloned()
     }
 }
