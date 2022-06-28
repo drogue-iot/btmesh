@@ -24,6 +24,11 @@ impl SzMic {
     }
 }
 
+/// Error signifying an invalid length of MIC provided to TransMic.
+#[derive(Copy, Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct InvalidLength;
+
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum TransMic {
@@ -31,7 +36,33 @@ pub enum TransMic {
     Bit64(Bit64TransMic),
 }
 
+impl AsRef<[u8]> for TransMic {
+    fn as_ref(&self) -> &[u8] {
+        match self {
+            TransMic::Bit32(inner) => inner.as_ref(),
+            TransMic::Bit64(inner) => inner.as_ref(),
+        }
+    }
+}
+
+impl AsMut<[u8]> for TransMic {
+    fn as_mut(&mut self) -> &mut [u8] {
+        match self {
+            TransMic::Bit32(inner) => inner.as_mut(),
+            TransMic::Bit64(inner) => inner.as_mut(),
+        }
+    }
+}
+
 impl TransMic {
+    pub fn new32() -> Self {
+        Self::Bit32(Bit32TransMic::new())
+    }
+
+    pub fn new64() -> Self {
+        Self::Bit64(Bit64TransMic::new())
+    }
+
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
         match data.len() {
             4 => Ok(TransMic::Bit32(Bit32TransMic(data.try_into()?))),
@@ -46,13 +77,6 @@ impl TransMic {
             TransMic::Bit64(_) => SzMic::Bit64,
         }
     }
-
-    pub fn as_slice(&self) -> &[u8] {
-        match self {
-            TransMic::Bit32(transmic) => transmic.as_slice(),
-            TransMic::Bit64(transmic) => transmic.as_slice(),
-        }
-    }
 }
 
 #[derive(Copy, Clone)]
@@ -60,18 +84,43 @@ impl TransMic {
 pub struct Bit32TransMic([u8; 4]);
 
 impl Bit32TransMic {
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn new() -> Self {
+        Self([0;4])
+    }
+}
+
+impl AsRef<[u8]> for Bit32TransMic {
+    fn as_ref(&self) -> &[u8] {
         &self.0
     }
 }
+
+impl AsMut<[u8]> for Bit32TransMic {
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
+    }
+}
+
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Bit64TransMic([u8; 8]);
 
 impl Bit64TransMic {
-    pub fn as_slice(&self) -> &[u8] {
+    pub fn new() -> Self {
+        Self([0;8])
+    }
+}
+
+impl AsRef<[u8]> for Bit64TransMic {
+    fn as_ref(&self) -> &[u8] {
         &self.0
+    }
+}
+
+impl AsMut<[u8]> for Bit64TransMic {
+    fn as_mut(&mut self) -> &mut [u8] {
+        &mut self.0
     }
 }
 
@@ -83,7 +132,7 @@ mod tests {
     fn transmic_parse() {
         let transmic = TransMic::parse(b"abcd").unwrap();
         if let TransMic::Bit32(transmic) = transmic {
-            assert_eq!(*b"abcd", transmic.as_slice())
+            assert_eq!(*b"abcd", transmic.as_ref())
         } else {
             assert!(false, "failed to parse a 32-bit transmic")
         }
@@ -91,7 +140,7 @@ mod tests {
         let transmic = TransMic::parse(b"abcdefgh").unwrap();
 
         if let TransMic::Bit64(transmic) = transmic {
-            assert_eq!(*b"abcdefgh", transmic.as_slice())
+            assert_eq!(*b"abcdefgh", transmic.as_ref())
         } else {
             assert!(false, "failed to parse a 64-bit transmic")
         }

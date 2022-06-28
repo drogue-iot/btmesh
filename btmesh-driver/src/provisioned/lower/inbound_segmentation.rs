@@ -502,7 +502,7 @@ mod tests {
             assert_eq!(b"ABCDEFGHIJK", payload);
 
             let transmic = result.transmic();
-            assert_eq!(b"LZYX", transmic.as_slice());
+            assert_eq!(b"LZYX", transmic.as_ref());
         } else {
             assert!(false)
         }

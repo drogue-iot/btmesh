@@ -128,12 +128,10 @@ impl ProvisionedDriver {
                 let device_key = self.secrets.device_key();
 
                 let mut bytes = [0; 379];
-                let mut transmic = [0; 4];
+                let mut transmic = TransMic::new32();
 
                 crypto::device::encrypt_device_key(device_key, nonce, &mut bytes, &mut transmic)
                     .map_err(|_| DriverError::CryptoError)?;
-
-                let transmic = TransMic::parse(&transmic)?;
 
                 Ok(UpperAccessPDU::new(
                     &payload,
@@ -156,7 +154,7 @@ impl ProvisionedDriver {
                 let application_key = self.secrets.application_key(key_handle)?;
 
                 let mut bytes = [0; 379];
-                let mut transmic = [0; 4];
+                let mut transmic = TransMic::new32();
 
                 crypto::application::encrypt_application_key(
                     application_key,
@@ -166,8 +164,6 @@ impl ProvisionedDriver {
                     message.meta().label_uuid(),
                 )
                 .map_err(|_| DriverError::CryptoError)?;
-
-                let transmic = TransMic::parse(&transmic)?;
 
                 Ok(UpperAccessPDU::new(
                     &payload,
@@ -203,7 +199,7 @@ impl ProvisionedDriver {
                         application_key,
                         nonce,
                         &mut bytes,
-                        pdu.transmic().as_slice(),
+                        &pdu.transmic(),
                         None,
                     )
                     .is_ok()
@@ -223,7 +219,7 @@ impl ProvisionedDriver {
                             application_key,
                             nonce,
                             &mut bytes,
-                            pdu.transmic().as_slice(),
+                            &pdu.transmic(),
                             Some(*label_uuid),
                         )
                         .is_ok()
@@ -266,7 +262,7 @@ impl ProvisionedDriver {
                 device_key,
                 nonce,
                 &mut bytes,
-                pdu.transmic().as_slice(),
+                &pdu.transmic(),
             )
             .is_ok()
             {
