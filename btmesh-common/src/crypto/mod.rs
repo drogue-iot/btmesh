@@ -11,7 +11,9 @@ use cmac::crypto_mac::{InvalidKeyLength, Output};
 use cmac::{Cmac, Mac, NewMac};
 use core::convert::TryInto;
 use heapless::Vec;
+use crate::crypto::network::PrivacyKey;
 
+pub mod network;
 pub mod application;
 pub mod device;
 pub mod nonce;
@@ -69,8 +71,8 @@ pub fn k2(n: &[u8], p: &[u8]) -> Result<(u8, [u8; 16], [u8; 16]), InvalidKeyLeng
     ))
 }
 
-pub fn e(key: &[u8], mut data: [u8; 16]) -> Result<[u8; 16], InvalidKeyLength> {
-    let key = GenericArray::<u8, <Aes128 as NewBlockCipher>::KeySize>::from_slice(key);
+pub fn e(key: &PrivacyKey, mut data: [u8; 16]) -> Result<[u8; 16], InvalidKeyLength> {
+    let key = GenericArray::<u8, <Aes128 as NewBlockCipher>::KeySize>::from_slice(key.as_ref());
     let cipher = Aes128::new_from_slice(key).map_err(|_| InvalidKeyLength)?;
 
     let cipher_block = Block::<Aes128>::from_mut_slice(&mut data);
@@ -81,7 +83,7 @@ pub fn e(key: &[u8], mut data: [u8; 16]) -> Result<[u8; 16], InvalidKeyLength> {
 type AesCcm32bitMac = Ccm<Aes128, U4, U13>;
 type AesCcm64bitMac = Ccm<Aes128, U8, U13>;
 
-pub fn aes_ccm_decrypt_detached(
+pub(crate) fn aes_ccm_decrypt_detached(
     key: &[u8],
     nonce: &[u8],
     data: &mut [u8],
@@ -112,7 +114,7 @@ pub fn aes_ccm_decrypt_detached(
     }
 }
 
-pub fn aes_ccm_encrypt_detached(
+pub(crate) fn aes_ccm_encrypt_detached(
     key: &[u8],
     nonce: &[u8],
     data: &mut [u8],

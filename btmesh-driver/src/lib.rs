@@ -3,6 +3,7 @@
 
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
+use btmesh_common::mic::InvalidLength;
 use btmesh_pdu::lower::InvalidBlock;
 
 pub mod provisioned;
@@ -20,6 +21,12 @@ pub enum DriverError {
     InvalidPDU,
     ParseError(ParseError),
     SeqRolloverError,
+}
+
+impl From<InvalidLength> for DriverError {
+    fn from(_: InvalidLength) -> Self {
+        Self::CryptoError
+    }
 }
 
 impl From<SeqRolloverError> for DriverError {

@@ -5,11 +5,7 @@ use btmesh_common::{
 };
 use heapless::Vec;
 
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum NetMic {
-    Access([u8; 4]),
-    Control([u8; 8]),
-}
+
 
 /// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]

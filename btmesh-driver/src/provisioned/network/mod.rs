@@ -5,6 +5,7 @@ use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Nid, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
+use btmesh_common::crypto::network::{EncryptionKey, NetMic, NetworkKey};
 
 pub mod replay_protection;
 
@@ -58,12 +59,8 @@ impl ProvisionedDriver {
         self.secrets.network_keys_by_nid(nid)
     }
 
-    fn privacy_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.secrets.network_privacy_key(network_key)
-    }
-
-    fn encryption_key(&self, network_key: NetworkKeyHandle) -> Result<[u8; 16], DriverError> {
-        self.secrets.network_encryption_key(network_key)
+    fn network_key(&self, handle: NetworkKeyHandle) -> Result<NetworkKey, DriverError> {
+        self.secrets.network_key(handle)
     }
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
@@ -95,12 +92,14 @@ impl ProvisionedDriver {
             .extend_from_slice(cleartext_pdu.transport_pdu())
             .map_err(|_| DriverError::InsufficientSpace)?;
 
-        let encryption_key = self.encryption_key(cleartext_pdu.meta().network_key_handle())?;
+        let network_key = self.network_key(cleartext_pdu.meta().network_key_handle())?;
 
         match cleartext_pdu.ctl() {
             Ctl::Access => {
-                let mut mic = [0; 4];
+                //let mut mic = [0; 4];
+                let mut mic = NetMic::new_access();
 
+                /*
                 crypto::aes_ccm_encrypt_detached(
                     &encryption_key,
                     &nonce.into_bytes(),
@@ -109,14 +108,25 @@ impl ProvisionedDriver {
                     None,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
+                 */
+
+                crypto::network::encrypt_network(
+                    &network_key,
+                    &nonce,
+                    &mut encrypted_and_mic,
+                    &mut mic,
+                ).map_err(|_| DriverError::CryptoError)?;
+
 
                 encrypted_and_mic
-                    .extend_from_slice(&mic)
+                    .extend_from_slice(mic.as_ref())
                     .map_err(|_| DriverError::InsufficientSpace)?;
             }
             Ctl::Control => {
-                let mut mic = [0; 8];
+                //let mut mic = [0; 8];
+                let mut mic = NetMic::new_control();
 
+                /*
                 crypto::aes_ccm_encrypt_detached(
                     &encryption_key,
                     &nonce.into_bytes(),
@@ -125,9 +135,13 @@ impl ProvisionedDriver {
                     None,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
+                 */
+
+                crypto::network::encrypt_network(&network_key, &nonce, &mut encrypted_and_mic, &mut mic)
+                    .map_err(|_| DriverError::CryptoError)?;
 
                 encrypted_and_mic
-                    .extend_from_slice(&mic)
+                    .extend_from_slice(mic.as_ref())
                     .map_err(|_| DriverError::InsufficientSpace)?;
             }
         }
@@ -135,10 +149,10 @@ impl ProvisionedDriver {
         let privacy_plaintext =
             crypto::privacy_plaintext(cleartext_pdu.meta().iv_index(), &encrypted_and_mic);
 
-        let privacy_key = self.privacy_key(cleartext_pdu.meta().network_key_handle())?;
+        //let privacy_key = self.privacy_key(cleartext_pdu.meta().network_key_handle())?;
 
         let pecb =
-            crypto::e(&privacy_key, privacy_plaintext).map_err(|_| DriverError::CryptoError)?;
+            crypto::e(&network_key.privacy_key(), privacy_plaintext).map_err(|_| DriverError::CryptoError)?;
 
         let mut unobfuscated = [0; 6];
         unobfuscated[0] = ctl_ttl;
@@ -185,13 +199,14 @@ impl ProvisionedDriver {
         &self,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
-        network_key: NetworkKeyHandle,
+        network_key_handle: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<ProvisionedDriver>, DriverError> {
+        let network_key = self.network_key(network_key_handle)?;
         let mut encrypted_and_mic = Vec::<_, 28>::from_slice(pdu.encrypted_and_mic())
             .map_err(|_| DriverError::InsufficientSpace)?;
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);
 
-        let pecb = crypto::e(&self.privacy_key(network_key)?, privacy_plaintext)
+        let pecb = crypto::e(&network_key.privacy_key(), privacy_plaintext)
             .map_err(|_| DriverError::InvalidKeyLength)?;
 
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
@@ -215,12 +230,13 @@ impl ProvisionedDriver {
 
         let (payload, mic) = encrypted_and_mic.split_at_mut(encrypted_len - ctl.netmic_size());
 
-        if crypto::aes_ccm_decrypt_detached(
-            &self.encryption_key(network_key)?,
-            &nonce.into_bytes(),
+        let mic = NetMic::parse(mic)?;
+
+        if crypto::network::try_decrypt_network(
+            &network_key,
+            &nonce,
             payload,
-            mic,
-            None,
+            &mic,
         )
         .is_ok()
         {
@@ -238,7 +254,7 @@ impl ProvisionedDriver {
 
             let local_element_index = self.network.local_element_index(dst);
 
-            let meta = NetworkMetadata::new(iv_index, local_element_index, network_key);
+            let meta = NetworkMetadata::new(iv_index, local_element_index, network_key_handle);
 
             Ok(CleartextNetworkPDU::new(
                 pdu.ivi(),

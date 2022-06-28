@@ -5,6 +5,7 @@ use crate::provisioned::DriverError;
 use btmesh_common::{Aid, Nid};
 use btmesh_common::crypto::application::ApplicationKey;
 use btmesh_common::crypto::device::DeviceKey;
+use btmesh_common::crypto::network::{EncryptionKey, NetworkKey};
 
 pub mod application;
 pub mod network;
@@ -27,25 +28,16 @@ impl Secrets {
         self.network_keys.by_nid_iter(nid)
     }
 
-    pub(crate) fn network_privacy_key(
+    pub(crate) fn network_key(
         &self,
         network_key: NetworkKeyHandle,
-    ) -> Result<[u8; 16], DriverError> {
+    ) -> Result<NetworkKey, DriverError> {
         self.network_keys.keys[network_key.0 as usize]
             .as_ref()
             .ok_or(DriverError::InvalidKeyHandle)
-            .map(|key| key.privacy_key())
+            .cloned()
     }
 
-    pub(crate) fn network_encryption_key(
-        &self,
-        network_key: NetworkKeyHandle,
-    ) -> Result<[u8; 16], DriverError> {
-        self.network_keys.keys[network_key.0 as usize]
-            .as_ref()
-            .ok_or(DriverError::InvalidKeyHandle)
-            .map(|key| key.encryption_key())
-    }
 
     pub(crate) fn application_keys_by_aid(
         &self,

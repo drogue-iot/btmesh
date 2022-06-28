@@ -14,6 +14,14 @@ pub enum Nonce {
 
 pub struct NetworkNonce([u8; 13]);
 
+impl Deref for NetworkNonce {
+    type Target = [u8; 13];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 impl NetworkNonce {
     const NONCE_TYPE: NonceType = NonceType(0x00);
 
