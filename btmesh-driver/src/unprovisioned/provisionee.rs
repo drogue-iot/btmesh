@@ -1,5 +1,6 @@
 use crate::DriverError;
 
+use super::auth_value::{self, determine_auth_value, AuthValue, RandomNumberGenerator};
 use super::pdu::{Capabilities, ProvisioningPDU};
 use super::transcript::Transcript;
 
@@ -13,7 +14,11 @@ enum Provisioning {
 }
 
 impl Provisioning {
-    fn next(self, pdu: ProvisioningPDU) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
+    fn next(
+        self,
+        pdu: ProvisioningPDU,
+        rng: impl RandomNumberGenerator,
+    ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let capabilities = device.state.capabilities.clone();
@@ -27,6 +32,12 @@ impl Provisioning {
             (Provisioning::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
                 device.transcript.add_start(&start)?;
+                device
+                    .state
+                    .auth_value
+                    .replace(determine_auth_value(&rng, &start)?);
+                // TODO: actually let the device/app/thingy know what
+                // it is so that it can blink/flash/accept input
                 Ok((Provisioning::KeyExchange(device.into()), None))
             }
             (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(key)) => {
@@ -77,7 +88,7 @@ impl From<Provisionee<Beaconing>> for Provisionee<Invitation> {
     fn from(p: Provisionee<Beaconing>) -> Provisionee<Invitation> {
         Provisionee {
             transcript: p.transcript,
-            state: Invitation,
+            state: Invitation { auth_value: None },
         }
     }
 }
@@ -86,7 +97,9 @@ impl From<Provisionee<Invitation>> for Provisionee<KeyExchange> {
     fn from(p: Provisionee<Invitation>) -> Provisionee<KeyExchange> {
         Provisionee {
             transcript: p.transcript,
-            state: KeyExchange,
+            state: KeyExchange {
+                auth_value: p.state.auth_value.unwrap(),
+            },
         }
     }
 }
@@ -95,7 +108,9 @@ impl From<Provisionee<KeyExchange>> for Provisionee<Authentication> {
     fn from(p: Provisionee<KeyExchange>) -> Provisionee<Authentication> {
         Provisionee {
             transcript: p.transcript,
-            state: Authentication,
+            state: Authentication {
+                auth_value: p.state.auth_value,
+            },
         }
     }
 }
@@ -121,8 +136,14 @@ impl From<Provisionee<DataDistribution>> for Provisionee<Complete> {
 struct Beaconing {
     capabilities: Capabilities,
 }
-struct Invitation;
-struct KeyExchange;
-struct Authentication;
+struct Invitation {
+    auth_value: Option<AuthValue>,
+}
+struct KeyExchange {
+    auth_value: AuthValue,
+}
+struct Authentication {
+    auth_value: AuthValue,
+}
 struct DataDistribution;
 struct Complete;
