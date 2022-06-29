@@ -25,12 +25,13 @@ impl Provisioning {
                 ))
             }
             (Provisioning::Invitation(mut device), ProvisioningPDU::Start(start)) => {
+                // TODO: spec says to set the "Attention Timer" to 0x00
                 device.transcript.add_start(&start)?;
                 Ok((Provisioning::KeyExchange(device.into()), None))
             }
             (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(key)) => {
                 device.transcript.add_pubkey_provisioner(&key)?;
-                // TODO: invalid key should error
+                // TODO: invalid key (sec 5.4.3.1) should fail provisioning
                 Ok((Provisioning::Authentication(device.into()), None))
             }
             (Provisioning::Authentication(device), ProvisioningPDU::Confirmation(_value)) => {
