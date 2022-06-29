@@ -9,6 +9,7 @@ enum Provisioning {
     KeyExchange(Provisionee<KeyExchange>),
     Authentication(Provisionee<Authentication>),
     DataDistribution(Provisionee<DataDistribution>),
+    Complete(Provisionee<Complete>),
 }
 
 impl Provisioning {
@@ -24,11 +25,30 @@ impl Provisioning {
                 device.transcript.add_start(&start)?;
                 Ok(Provisioning::KeyExchange(device.into()))
             }
-            (Provisioning::Invitation(mut device), ProvisioningPDU::PublicKey(key)) => {
+            (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(key)) => {
                 device.transcript.add_pubkey_provisioner(&key)?;
-                Ok(Provisioning::KeyExchange(device.into()))
+                // TODO: invalid key should error
+                Ok(Provisioning::Authentication(device.into()))
             }
-            _ => todo!(),
+            (Provisioning::Authentication(device), ProvisioningPDU::Confirmation(_value)) => {
+                // TODO: should we introduce a sub-state for Input OOB
+                // to know when to send back an InputComplete PDU?
+
+                // TODO: confirm the value and send back a Confirmation PDU
+                Ok(Provisioning::Authentication(device))
+            }
+            (Provisioning::Authentication(device), ProvisioningPDU::Random(_value)) => {
+                // TODO: should we introduce a sub-state for Input OOB
+                // to know when to send back an InputCompletePDU?
+
+                // check the value and send back a Random PDU
+                Ok(Provisioning::DataDistribution(device.into()))
+            }
+            (Provisioning::DataDistribution(device), ProvisioningPDU::Data(_data)) => {
+                // TODO: do something with the data!
+                Ok(Provisioning::Complete(device.into()))
+            }
+            _ => Err(DriverError::InvalidState),
         }
     }
 }
@@ -89,8 +109,19 @@ impl From<Provisionee<Authentication>> for Provisionee<DataDistribution> {
     }
 }
 
+impl From<Provisionee<DataDistribution>> for Provisionee<Complete> {
+    fn from(p: Provisionee<DataDistribution>) -> Provisionee<Complete> {
+        Provisionee {
+            capabilities: p.capabilities,
+            transcript: p.transcript,
+            state: Complete,
+        }
+    }
+}
+
 struct Beaconing;
 struct Invitation;
 struct KeyExchange;
 struct Authentication;
 struct DataDistribution;
+struct Complete;
