@@ -1,6 +1,8 @@
+use rand_core::RngCore;
+
 use crate::DriverError;
 
-use super::auth_value::{determine_auth_value, AuthValue, RandomNumberGenerator};
+use super::auth_value::{determine_auth_value, AuthValue};
 use super::pdu::{Capabilities, ProvisioningPDU, PublicKey};
 use super::transcript::Transcript;
 
@@ -17,7 +19,7 @@ impl Provisioning {
     fn next(
         self,
         pdu: ProvisioningPDU,
-        rng: impl RandomNumberGenerator,
+        rng: impl RngCore,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
@@ -35,7 +37,7 @@ impl Provisioning {
                 device
                     .state
                     .auth_value
-                    .replace(determine_auth_value(&rng, &start)?);
+                    .replace(determine_auth_value(rng, &start)?);
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
                 Ok((Provisioning::KeyExchange(device.into()), None))
