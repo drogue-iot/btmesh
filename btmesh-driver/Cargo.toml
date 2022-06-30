@@ -15,5 +15,4 @@ uluru = "3.0.0"
 serde = "1.0"
 cmac = { version = "0.6.0", default-features = false }
 aes = { version = "0.7", default-features = false }
-
-
+p256 = { version = "0.10.0", default-features = false, features = [ "arithmetic" ] }

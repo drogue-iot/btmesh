@@ -1,7 +1,7 @@
 use crate::DriverError;
 
-use super::auth_value::{self, determine_auth_value, AuthValue, RandomNumberGenerator};
-use super::pdu::{Capabilities, ProvisioningPDU};
+use super::auth_value::{determine_auth_value, AuthValue, RandomNumberGenerator};
+use super::pdu::{Capabilities, ProvisioningPDU, PublicKey};
 use super::transcript::Transcript;
 
 enum Provisioning {
@@ -41,9 +41,14 @@ impl Provisioning {
                 Ok((Provisioning::KeyExchange(device.into()), None))
             }
             (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(key)) => {
-                device.transcript.add_pubkey_provisioner(&key)?;
                 // TODO: invalid key (sec 5.4.3.1) should fail provisioning
-                Ok((Provisioning::Authentication(device.into()), None))
+                device.transcript.add_pubkey_provisioner(&key)?;
+                let pk: PublicKey = device.state.public_key.try_into()?;
+                device.transcript.add_pubkey_device(&pk)?;
+                Ok((
+                    Provisioning::Authentication(device.into()),
+                    Some(ProvisioningPDU::PublicKey(pk)),
+                ))
             }
             (Provisioning::Authentication(device), ProvisioningPDU::Confirmation(_value)) => {
                 // TODO: should we introduce a sub-state for Input OOB
@@ -74,11 +79,12 @@ struct Provisionee<S> {
 }
 
 impl Provisionee<Beaconing> {
-    fn new(capabilities: Capabilities) -> Self {
+    fn new(capabilities: Capabilities, public_key: p256::PublicKey) -> Self {
         Provisionee {
             transcript: Transcript::default(),
             state: Beaconing {
                 capabilities: capabilities,
+                public_key: public_key,
             },
         }
     }
@@ -88,7 +94,10 @@ impl From<Provisionee<Beaconing>> for Provisionee<Invitation> {
     fn from(p: Provisionee<Beaconing>) -> Provisionee<Invitation> {
         Provisionee {
             transcript: p.transcript,
-            state: Invitation { auth_value: None },
+            state: Invitation {
+                auth_value: None,
+                public_key: p.state.public_key,
+            },
         }
     }
 }
@@ -99,6 +108,7 @@ impl From<Provisionee<Invitation>> for Provisionee<KeyExchange> {
             transcript: p.transcript,
             state: KeyExchange {
                 auth_value: p.state.auth_value.unwrap(),
+                public_key: p.state.public_key,
             },
         }
     }
@@ -135,12 +145,15 @@ impl From<Provisionee<DataDistribution>> for Provisionee<Complete> {
 
 struct Beaconing {
     capabilities: Capabilities,
+    public_key: p256::PublicKey,
 }
 struct Invitation {
     auth_value: Option<AuthValue>,
+    public_key: p256::PublicKey,
 }
 struct KeyExchange {
     auth_value: AuthValue,
+    public_key: p256::PublicKey,
 }
 struct Authentication {
     auth_value: AuthValue,
