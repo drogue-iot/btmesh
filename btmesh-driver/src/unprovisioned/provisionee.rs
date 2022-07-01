@@ -1,8 +1,16 @@
 use super::auth_value::{determine_auth_value, AuthValue};
-use super::pdu::{Capabilities, Confirmation, ProvisioningPDU, PublicKey, Random};
+use super::pdu::{
+    Capabilities, Confirmation, ProvisioningData, ProvisioningPDU, PublicKey, Random,
+};
 use super::transcript::Transcript;
 use crate::DriverError;
-use btmesh_common::{crypto, ParseError};
+use btmesh_common::{
+    crypto::{
+        self,
+        provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
+    },
+    ParseError,
+};
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
@@ -14,7 +22,7 @@ enum Provisioning {
     KeyExchange(Provisionee<KeyExchange>),
     Authentication(Provisionee<Authentication>),
     DataDistribution(Provisionee<DataDistribution>),
-    Complete(Provisionee<Complete>),
+    Complete(ProvisioningData),
 }
 
 impl Provisioning {
@@ -85,9 +93,37 @@ impl Provisioning {
                     })),
                 ))
             }
-            (Provisioning::DataDistribution(device), ProvisioningPDU::Data(_data)) => {
-                // TODO: do something with the data!
-                Ok((Provisioning::Complete(device.into()), None))
+            (Provisioning::DataDistribution(device), ProvisioningPDU::Data(mut data)) => {
+                let mut provisioning_salt = [0; 48];
+                provisioning_salt[0..16]
+                    .copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
+                provisioning_salt[16..32].copy_from_slice(&device.state.random_provisioner);
+                provisioning_salt[32..48].copy_from_slice(&device.state.random_device);
+                let provisioning_salt = &crypto::s1(&provisioning_salt)?.into_bytes()[0..];
+
+                let session_key = &prsk(device.state.shared_secret.as_bytes(), &provisioning_salt)?
+                    .into_bytes()[0..];
+
+                let session_nonce =
+                    &prsn(device.state.shared_secret.as_bytes(), &provisioning_salt)?.into_bytes()
+                        [3..];
+
+                if try_decrypt_confirmation(
+                    &session_key,
+                    &session_nonce,
+                    &mut data.encrypted,
+                    &data.mic,
+                    None,
+                )
+                .is_ok()
+                {
+                    Ok((
+                        Provisioning::Complete(ProvisioningData::parse(&data.encrypted)?),
+                        Some(ProvisioningPDU::Complete),
+                    ))
+                } else {
+                    Err(DriverError::CryptoError)
+                }
             }
             _ => Err(DriverError::InvalidState),
         }
@@ -147,16 +183,11 @@ impl From<Provisionee<Authentication>> for Provisionee<DataDistribution> {
     fn from(p: Provisionee<Authentication>) -> Provisionee<DataDistribution> {
         Provisionee {
             transcript: p.transcript,
-            state: DataDistribution,
-        }
-    }
-}
-
-impl From<Provisionee<DataDistribution>> for Provisionee<Complete> {
-    fn from(p: Provisionee<DataDistribution>) -> Provisionee<Complete> {
-        Provisionee {
-            transcript: p.transcript,
-            state: Complete,
+            state: DataDistribution {
+                random_provisioner: p.state.random_provisioner.unwrap(),
+                random_device: p.state.random_device.unwrap(),
+                shared_secret: p.state.shared_secret,
+            },
         }
     }
 }
@@ -177,17 +208,16 @@ struct Authentication {
     random_device: Option<[u8; 16]>,
     random_provisioner: Option<[u8; 16]>,
 }
-struct DataDistribution;
-struct Complete;
+struct DataDistribution {
+    random_provisioner: [u8; 16],
+    random_device: [u8; 16],
+    shared_secret: p256::ecdh::SharedSecret,
+}
 
 impl Provisionee<Authentication> {
     fn confirmation_device(&self) -> Result<Confirmation, DriverError> {
         let salt = self.transcript.confirmation_salt()?;
-        let key = crypto::k1(
-            self.state.shared_secret.as_bytes(),
-            &*salt.into_bytes(),
-            b"prck",
-        )?;
+        let key = prck(self.state.shared_secret.as_bytes(), &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
         bytes
             .extend_from_slice(&self.state.random_device.unwrap())

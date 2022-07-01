@@ -17,6 +17,7 @@ pub mod application;
 pub mod device;
 pub mod network;
 pub mod nonce;
+pub mod provisioning;
 
 const ZERO: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
