@@ -91,9 +91,7 @@ impl Provisionee<Beaconing> {
     fn new(capabilities: Capabilities) -> Self {
         Provisionee {
             transcript: Transcript::default(),
-            state: Beaconing {
-                capabilities: capabilities,
-            },
+            state: Beaconing { capabilities },
         }
     }
 }
