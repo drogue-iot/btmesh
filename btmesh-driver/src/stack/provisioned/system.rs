@@ -1,4 +1,4 @@
-use crate::provisioned::ProvisionedDriver;
+use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
@@ -83,7 +83,7 @@ impl NetworkMetadata {
         self.local_element_index
     }
 
-    pub fn from_upper_pdu(pdu: &UpperPDU<ProvisionedDriver>) -> Self {
+    pub fn from_upper_pdu(pdu: &UpperPDU<ProvisionedStack>) -> Self {
         Self {
             iv_index: pdu.meta().iv_index(),
             replay_protected: false,
@@ -123,7 +123,7 @@ impl LowerMetadata {
         }
     }
 
-    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<ProvisionedDriver>) -> Self {
+    pub fn from_network_pdu(pdu: &CleartextNetworkPDU<ProvisionedStack>) -> Self {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
@@ -185,7 +185,7 @@ pub struct UpperMetadata {
 }
 
 impl UpperMetadata {
-    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<ProvisionedDriver>) -> Self {
+    pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Self {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
@@ -202,7 +202,7 @@ impl UpperMetadata {
         }
     }
 
-    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<ProvisionedDriver>) -> Self {
+    pub fn from_unsegmented_lower_pdu(pdu: &UnsegmentedLowerPDU<ProvisionedStack>) -> Self {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
@@ -219,14 +219,14 @@ impl UpperMetadata {
         }
     }
 
-    pub fn from_lower_pdu(pdu: &LowerPDU<ProvisionedDriver>) -> Self {
+    pub fn from_lower_pdu(pdu: &LowerPDU<ProvisionedStack>) -> Self {
         match pdu {
             LowerPDU::Unsegmented(inner) => Self::from_unsegmented_lower_pdu(inner),
             LowerPDU::Segmented(inner) => Self::from_segmented_lower_pdu(inner),
         }
     }
 
-    pub fn from_access_message(message: &AccessMessage<ProvisionedDriver>, seq: Seq) -> Self {
+    pub fn from_access_message(message: &AccessMessage<ProvisionedStack>, seq: Seq) -> Self {
         Self {
             network_key_handle: message.meta().network_key_handle(),
             iv_index: message.meta().iv_index,
@@ -297,7 +297,7 @@ impl AccessMetadata {
     pub fn from_upper_access_pdu(
         key_handle: KeyHandle,
         label_uuid: Option<LabelUuid>,
-        pdu: &UpperAccessPDU<ProvisionedDriver>,
+        pdu: &UpperAccessPDU<ProvisionedStack>,
     ) -> Self {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
@@ -343,12 +343,12 @@ impl AccessMetadata {
 pub struct ControlMetadata {}
 
 impl ControlMetadata {
-    pub fn from_upper_control_pdu(pdu: &UpperControlPDU<ProvisionedDriver>) -> Self {
+    pub fn from_upper_control_pdu(pdu: &UpperControlPDU<ProvisionedStack>) -> Self {
         Self {}
     }
 }
 
-impl System for ProvisionedDriver {
+impl System for ProvisionedStack {
     type NetworkKeyHandle = NetworkKeyHandle;
     type ApplicationKeyHandle = ApplicationKeyHandle;
     type NetworkMetadata = NetworkMetadata;

@@ -1,11 +1,11 @@
 mod inbound_segmentation;
 mod outbound_segmentation;
 
-use crate::provisioned::lower::inbound_segmentation::InboundSegmentation;
-use crate::provisioned::lower::outbound_segmentation::OutboundSegmentation;
-use crate::provisioned::sequence::Sequence;
-use crate::provisioned::system::{LowerMetadata, UpperMetadata};
-use crate::provisioned::ProvisionedDriver;
+use crate::stack::provisioned::lower::inbound_segmentation::InboundSegmentation;
+use crate::stack::provisioned::lower::outbound_segmentation::OutboundSegmentation;
+use crate::stack::provisioned::sequence::Sequence;
+use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
+use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
 use btmesh_common::Ttl;
@@ -22,13 +22,13 @@ pub struct LowerDriver {
     outbound_segmentation: OutboundSegmentation,
 }
 
-impl ProvisionedDriver {
+impl ProvisionedStack {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
     pub fn process_inbound_cleartext_network_pdu(
         &mut self,
-        network_pdu: &CleartextNetworkPDU<ProvisionedDriver>,
-    ) -> Result<(Option<BlockAck>, Option<UpperPDU<ProvisionedDriver>>), DriverError> {
+        network_pdu: &CleartextNetworkPDU<ProvisionedStack>,
+    ) -> Result<(Option<BlockAck>, Option<UpperPDU<ProvisionedStack>>), DriverError> {
         let lower_pdu = LowerPDU::parse(network_pdu, LowerMetadata::from_network_pdu(network_pdu))?;
 
         match &lower_pdu {
@@ -66,9 +66,9 @@ impl ProvisionedDriver {
     pub fn process_outbound_upper_pdu(
         &mut self,
         sequence: &Sequence,
-        upper_pdu: &UpperPDU<ProvisionedDriver>,
+        upper_pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
-    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
         self.lower
             .outbound_segmentation
             .process(sequence, upper_pdu, is_retransmit)

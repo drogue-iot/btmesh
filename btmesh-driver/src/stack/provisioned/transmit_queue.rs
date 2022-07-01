@@ -5,8 +5,8 @@ use btmesh_common::{InsufficientBuffer, Seq};
 use btmesh_pdu::lower::BlockAck;
 use btmesh_pdu::network::NetworkPDU;
 use btmesh_pdu::upper::UpperPDU;
-use crate::provisioned::ProvisionedDriver;
-use crate::provisioned::sequence::Sequence;
+use crate::stack::provisioned::ProvisionedStack;
+use crate::stack::provisioned::sequence::Sequence;
 
 
 #[derive(Default)]
@@ -15,13 +15,13 @@ pub struct TransmitQueue<const N: usize=5> {
 }
 
 struct QueueEntry {
-    upper_pdu: UpperPDU<ProvisionedDriver>,
+    upper_pdu: UpperPDU<ProvisionedStack>,
     acked: Acked,
 }
 
 impl<const N: usize> TransmitQueue<N> {
 
-    pub fn add(&mut self, upper_pdu: UpperPDU<ProvisionedDriver>, num_segments: u8) -> Result<(), InsufficientBuffer> {
+    pub fn add(&mut self, upper_pdu: UpperPDU<ProvisionedStack>, num_segments: u8) -> Result<(), InsufficientBuffer> {
         let slot = self.queue.iter_mut().find(|e| matches!(e, None) );
 
         if let Some(slot) = slot {

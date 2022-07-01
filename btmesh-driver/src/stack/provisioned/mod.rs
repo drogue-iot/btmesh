@@ -1,8 +1,9 @@
-use crate::provisioned::lower::LowerDriver;
-use crate::provisioned::network::replay_protection::ReplayProtection;
-use crate::provisioned::network::{DeviceInfo, NetworkDriver};
-use crate::provisioned::sequence::Sequence;
-use crate::provisioned::upper::UpperDriver;
+use crate::stack::provisioned::lower::LowerDriver;
+use crate::stack::provisioned::network::replay_protection::ReplayProtection;
+use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
+use crate::stack::provisioned::sequence::Sequence;
+use crate::stack::provisioned::upper::UpperDriver;
+use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::DriverError;
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, Ttl};
 use btmesh_pdu::lower::BlockAck;
@@ -10,7 +11,6 @@ use btmesh_pdu::network::NetworkPDU;
 use btmesh_pdu::Message;
 use heapless::Vec;
 use secrets::Secrets;
-use crate::provisioned::transmit_queue::TransmitQueue;
 
 pub mod transmit_queue;
 pub mod lower;
@@ -40,7 +40,7 @@ pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
 
-pub struct ProvisionedDriver {
+pub struct ProvisionedStack {
     network_state: NetworkState,
     secrets: Secrets,
     upper: UpperDriver,
@@ -54,14 +54,14 @@ pub struct ProvisionedDriver {
 
 struct ReceiveResult {
     block_ack: Option<BlockAck>,
-    message: Option<Message<ProvisionedDriver>>,
+    message: Option<Message<ProvisionedStack>>,
 }
 
-impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedDriver>>)> for ReceiveResult {
+impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedStack>>)> for ReceiveResult {
     type Error = ();
 
     fn try_from(
-        value: (Option<BlockAck>, Option<Message<ProvisionedDriver>>),
+        value: (Option<BlockAck>, Option<Message<ProvisionedStack>>),
     ) -> Result<Self, Self::Error> {
         match value {
             (None, None) => Err(()),
@@ -73,7 +73,7 @@ impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedDriver>>)> for Receive
     }
 }
 
-impl ProvisionedDriver {
+impl ProvisionedStack {
     fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
             secrets,
@@ -111,7 +111,7 @@ impl ProvisionedDriver {
     fn process_outbound(
         &mut self,
         sequence: &Sequence,
-        message: &Message<ProvisionedDriver>,
+        message: &Message<ProvisionedStack>,
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;

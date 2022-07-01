@@ -1,4 +1,4 @@
-use crate::provisioned::ProvisionedDriver;
+use crate::stack::provisioned::ProvisionedStack;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
 use btmesh_pdu::network::CleartextNetworkPDU;
@@ -18,7 +18,7 @@ pub struct ReplayProtection<const N: usize = 100> {
 }
 
 impl<const N: usize> ReplayProtection<N> {
-    pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<ProvisionedDriver>) {
+    pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<ProvisionedStack>) {
         let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;
 
         if let Some(entry) = self.lru.find(|e| e.src == pdu.src()) {

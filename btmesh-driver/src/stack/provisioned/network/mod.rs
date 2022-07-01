@@ -1,5 +1,6 @@
-use crate::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
-use crate::provisioned::{DriverError, ProvisionedDriver, ReplayProtection};
+use crate::stack::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
+use crate::stack::provisioned::{DriverError, ProvisionedStack, ReplayProtection};
+use crate::stack::provisioned::sequence::Sequence;
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
 use btmesh_common::crypto::nonce::NetworkNonce;
@@ -8,7 +9,6 @@ use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
 use btmesh_pdu::Message;
 use btmesh_pdu::upper::UpperPDU;
-use crate::provisioned::sequence::Sequence;
 
 pub mod replay_protection;
 
@@ -58,7 +58,7 @@ impl NetworkDriver {
 
 }
 
-impl ProvisionedDriver {
+impl ProvisionedStack {
     fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.secrets.network_keys_by_nid(nid)
     }
@@ -73,7 +73,7 @@ impl ProvisionedDriver {
 
     pub fn encrypt_network_pdu(
         &self,
-        cleartext_pdu: &CleartextNetworkPDU<ProvisionedDriver>,
+        cleartext_pdu: &CleartextNetworkPDU<ProvisionedStack>,
     ) -> Result<NetworkPDU, DriverError> {
         let ctl_ttl = match cleartext_pdu.ctl() {
             Ctl::Access => 0,
@@ -164,7 +164,7 @@ impl ProvisionedDriver {
         &mut self,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
-    ) -> Result<Option<CleartextNetworkPDU<ProvisionedDriver>>, DriverError> {
+    ) -> Result<Option<CleartextNetworkPDU<ProvisionedStack>>, DriverError> {
         let mut result = None;
         for network_key in self.network_keys_by_nid(pdu.nid()) {
             if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
@@ -185,7 +185,7 @@ impl ProvisionedDriver {
         pdu: &NetworkPDU,
         iv_index: IvIndex,
         network_key_handle: NetworkKeyHandle,
-    ) -> Result<CleartextNetworkPDU<ProvisionedDriver>, DriverError> {
+    ) -> Result<CleartextNetworkPDU<ProvisionedStack>, DriverError> {
         let network_key = self.network_key(network_key_handle)?;
         let mut encrypted_and_mic = Vec::<_, 28>::from_slice(pdu.encrypted_and_mic())
             .map_err(|_| DriverError::InsufficientSpace)?;
@@ -253,7 +253,7 @@ impl ProvisionedDriver {
 
 #[cfg(test)]
 mod test {
-    use crate::provisioned::network::DeviceInfo;
+    use crate::stack::provisioned::network::DeviceInfo;
     use btmesh_common::address::{Address, GroupAddress, UnicastAddress};
 
     #[test]

@@ -1,5 +1,5 @@
-use crate::provisioned::system::NetworkKeyHandle;
-use crate::provisioned::DriverError;
+use crate::stack::provisioned::system::NetworkKeyHandle;
+use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
 
 pub(crate) struct NetworkKeys<const N: usize = 4> {
@@ -41,7 +41,7 @@ impl<const N: usize> NetworkKeys<N> {
 
 #[cfg(test)]
 mod tests {
-    use crate::provisioned::secrets::network::NetworkKeys;
+    use crate::stack::provisioned::secrets::network::NetworkKeys;
     use btmesh_common::crypto::network::{EncryptionKey, NetworkKey, Nid, PrivacyKey};
 
     #[test]

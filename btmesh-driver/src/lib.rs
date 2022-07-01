@@ -6,7 +6,8 @@ use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
 use btmesh_pdu::lower::InvalidBlock;
 
-pub mod provisioned;
+pub mod stack;
+
 pub mod unprovisioned;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]

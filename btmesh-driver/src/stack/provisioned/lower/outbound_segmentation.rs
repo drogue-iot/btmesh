@@ -1,6 +1,6 @@
-use crate::provisioned::sequence::Sequence;
-use crate::provisioned::system::NetworkMetadata;
-use crate::provisioned::ProvisionedDriver;
+use crate::stack::provisioned::sequence::Sequence;
+use crate::stack::provisioned::system::NetworkMetadata;
+use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{Ctl, InsufficientBuffer, Ttl};
@@ -19,9 +19,9 @@ impl OutboundSegmentation {
     pub fn process(
         &mut self,
         sequence: &Sequence,
-        pdu: &UpperPDU<ProvisionedDriver>,
+        pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
-    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         let mut result = Vec::new();
 
