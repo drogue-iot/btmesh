@@ -1,11 +1,12 @@
+use super::auth_value::{determine_auth_value, AuthValue};
+use super::pdu::{Capabilities, Confirmation, ProvisioningPDU, PublicKey, Random};
+use super::transcript::Transcript;
 use crate::DriverError;
+use btmesh_common::{crypto, ParseError};
+use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
-
-use super::auth_value::{determine_auth_value, AuthValue};
-use super::pdu::{Capabilities, ProvisioningPDU, PublicKey, Random};
-use super::transcript::Transcript;
 
 enum Provisioning {
     Beaconing(Provisionee<Beaconing>),
@@ -20,7 +21,7 @@ impl Provisioning {
     fn next(
         self,
         pdu: ProvisioningPDU,
-        rng: impl RngCore + CryptoRng,
+        mut rng: impl RngCore + CryptoRng,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
@@ -59,12 +60,20 @@ impl Provisioning {
                     Some(ProvisioningPDU::PublicKey(pk)),
                 ))
             }
-            (Provisioning::Authentication(device), ProvisioningPDU::Confirmation(_value)) => {
+            (Provisioning::Authentication(mut device), ProvisioningPDU::Confirmation(_value)) => {
                 // TODO: should we introduce a sub-state for Input OOB
                 // to know when to send back an InputComplete PDU?
 
-                // TODO: confirm the value and send back a Confirmation PDU
-                Ok((Provisioning::Authentication(device), None))
+                // TODO: verify the confirmation from the provisioner, _value
+
+                let mut random_device = [0; 16];
+                rng.fill_bytes(&mut random_device);
+                device.state.random_device.replace(random_device);
+                let confirmation_device = device.confirmation_device()?;
+                Ok((
+                    Provisioning::Authentication(device),
+                    Some(ProvisioningPDU::Confirmation(confirmation_device)),
+                ))
             }
             (Provisioning::Authentication(mut device), ProvisioningPDU::Random(random)) => {
                 device.state.random_provisioner.replace(random.random);
@@ -170,3 +179,36 @@ struct Authentication {
 }
 struct DataDistribution;
 struct Complete;
+
+impl Provisionee<Authentication> {
+    fn confirmation_device(&self) -> Result<Confirmation, DriverError> {
+
+	// TODO: Clean this up, specifically all the map_err's
+
+        let salt = self
+            .transcript
+            .confirmation_salt()
+            .map_err(|_| DriverError::InvalidKeyLength)?;
+        let key = crypto::k1(
+            self.state.shared_secret.as_bytes(),
+            &*salt.into_bytes(),
+            b"prck",
+        )
+        .map_err(|_| DriverError::InvalidKeyLength)?;
+        let mut bytes: Vec<u8, 32> = Vec::new();
+        bytes
+            .extend_from_slice(&self.state.random_device.unwrap())
+            .map_err(|_| ParseError::InsufficientBuffer)?;
+        bytes
+            .extend_from_slice(&self.state.auth_value.get_bytes())
+            .map_err(|_| ParseError::InsufficientBuffer)?;
+        let confirmation_device = crypto::aes_cmac(&key.into_bytes(), &bytes)
+            .map_err(|_| DriverError::InvalidKeyLength)?;
+
+        let mut confirmation = [0; 16];
+        for (i, byte) in confirmation_device.into_bytes().iter().enumerate() {
+            confirmation[i] = *byte;
+        }
+        Ok(Confirmation { confirmation })
+    }
+}
