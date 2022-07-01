@@ -6,3 +6,6 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+btmesh-common = { path = "../btmesh-common" }
+btmesh-pdu = { path = "../btmesh-pdu" }
+heapless = { version = "=0.7.13" }
