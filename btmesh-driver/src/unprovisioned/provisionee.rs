@@ -182,19 +182,12 @@ struct Complete;
 
 impl Provisionee<Authentication> {
     fn confirmation_device(&self) -> Result<Confirmation, DriverError> {
-
-	// TODO: Clean this up, specifically all the map_err's
-
-        let salt = self
-            .transcript
-            .confirmation_salt()
-            .map_err(|_| DriverError::InvalidKeyLength)?;
+        let salt = self.transcript.confirmation_salt()?;
         let key = crypto::k1(
             self.state.shared_secret.as_bytes(),
             &*salt.into_bytes(),
             b"prck",
-        )
-        .map_err(|_| DriverError::InvalidKeyLength)?;
+        )?;
         let mut bytes: Vec<u8, 32> = Vec::new();
         bytes
             .extend_from_slice(&self.state.random_device.unwrap())
@@ -202,8 +195,7 @@ impl Provisionee<Authentication> {
         bytes
             .extend_from_slice(&self.state.auth_value.get_bytes())
             .map_err(|_| ParseError::InsufficientBuffer)?;
-        let confirmation_device = crypto::aes_cmac(&key.into_bytes(), &bytes)
-            .map_err(|_| DriverError::InvalidKeyLength)?;
+        let confirmation_device = crypto::aes_cmac(&key.into_bytes(), &bytes)?;
 
         let mut confirmation = [0; 16];
         for (i, byte) in confirmation_device.into_bytes().iter().enumerate() {

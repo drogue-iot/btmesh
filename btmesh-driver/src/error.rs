@@ -53,3 +53,9 @@ impl From<InvalidBlock> for DriverError {
         Self::InvalidState
     }
 }
+
+impl From<cmac::crypto_mac::InvalidKeyLength> for DriverError {
+    fn from(_: cmac::crypto_mac::InvalidKeyLength) -> Self {
+        Self::InvalidKeyLength
+    }
+}
