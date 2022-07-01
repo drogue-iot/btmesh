@@ -4,7 +4,7 @@ use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
 use super::auth_value::{determine_auth_value, AuthValue};
-use super::pdu::{Capabilities, ProvisioningPDU, PublicKey};
+use super::pdu::{Capabilities, ProvisioningPDU, PublicKey, Random};
 use super::transcript::Transcript;
 
 enum Provisioning {
@@ -66,12 +66,15 @@ impl Provisioning {
                 // TODO: confirm the value and send back a Confirmation PDU
                 Ok((Provisioning::Authentication(device), None))
             }
-            (Provisioning::Authentication(device), ProvisioningPDU::Random(_value)) => {
-                // TODO: should we introduce a sub-state for Input OOB
-                // to know when to send back an InputCompletePDU?
-
-                // check the value and send back a Random PDU
-                Ok((Provisioning::DataDistribution(device.into()), None))
+            (Provisioning::Authentication(mut device), ProvisioningPDU::Random(random)) => {
+                device.state.random_provisioner.replace(random.random);
+                let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
+                Ok((
+                    Provisioning::DataDistribution(device.into()),
+                    Some(ProvisioningPDU::Random(Random {
+                        random: device_random,
+                    })),
+                ))
             }
             (Provisioning::DataDistribution(device), ProvisioningPDU::Data(_data)) => {
                 // TODO: do something with the data!
@@ -124,6 +127,8 @@ impl From<Provisionee<KeyExchange>> for Provisionee<Authentication> {
             state: Authentication {
                 auth_value: p.state.auth_value,
                 shared_secret: p.state.shared_secret.unwrap(),
+                random_device: None,
+                random_provisioner: None,
             },
         }
     }
@@ -160,6 +165,8 @@ struct KeyExchange {
 struct Authentication {
     auth_value: AuthValue,
     shared_secret: p256::ecdh::SharedSecret,
+    random_device: Option<[u8; 16]>,
+    random_provisioner: Option<[u8; 16]>,
 }
 struct DataDistribution;
 struct Complete;
