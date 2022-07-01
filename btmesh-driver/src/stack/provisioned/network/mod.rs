@@ -12,7 +12,7 @@ use btmesh_pdu::upper::UpperPDU;
 
 pub mod replay_protection;
 
-pub(crate) struct DeviceInfo {
+pub struct DeviceInfo {
     number_of_elements: u8,
     primary_unicast_address: UnicastAddress,
 }

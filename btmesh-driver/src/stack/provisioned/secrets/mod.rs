@@ -9,7 +9,7 @@ use btmesh_common::crypto::network::{NetworkKey, Nid};
 pub mod application;
 pub mod network;
 
-pub(crate) struct Secrets {
+pub struct Secrets {
     device_key: DeviceKey,
     network_keys: NetworkKeys,
     application_keys: ApplicationKeys,

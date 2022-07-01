@@ -11,3 +11,26 @@ pub mod stack;
 pub mod unprovisioned;
 
 pub use error::DriverError;
+use crate::stack::provisioned::network::DeviceInfo;
+use crate::stack::provisioned::{NetworkState, ProvisionedStack};
+use crate::stack::provisioned::secrets::Secrets;
+use crate::stack::Stack;
+
+
+pub struct Driver {
+    stack: Stack,
+}
+
+impl Driver {
+    pub fn new_provisioned(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
+        Self {
+            stack: Stack::Provisioned(
+                ProvisionedStack::new(
+                    device_info,
+                    secrets,
+                    network_state,
+                )
+            )
+        }
+    }
+}

@@ -74,7 +74,7 @@ impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedStack>>)> for ReceiveR
 }
 
 impl ProvisionedStack {
-    fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
+    pub fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
         Self {
             secrets,
             network_state,
