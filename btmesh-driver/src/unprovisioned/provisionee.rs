@@ -1,6 +1,7 @@
-use rand_core::RngCore;
-
 use crate::DriverError;
+use p256::elliptic_curve::ecdh::diffie_hellman;
+use p256::SecretKey;
+use rand_core::{CryptoRng, RngCore};
 
 use super::auth_value::{determine_auth_value, AuthValue};
 use super::pdu::{Capabilities, ProvisioningPDU, PublicKey};
@@ -19,7 +20,7 @@ impl Provisioning {
     fn next(
         self,
         pdu: ProvisioningPDU,
-        rng: impl RngCore,
+        rng: impl RngCore + CryptoRng,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
@@ -42,10 +43,16 @@ impl Provisioning {
                 // it is so that it can blink/flash/accept input
                 Ok((Provisioning::KeyExchange(device.into()), None))
             }
-            (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(key)) => {
-                // TODO: invalid key (sec 5.4.3.1) should fail provisioning
-                device.transcript.add_pubkey_provisioner(&key)?;
-                let pk: PublicKey = device.state.public_key.try_into()?;
+            (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
+                // TODO: invalid key (sec 5.4.3.1) should fail provisioning (sec 5.4.4)
+                device.transcript.add_pubkey_provisioner(&peer_key)?;
+                let private = SecretKey::random(rng);
+                let public: p256::PublicKey = peer_key.into();
+                device.state.shared_secret = Some(diffie_hellman(
+                    private.to_nonzero_scalar(),
+                    public.as_affine(),
+                ));
+                let pk: PublicKey = private.public_key().try_into()?;
                 device.transcript.add_pubkey_device(&pk)?;
                 Ok((
                     Provisioning::Authentication(device.into()),
@@ -81,12 +88,11 @@ struct Provisionee<S> {
 }
 
 impl Provisionee<Beaconing> {
-    fn new(capabilities: Capabilities, public_key: p256::PublicKey) -> Self {
+    fn new(capabilities: Capabilities) -> Self {
         Provisionee {
             transcript: Transcript::default(),
             state: Beaconing {
-                capabilities,
-                public_key,
+                capabilities: capabilities,
             },
         }
     }
@@ -96,10 +102,7 @@ impl From<Provisionee<Beaconing>> for Provisionee<Invitation> {
     fn from(p: Provisionee<Beaconing>) -> Provisionee<Invitation> {
         Provisionee {
             transcript: p.transcript,
-            state: Invitation {
-                auth_value: None,
-                public_key: p.state.public_key,
-            },
+            state: Invitation { auth_value: None },
         }
     }
 }
@@ -110,7 +113,7 @@ impl From<Provisionee<Invitation>> for Provisionee<KeyExchange> {
             transcript: p.transcript,
             state: KeyExchange {
                 auth_value: p.state.auth_value.unwrap(),
-                public_key: p.state.public_key,
+                shared_secret: None,
             },
         }
     }
@@ -122,6 +125,7 @@ impl From<Provisionee<KeyExchange>> for Provisionee<Authentication> {
             transcript: p.transcript,
             state: Authentication {
                 auth_value: p.state.auth_value,
+                shared_secret: p.state.shared_secret.unwrap(),
             },
         }
     }
@@ -147,18 +151,17 @@ impl From<Provisionee<DataDistribution>> for Provisionee<Complete> {
 
 struct Beaconing {
     capabilities: Capabilities,
-    public_key: p256::PublicKey,
 }
 struct Invitation {
     auth_value: Option<AuthValue>,
-    public_key: p256::PublicKey,
 }
 struct KeyExchange {
     auth_value: AuthValue,
-    public_key: p256::PublicKey,
+    shared_secret: Option<p256::ecdh::SharedSecret>,
 }
 struct Authentication {
     auth_value: AuthValue,
+    shared_secret: p256::ecdh::SharedSecret,
 }
 struct DataDistribution;
 struct Complete;

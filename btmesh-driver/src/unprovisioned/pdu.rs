@@ -2,7 +2,7 @@ use btmesh_common::address::UnicastAddress;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
-use p256::elliptic_curve::sec1::ToEncodedPoint;
+use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 use serde::{Deserialize, Serialize};
 
 #[derive(Clone)]
@@ -213,6 +213,17 @@ impl TryFrom<p256::PublicKey> for PublicKey {
             x: <[u8; 32]>::try_from(x.as_slice()).map_err(|_| ParseError::InsufficientBuffer)?,
             y: <[u8; 32]>::try_from(y.as_slice()).map_err(|_| ParseError::InsufficientBuffer)?,
         })
+    }
+}
+
+impl From<PublicKey> for p256::PublicKey {
+    fn from(pk: PublicKey) -> p256::PublicKey {
+        p256::PublicKey::from_encoded_point(&p256::EncodedPoint::from_affine_coordinates(
+            &pk.x.into(),
+            &pk.y.into(),
+            false,
+        ))
+        .unwrap()
     }
 }
 
