@@ -33,4 +33,10 @@ impl Driver {
             )
         }
     }
+
+    /// Perform a single end-to-end loop through the driver's processing logic.
+    pub async fn process(&mut self) -> Result<(), DriverError> {
+        Ok(())
+    }
+
 }
