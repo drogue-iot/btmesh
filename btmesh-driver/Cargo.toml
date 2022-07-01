@@ -8,7 +8,7 @@ edition = "2021"
 [dependencies]
 btmesh-common = { path = "../btmesh-common" }
 btmesh-pdu = { path = "../btmesh-pdu" }
-heapless = "0.7.13"
+heapless = "=0.7.13"
 hash32 = "0.2.1"
 hash32-derive = "0.1.1"
 uluru = "3.0.0"

@@ -9,7 +9,7 @@ edition = "2021"
 aes = { version = "0.7", default-features = false }
 ccm = { version = "0.4.4", default-features = false }
 cmac = { version = "0.6.0", default-features = false }
-heapless = { version = "0.7", features = ["defmt-impl"] }
+heapless = { version = "=0.7.13", features = ["defmt-impl"] }
 hash32 = {version = "0.2.1" }
 hash32-derive = "0.1.1"
 #logging
