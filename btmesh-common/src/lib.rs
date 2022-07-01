@@ -1,9 +1,10 @@
 #![cfg_attr(not(test), no_std)]
 
 use core::array::TryFromSliceError;
-use core::ops::{Add, BitAnd, Sub};
+use core::ops::{Add, BitAnd, Deref, Sub};
 
 pub mod address;
+pub mod crc;
 pub mod crypto;
 pub mod mic;
 
@@ -248,6 +249,34 @@ impl Ctl {
             Ctl::Access => 4,
             Ctl::Control => 8,
         }
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct Uuid([u8; 16]);
+
+impl Uuid {
+    pub fn new(uuid: [u8; 16]) -> Self {
+        Self(uuid)
+    }
+}
+
+impl Deref for Uuid {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct NetworkId([u8; 8]);
+
+impl Deref for NetworkId {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
     }
 }
 

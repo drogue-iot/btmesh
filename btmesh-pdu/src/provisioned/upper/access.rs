@@ -1,5 +1,5 @@
-use crate::upper::UpperPDU;
-use crate::System;
+use crate::provisioned::upper::UpperPDU;
+use crate::provisioned::System;
 use btmesh_common::mic::{SzMic, TransMic};
 use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;

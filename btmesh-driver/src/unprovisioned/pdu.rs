@@ -140,16 +140,14 @@ impl Start {
         octet: u8,
     ) -> Result<OOBSize, ParseError> {
         match method {
-            AuthenticationMethod::NoOOBAuthentication
-            | AuthenticationMethod::StaticOOBAuthentication => {
+            AuthenticationMethod::No | AuthenticationMethod::Static => {
                 if octet != 0 {
                     Err(ParseError::InvalidValue)
                 } else {
                     Ok(OOBSize::NotSupported)
                 }
             }
-            AuthenticationMethod::OutputOOBAuthentication
-            | AuthenticationMethod::InputOOBAuthentication => {
+            AuthenticationMethod::Output | AuthenticationMethod::Input => {
                 if octet == 0 {
                     Err(ParseError::InvalidPDUFormat)
                 } else {
@@ -426,7 +424,7 @@ impl ProvisioningPDU {
     const FAILED: u8 = 0x09;
 
     pub fn parse(data: &[u8]) -> Result<Self, ParseError> {
-        if data.len() >= 1 {
+        if !data.is_empty() {
             match data[0] {
                 Self::INVITE => Ok(Self::Invite(Invite::parse(data)?)),
                 Self::CAPABILITIES => Ok(Self::Capabilities(Capabilities::parse(data)?)),
@@ -567,16 +565,10 @@ impl Default for Algorithms {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PublicKeyType {
     pub available: bool,
-}
-
-impl Default for PublicKeyType {
-    fn default() -> Self {
-        Self { available: false }
-    }
 }
 
 impl PublicKeyType {
@@ -625,7 +617,7 @@ impl PublicKeySelected {
     }
 }
 
-#[derive(Clone)]
+#[derive(Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct StaticOOBType {
     pub available: bool,
@@ -651,13 +643,7 @@ impl StaticOOBType {
     }
 }
 
-impl Default for StaticOOBType {
-    fn default() -> Self {
-        Self { available: false }
-    }
-}
-
-#[derive(Clone)]
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OOBSize {
     NotSupported,
@@ -730,31 +716,31 @@ impl OutputOOBActions {
         }
 
         let mut actions = OutputOOBActions::new();
-        if bits & 0b00000001 == 1 {
+        if bits & 0b00000001 != 0 {
             actions
                 .push(OutputOOBAction::Blink)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00000010 == 1 {
+        if bits & 0b00000010 != 0 {
             actions
                 .push(OutputOOBAction::Beep)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00000100 == 1 {
+        if bits & 0b00000100 != 0 {
             actions
                 .push(OutputOOBAction::Vibrate)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00001000 == 1 {
+        if bits & 0b00001000 != 0 {
             actions
                 .push(OutputOOBAction::OutputNumeric)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00010000 == 1 {
+        if bits & 0b00010000 != 0 {
             actions
                 .push(OutputOOBAction::OutputAlphanumeric)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
@@ -828,25 +814,25 @@ impl InputOOBActions {
         }
 
         let mut actions = InputOOBActions::new();
-        if bits & 0b00000001 == 1 {
+        if bits & 0b00000001 != 0 {
             actions
                 .push(InputOOBAction::Push)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00000010 == 1 {
+        if bits & 0b00000010 != 0 {
             actions
                 .push(InputOOBAction::Twist)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00000100 == 1 {
+        if bits & 0b00000100 != 0 {
             actions
                 .push(InputOOBAction::InputNumeric)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
         }
 
-        if bits & 0b00001000 == 1 {
+        if bits & 0b00001000 != 0 {
             actions
                 .push(InputOOBAction::InputAlphanumeric)
                 .map_err(|_| ParseError::InsufficientBuffer)?;
@@ -886,20 +872,15 @@ pub enum OOBAction {
 impl OOBAction {
     pub fn parse(method: &AuthenticationMethod, octet: u8) -> Result<Self, ParseError> {
         match method {
-            AuthenticationMethod::NoOOBAuthentication
-            | AuthenticationMethod::StaticOOBAuthentication => {
+            AuthenticationMethod::No | AuthenticationMethod::Static => {
                 if octet != 0 {
                     Err(ParseError::InvalidValue)
                 } else {
                     Ok(Self::None)
                 }
             }
-            AuthenticationMethod::OutputOOBAuthentication => {
-                Ok(Self::Output(OutputOOBAction::parse(octet)?))
-            }
-            AuthenticationMethod::InputOOBAuthentication => {
-                Ok(Self::Input(InputOOBAction::parse(octet)?))
-            }
+            AuthenticationMethod::Output => Ok(Self::Output(OutputOOBAction::parse(octet)?)),
+            AuthenticationMethod::Input => Ok(Self::Input(InputOOBAction::parse(octet)?)),
         }
     }
 
@@ -921,37 +902,29 @@ impl OOBAction {
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AuthenticationMethod {
-    NoOOBAuthentication = 0x00,
-    StaticOOBAuthentication = 0x01,
-    OutputOOBAuthentication = 0x02,
-    InputOOBAuthentication = 0x03,
+    No = 0x00,
+    Static = 0x01,
+    Output = 0x02,
+    Input = 0x03,
 }
 
 impl AuthenticationMethod {
     pub fn parse(octet: u8) -> Result<Self, ParseError> {
         match octet {
-            0x00 => Ok(Self::NoOOBAuthentication),
-            0x01 => Ok(Self::StaticOOBAuthentication),
-            0x02 => Ok(Self::OutputOOBAuthentication),
-            0x03 => Ok(Self::InputOOBAuthentication),
+            0x00 => Ok(Self::No),
+            0x01 => Ok(Self::Static),
+            0x02 => Ok(Self::Output),
+            0x03 => Ok(Self::Input),
             _ => Err(ParseError::InvalidValue),
         }
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            AuthenticationMethod::NoOOBAuthentication => {
-                xmit.push(0x00).map_err(|_| InsufficientBuffer)?
-            }
-            AuthenticationMethod::StaticOOBAuthentication => {
-                xmit.push(0x01).map_err(|_| InsufficientBuffer)?
-            }
-            AuthenticationMethod::OutputOOBAuthentication => {
-                xmit.push(0x02).map_err(|_| InsufficientBuffer)?
-            }
-            AuthenticationMethod::InputOOBAuthentication => {
-                xmit.push(0x03).map_err(|_| InsufficientBuffer)?
-            }
+            AuthenticationMethod::No => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
+            AuthenticationMethod::Static => xmit.push(0x01).map_err(|_| InsufficientBuffer)?,
+            AuthenticationMethod::Output => xmit.push(0x02).map_err(|_| InsufficientBuffer)?,
+            AuthenticationMethod::Input => xmit.push(0x03).map_err(|_| InsufficientBuffer)?,
         }
         Ok(())
     }

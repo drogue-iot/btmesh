@@ -1,7 +1,8 @@
+use btmesh_common::{NetworkId, Uuid};
 
 #[derive(Copy, Clone)]
 pub enum Beacon {
-    Unprovisioned,
-    Provisioned/* (NetworkId) */,
-    Secure/* (NetworkId?) */,
+    Unprovisioned(Uuid),
+    Provisioned(NetworkId),
+    Secure, /* (NetworkId?) */
 }

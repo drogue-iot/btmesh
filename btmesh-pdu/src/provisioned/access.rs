@@ -1,4 +1,4 @@
-use crate::{Message, System};
+use crate::provisioned::{Message, System};
 use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 

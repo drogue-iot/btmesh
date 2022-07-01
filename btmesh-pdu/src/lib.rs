@@ -1,38 +1,17 @@
 #![cfg_attr(not(test), no_std)]
 #![allow(dead_code)]
 
-use crate::access::AccessMessage;
-use crate::control::ControlMessage;
+use crate::provisioned::network::NetworkPDU;
+use crate::provisioning::ProvisioningPDU;
 
-pub mod access;
-pub mod control;
-pub mod lower;
-pub mod network;
-pub mod proxy;
-pub mod upper;
+pub const PB_ADV: u8 = 0x29;
+pub const MESH_MESSAGE: u8 = 0x2A;
+pub const MESH_BEACON: u8 = 0x2B;
 
-pub enum Message<S: System> {
-    Access(AccessMessage<S>),
-    Control(ControlMessage<S>),
-}
+pub mod provisioned;
+pub mod provisioning;
 
-pub trait System {
-    type NetworkKeyHandle: Copy;
-    type ApplicationKeyHandle: Copy;
-
-    type NetworkMetadata;
-    type LowerMetadata;
-    type UpperMetadata;
-    type AccessMetadata;
-    type ControlMetadata;
-}
-
-impl System for () {
-    type NetworkKeyHandle = ();
-    type ApplicationKeyHandle = ();
-    type NetworkMetadata = ();
-    type LowerMetadata = ();
-    type UpperMetadata = ();
-    type AccessMetadata = ();
-    type ControlMetadata = ();
+pub enum PDU {
+    Provisioning(ProvisioningPDU),
+    Network(NetworkPDU),
 }

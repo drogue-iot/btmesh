@@ -1,10 +1,10 @@
 pub mod access;
 pub mod control;
 
-use crate::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
-use crate::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
-use crate::network::CleartextNetworkPDU;
-use crate::System;
+use crate::provisioned::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
+use crate::provisioned::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
+use crate::provisioned::network::CleartextNetworkPDU;
+use crate::provisioned::System;
 use btmesh_common::{Ctl, ParseError, SeqZero};
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -162,7 +162,7 @@ impl BlockAck {
 
 #[cfg(test)]
 mod tests {
-    use crate::lower::{BlockAck, InvalidBlock};
+    use crate::provisioned::lower::{BlockAck, InvalidBlock};
 
     #[test]
     pub fn block_ack_valid_blocks() {

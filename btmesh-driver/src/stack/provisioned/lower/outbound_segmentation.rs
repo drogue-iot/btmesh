@@ -3,10 +3,10 @@ use crate::stack::provisioned::system::NetworkMetadata;
 use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Ctl, InsufficientBuffer, Ttl};
-use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
-use btmesh_pdu::network::CleartextNetworkPDU;
-use btmesh_pdu::upper::UpperPDU;
+use btmesh_common::{Ctl, InsufficientBuffer};
+use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
+use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
+use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
 
 const SEGMENTED_ACCESS_MTU: usize = 12;
@@ -47,7 +47,7 @@ impl OutboundSegmentation {
                     let seg_n = payload.len() - 1;
 
                     for (seg_o, segment_m) in payload.enumerate() {
-                        let seq = if ! is_retransmit && seg_o == 0 {
+                        let seq = if !is_retransmit && seg_o == 0 {
                             pdu.meta().seq()
                         } else {
                             sequence.next()
@@ -83,7 +83,7 @@ impl OutboundSegmentation {
                     }
                 }
             }
-            UpperPDU::Control(inner) => {}
+            UpperPDU::Control(_inner) => {}
         }
         Ok(result)
     }

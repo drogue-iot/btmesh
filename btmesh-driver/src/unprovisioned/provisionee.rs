@@ -85,8 +85,8 @@ impl Provisionee<Beaconing> {
         Provisionee {
             transcript: Transcript::default(),
             state: Beaconing {
-                capabilities: capabilities,
-                public_key: public_key,
+                capabilities,
+                public_key,
             },
         }
     }

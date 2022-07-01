@@ -5,12 +5,12 @@ use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
-use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
-use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
-use btmesh_pdu::lower::{BlockAck, SegmentedLowerPDU};
-use btmesh_pdu::upper::access::UpperAccessPDU;
-use btmesh_pdu::upper::control::{ControlOpcode, UpperControlPDU};
-use btmesh_pdu::upper::UpperPDU;
+use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
+use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
+use btmesh_pdu::provisioned::lower::{BlockAck, SegmentedLowerPDU};
+use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
+use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
+use btmesh_pdu::provisioned::upper::UpperPDU;
 
 pub struct InboundSegmentation<const N: usize = 5> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
@@ -186,10 +186,7 @@ impl InFlight {
     /// Determine if the proposed segment has already been seen for the current in-flight reassembly.
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
-    fn already_seen(
-        &self,
-        pdu: &SegmentedLowerPDU<ProvisionedStack>,
-    ) -> Result<bool, DriverError> {
+    fn already_seen(&self, pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Result<bool, DriverError> {
         self.blocks.already_seen(pdu.seg_n())
     }
 
@@ -312,11 +309,11 @@ mod tests {
     use btmesh_common::crypto::network::Nid;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};
-    use btmesh_pdu::lower::access::SegmentedLowerAccessPDU;
-    use btmesh_pdu::lower::control::SegmentedLowerControlPDU;
-    use btmesh_pdu::lower::SegmentedLowerPDU;
-    use btmesh_pdu::upper::control::ControlOpcode;
-    use btmesh_pdu::upper::UpperPDU;
+    use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
+    use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
+    use btmesh_pdu::provisioned::lower::SegmentedLowerPDU;
+    use btmesh_pdu::provisioned::upper::control::ControlOpcode;
+    use btmesh_pdu::provisioned::upper::UpperPDU;
 
     #[test]
     fn in_flight_is_valid_seq_zero() {

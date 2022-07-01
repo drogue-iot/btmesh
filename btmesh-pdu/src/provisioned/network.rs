@@ -1,4 +1,4 @@
-use crate::System;
+use crate::provisioned::System;
 use btmesh_common::crypto::network::Nid;
 use btmesh_common::{
     address::{Address, UnicastAddress},

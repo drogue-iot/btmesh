@@ -2,22 +2,22 @@ use crate::stack::provisioned::lower::LowerDriver;
 use crate::stack::provisioned::network::replay_protection::ReplayProtection;
 use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::upper::UpperDriver;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
+use crate::stack::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, Ttl};
-use btmesh_pdu::lower::BlockAck;
-use btmesh_pdu::network::NetworkPDU;
-use btmesh_pdu::Message;
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
+use btmesh_pdu::provisioned::lower::BlockAck;
+use btmesh_pdu::provisioned::network::NetworkPDU;
+use btmesh_pdu::provisioned::Message;
 use heapless::Vec;
 use secrets::Secrets;
 
-pub mod transmit_queue;
 pub mod lower;
 pub mod network;
 pub mod secrets;
 pub mod sequence;
 pub mod system;
+pub mod transmit_queue;
 pub mod upper;
 
 #[derive(Copy, Clone)]
@@ -48,8 +48,6 @@ pub struct ProvisionedStack {
     network: NetworkDriver,
     //
     transmit_queue: TransmitQueue,
-
-
 }
 
 struct ReceiveResult {
@@ -115,11 +113,13 @@ impl ProvisionedStack {
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
-        self.transmit_queue.add(upper_pdu, network_pdus.len() as u8)?;
+        self.transmit_queue
+            .add(upper_pdu, network_pdus.len() as u8)?;
 
-        let network_pdus = network_pdus.iter().map_while(|pdu| {
-            self.encrypt_network_pdu(pdu).ok()
-        }).collect();
+        let network_pdus = network_pdus
+            .iter()
+            .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
+            .collect();
 
         Ok(network_pdus)
     }

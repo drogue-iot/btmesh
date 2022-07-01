@@ -1,15 +1,17 @@
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::system::{AccessMetadata, ControlMetadata, KeyHandle, UpperMetadata};
+use crate::stack::provisioned::system::{
+    AccessMetadata, ControlMetadata, KeyHandle, UpperMetadata,
+};
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
 use btmesh_common::mic::{SzMic, TransMic};
-use btmesh_pdu::access::AccessMessage;
-use btmesh_pdu::control::ControlMessage;
-use btmesh_pdu::upper::access::UpperAccessPDU;
-use btmesh_pdu::upper::UpperPDU;
-use btmesh_pdu::Message;
+use btmesh_pdu::provisioned::access::AccessMessage;
+use btmesh_pdu::provisioned::control::ControlMessage;
+use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
+use btmesh_pdu::provisioned::upper::UpperPDU;
+use btmesh_pdu::provisioned::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
 
@@ -74,7 +76,7 @@ impl ProvisionedStack {
     ) -> Result<UpperPDU<ProvisionedStack>, DriverError> {
         match message {
             Message::Access(access) => Ok(self.encrypt_access(sequence, access)?.into()),
-            Message::Control(control) => {
+            Message::Control(_control) => {
                 todo!()
             }
         }

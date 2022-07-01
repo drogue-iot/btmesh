@@ -89,6 +89,12 @@ impl Bit32TransMic {
     }
 }
 
+impl Default for Bit32TransMic {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AsRef<[u8]> for Bit32TransMic {
     fn as_ref(&self) -> &[u8] {
         &self.0
@@ -108,6 +114,12 @@ pub struct Bit64TransMic([u8; 8]);
 impl Bit64TransMic {
     pub fn new() -> Self {
         Self([0; 8])
+    }
+}
+
+impl Default for Bit64TransMic {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

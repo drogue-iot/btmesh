@@ -1,4 +1,4 @@
-use crate::System;
+use crate::provisioned::System;
 use btmesh_common::crypto::application::Aid;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
@@ -73,6 +73,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
         })
     }
 
+    #[allow(clippy::identity_op)]
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self.akf_aid {
             None => xmit.push(0)?,

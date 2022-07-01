@@ -4,13 +4,13 @@ use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
 use btmesh_common::crypto::network::Nid;
 use btmesh_common::{IvIndex, Seq, Ttl};
-use btmesh_pdu::access::AccessMessage;
-use btmesh_pdu::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
-use btmesh_pdu::network::CleartextNetworkPDU;
-use btmesh_pdu::upper::access::UpperAccessPDU;
-use btmesh_pdu::upper::control::UpperControlPDU;
-use btmesh_pdu::upper::UpperPDU;
-use btmesh_pdu::System;
+use btmesh_pdu::provisioned::access::AccessMessage;
+use btmesh_pdu::provisioned::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
+use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
+use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
+use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
+use btmesh_pdu::provisioned::upper::UpperPDU;
+use btmesh_pdu::provisioned::System;
 use hash32_derive::Hash32;
 use heapless::Vec;
 
@@ -343,7 +343,7 @@ impl AccessMetadata {
 pub struct ControlMetadata {}
 
 impl ControlMetadata {
-    pub fn from_upper_control_pdu(pdu: &UpperControlPDU<ProvisionedStack>) -> Self {
+    pub fn from_upper_control_pdu(_pdu: &UpperControlPDU<ProvisionedStack>) -> Self {
         Self {}
     }
 }

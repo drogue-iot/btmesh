@@ -94,7 +94,7 @@ fn random_physical_oob(mut rng: impl RngCore, size: u8) -> u32 {
     // ... which could be an absolute metric tonne of beeps/twists/pushes if AuthSize is large-ish.
     let mut max = 1;
     for _ in 0..size {
-        max = max * 10;
+        max *= 10;
     }
 
     loop {

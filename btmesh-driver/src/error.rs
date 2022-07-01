@@ -1,7 +1,7 @@
+use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
-use btmesh_common::address::InvalidAddress;
-use btmesh_pdu::lower::InvalidBlock;
+use btmesh_pdu::provisioned::lower::InvalidBlock;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -13,6 +13,7 @@ pub enum DriverError {
     InsufficientSpace,
     InvalidKeyHandle,
     InvalidPDU,
+    IncompleteTransaction,
     ParseError(ParseError),
     SeqRolloverError,
 }

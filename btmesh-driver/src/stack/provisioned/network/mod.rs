@@ -1,14 +1,11 @@
 use crate::stack::provisioned::system::{NetworkKeyHandle, NetworkMetadata};
 use crate::stack::provisioned::{DriverError, ProvisionedStack, ReplayProtection};
-use crate::stack::provisioned::sequence::Sequence;
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
-use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
+use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
-use btmesh_pdu::Message;
-use btmesh_pdu::upper::UpperPDU;
 
 pub mod replay_protection;
 
@@ -55,7 +52,6 @@ impl NetworkDriver {
     fn local_element_index(&self, dst: Address) -> Option<u8> {
         self.device_info.local_element_index(dst)
     }
-
 }
 
 impl ProvisionedStack {

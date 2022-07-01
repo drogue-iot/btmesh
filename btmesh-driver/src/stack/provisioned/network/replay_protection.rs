@@ -1,7 +1,7 @@
 use crate::stack::provisioned::ProvisionedStack;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
-use btmesh_pdu::network::CleartextNetworkPDU;
+use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
 use core::cmp::Ordering;
 use uluru::LRUCache;
 

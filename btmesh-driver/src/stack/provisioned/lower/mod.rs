@@ -8,12 +8,11 @@ use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
-use btmesh_common::Ttl;
-use btmesh_pdu::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
-use btmesh_pdu::network::CleartextNetworkPDU;
-use btmesh_pdu::upper::access::UpperAccessPDU;
-use btmesh_pdu::upper::control::UpperControlPDU;
-use btmesh_pdu::upper::UpperPDU;
+use btmesh_pdu::provisioned::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
+use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
+use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
+use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
+use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
 
 #[derive(Default)]

@@ -1,5 +1,5 @@
-use crate::upper::control::ControlOpcode;
-use crate::{Message, System};
+use crate::provisioned::upper::control::ControlOpcode;
+use crate::provisioned::{Message, System};
 use btmesh_common::InsufficientBuffer;
 use heapless::Vec;
 
