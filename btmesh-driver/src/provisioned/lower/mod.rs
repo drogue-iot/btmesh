@@ -67,9 +67,10 @@ impl ProvisionedDriver {
         &mut self,
         sequence: &Sequence,
         upper_pdu: &UpperPDU<ProvisionedDriver>,
+        is_retransmit: bool,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
         self.lower
             .outbound_segmentation
-            .process(sequence, upper_pdu)
+            .process(sequence, upper_pdu, is_retransmit)
     }
 }

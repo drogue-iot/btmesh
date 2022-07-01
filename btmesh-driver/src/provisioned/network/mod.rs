@@ -6,6 +6,9 @@ use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
+use btmesh_pdu::Message;
+use btmesh_pdu::upper::UpperPDU;
+use crate::provisioned::sequence::Sequence;
 
 pub mod replay_protection;
 
@@ -44,7 +47,7 @@ impl NetworkDriver {
     pub(crate) fn new(device_info: DeviceInfo) -> Self {
         Self {
             device_info,
-            replay_protection: ReplayProtection::default(),
+            replay_protection: Default::default(),
         }
     }
 
@@ -52,6 +55,7 @@ impl NetworkDriver {
     fn local_element_index(&self, dst: Address) -> Option<u8> {
         self.device_info.local_element_index(dst)
     }
+
 }
 
 impl ProvisionedDriver {

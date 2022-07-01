@@ -20,6 +20,7 @@ impl OutboundSegmentation {
         &mut self,
         sequence: &Sequence,
         pdu: &UpperPDU<ProvisionedDriver>,
+        is_retransmit: bool,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedDriver>, 32>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         let mut result = Vec::new();
@@ -46,7 +47,7 @@ impl OutboundSegmentation {
                     let seg_n = payload.len() - 1;
 
                     for (seg_o, segment_m) in payload.enumerate() {
-                        let seq = if seg_o == 0 {
+                        let seq = if ! is_retransmit && seg_o == 0 {
                             pdu.meta().seq()
                         } else {
                             sequence.next()

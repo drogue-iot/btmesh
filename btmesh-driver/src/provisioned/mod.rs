@@ -10,7 +10,9 @@ use btmesh_pdu::network::NetworkPDU;
 use btmesh_pdu::Message;
 use heapless::Vec;
 use secrets::Secrets;
+use crate::provisioned::transmit_queue::TransmitQueue;
 
+pub mod transmit_queue;
 pub mod lower;
 pub mod network;
 pub mod secrets;
@@ -44,6 +46,10 @@ pub struct ProvisionedDriver {
     upper: UpperDriver,
     lower: LowerDriver,
     network: NetworkDriver,
+    //
+    transmit_queue: TransmitQueue,
+
+
 }
 
 struct ReceiveResult {
@@ -75,6 +81,7 @@ impl ProvisionedDriver {
             upper: Default::default(),
             lower: Default::default(),
             network: NetworkDriver::new(device_info),
+            transmit_queue: Default::default(),
         }
     }
 
@@ -105,15 +112,15 @@ impl ProvisionedDriver {
         &mut self,
         sequence: &Sequence,
         message: &Message<ProvisionedDriver>,
-    ) -> Result<(), DriverError> {
+    ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
+        let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
+        self.transmit_queue.add(upper_pdu, network_pdus.len() as u8)?;
 
-        let result: Vec<_, 32> = self
-            .process_outbound_upper_pdu(sequence, &upper_pdu)?
-            .iter()
-            .map(|pdu| self.encrypt_network_pdu(pdu))
-            .collect();
+        let network_pdus = network_pdus.iter().map_while(|pdu| {
+            self.encrypt_network_pdu(pdu).ok()
+        }).collect();
 
-        todo!()
+        Ok(network_pdus)
     }
 }
