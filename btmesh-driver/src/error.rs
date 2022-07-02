@@ -1,3 +1,5 @@
+use core::array::TryFromSliceError;
+
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
@@ -57,5 +59,11 @@ impl From<InvalidBlock> for DriverError {
 impl From<cmac::crypto_mac::InvalidKeyLength> for DriverError {
     fn from(e: cmac::crypto_mac::InvalidKeyLength) -> Self {
         e.into()
+    }
+}
+
+impl From<TryFromSliceError> for DriverError {
+    fn from(_: TryFromSliceError) -> Self {
+        Self::InvalidKeyLength
     }
 }

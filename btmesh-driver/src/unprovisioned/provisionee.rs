@@ -57,10 +57,8 @@ impl Provisioning {
                 device.transcript.add_pubkey_provisioner(&peer_key)?;
                 let private = SecretKey::random(rng);
                 let public: p256::PublicKey = peer_key.into();
-                device.state.shared_secret = Some(diffie_hellman(
-                    private.to_nonzero_scalar(),
-                    public.as_affine(),
-                ));
+                let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
+                device.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
                 let pk: PublicKey = private.public_key().try_into()?;
                 device.transcript.add_pubkey_device(&pk)?;
                 Ok((
@@ -101,12 +99,11 @@ impl Provisioning {
                 provisioning_salt[32..48].copy_from_slice(&device.state.random_device);
                 let provisioning_salt = &crypto::s1(&provisioning_salt)?.into_bytes()[0..];
 
-                let session_key = &prsk(device.state.shared_secret.as_bytes(), &provisioning_salt)?
-                    .into_bytes()[0..];
+                let session_key =
+                    &prsk(&device.state.shared_secret, &provisioning_salt)?.into_bytes()[0..];
 
                 let session_nonce =
-                    &prsn(device.state.shared_secret.as_bytes(), &provisioning_salt)?.into_bytes()
-                        [3..];
+                    &prsn(&device.state.shared_secret, &provisioning_salt)?.into_bytes()[3..];
 
                 if try_decrypt_confirmation(
                     &session_key,
@@ -200,24 +197,24 @@ struct Invitation {
 }
 struct KeyExchange {
     auth_value: AuthValue,
-    shared_secret: Option<p256::ecdh::SharedSecret>,
+    shared_secret: Option<[u8; 32]>,
 }
 struct Authentication {
     auth_value: AuthValue,
-    shared_secret: p256::ecdh::SharedSecret,
+    shared_secret: [u8; 32],
     random_device: Option<[u8; 16]>,
     random_provisioner: Option<[u8; 16]>,
 }
 struct DataDistribution {
+    shared_secret: [u8; 32],
     random_provisioner: [u8; 16],
     random_device: [u8; 16],
-    shared_secret: p256::ecdh::SharedSecret,
 }
 
 impl Provisionee<Authentication> {
     fn confirmation_device(&self) -> Result<Confirmation, ParseError> {
         let salt = self.transcript.confirmation_salt()?;
-        let key = prck(self.state.shared_secret.as_bytes(), &*salt.into_bytes())?;
+        let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
         bytes.extend_from_slice(&self.state.random_device.unwrap())?;
         bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;
