@@ -45,6 +45,12 @@ impl From<TryFromSliceError> for ParseError {
     }
 }
 
+impl From<cmac::crypto_mac::InvalidKeyLength> for ParseError {
+    fn from(_: cmac::crypto_mac::InvalidKeyLength) -> Self {
+        Self::InvalidLength
+    }
+}
+
 #[derive(Copy, Clone)]
 pub enum IvUpdateFlag {
     Normal,

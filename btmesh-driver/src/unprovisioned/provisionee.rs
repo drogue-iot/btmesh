@@ -215,16 +215,12 @@ struct DataDistribution {
 }
 
 impl Provisionee<Authentication> {
-    fn confirmation_device(&self) -> Result<Confirmation, DriverError> {
+    fn confirmation_device(&self) -> Result<Confirmation, ParseError> {
         let salt = self.transcript.confirmation_salt()?;
         let key = prck(self.state.shared_secret.as_bytes(), &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
-        bytes
-            .extend_from_slice(&self.state.random_device.unwrap())
-            .map_err(|_| ParseError::InsufficientBuffer)?;
-        bytes
-            .extend_from_slice(&self.state.auth_value.get_bytes())
-            .map_err(|_| ParseError::InsufficientBuffer)?;
+        bytes.extend_from_slice(&self.state.random_device.unwrap())?;
+        bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;
         let confirmation_device = crypto::aes_cmac(&key.into_bytes(), &bytes)?;
 
         let mut confirmation = [0; 16];
