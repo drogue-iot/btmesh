@@ -52,7 +52,7 @@ pub trait NetworkInterfaces {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum NetworkError {
     InvalidLink,
     InvalidTransaction,

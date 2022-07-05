@@ -5,10 +5,11 @@ use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::DriverError;
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
+use core::cell::RefCell;
 use heapless::Vec;
 use secrets::Secrets;
 
@@ -40,6 +41,12 @@ pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
 
+impl NetworkState {
+    pub fn iv_index(&self) -> &IvIndexState {
+        &self.iv_index_state
+    }
+}
+
 pub struct ProvisionedStack {
     network_state: NetworkState,
     secrets: Secrets,
@@ -50,9 +57,9 @@ pub struct ProvisionedStack {
     transmit_queue: TransmitQueue,
 }
 
-struct ReceiveResult {
-    block_ack: Option<BlockAck>,
-    message: Option<Message<ProvisionedStack>>,
+pub struct ReceiveResult {
+    pub block_ack: Option<BlockAck>,
+    pub message: Option<Message<ProvisionedStack>>,
 }
 
 impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedStack>>)> for ReceiveResult {
@@ -83,8 +90,10 @@ impl ProvisionedStack {
         }
     }
 
-    fn process_inbound(&mut self, data: &[u8]) -> Result<Option<ReceiveResult>, DriverError> {
-        let network_pdu = NetworkPDU::parse(data)?;
+    pub fn process_inbound_network_pdu(
+        &mut self,
+        network_pdu: &NetworkPDU,
+    ) -> Result<Option<ReceiveResult>, DriverError> {
         let iv_index = self
             .network_state
             .iv_index_state

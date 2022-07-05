@@ -4,6 +4,7 @@ pub mod control;
 use crate::provisioned::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
 use crate::provisioned::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
 use crate::provisioned::network::CleartextNetworkPDU;
+use crate::provisioned::upper::control::UpperControlPDU;
 use crate::provisioned::System;
 use btmesh_common::{Ctl, ParseError, SeqZero};
 
@@ -136,10 +137,14 @@ pub struct InvalidBlock;
 /// Structure for tracking and communicating "block acks",
 /// indicating which segment(s) have been received and should
 /// be ACK'd for a given segmented lower PDU.
-#[derive(Copy, Clone, Default)]
-pub struct BlockAck(u32);
+#[derive(Copy, Clone)]
+pub struct BlockAck(u32, SeqZero);
 
 impl BlockAck {
+    pub fn new(seq_zero: SeqZero) -> Self {
+        Self(0, seq_zero)
+    }
+
     pub fn is_acked(&self, seg_o: u8) -> Result<bool, InvalidBlock> {
         if seg_o >= 32 {
             return Err(InvalidBlock);
@@ -163,10 +168,11 @@ impl BlockAck {
 #[cfg(test)]
 mod tests {
     use crate::provisioned::lower::{BlockAck, InvalidBlock};
+    use btmesh_common::SeqZero;
 
     #[test]
     pub fn block_ack_valid_blocks() {
-        let mut block_ack = BlockAck::default();
+        let mut block_ack = BlockAck::new(SeqZero::new(42));
 
         assert_eq!(0, block_ack.value());
 
@@ -199,7 +205,7 @@ mod tests {
 
     #[test]
     pub fn block_ack_invalid_blocks() {
-        let mut block_ack = BlockAck::default();
+        let mut block_ack = BlockAck::new(SeqZero::new(42));
 
         assert_eq!(Err(InvalidBlock), block_ack.ack(32));
         assert_eq!(Err(InvalidBlock), block_ack.is_acked(32));

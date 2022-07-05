@@ -1,5 +1,6 @@
 use core::array::TryFromSliceError;
 
+use crate::stack::interface::NetworkError;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
@@ -16,8 +17,15 @@ pub enum DriverError {
     InvalidKeyHandle,
     InvalidPDU,
     IncompleteTransaction,
-    ParseError(ParseError),
-    SeqRolloverError,
+    Parse(ParseError),
+    Network(NetworkError),
+    SeqRollover,
+}
+
+impl From<NetworkError> for DriverError {
+    fn from(err: NetworkError) -> Self {
+        Self::Network(err)
+    }
 }
 
 impl From<InvalidLength> for DriverError {
@@ -28,7 +36,7 @@ impl From<InvalidLength> for DriverError {
 
 impl From<SeqRolloverError> for DriverError {
     fn from(_: SeqRolloverError) -> Self {
-        Self::SeqRolloverError
+        Self::SeqRollover
     }
 }
 
@@ -40,7 +48,7 @@ impl From<InsufficientBuffer> for DriverError {
 
 impl From<ParseError> for DriverError {
     fn from(inner: ParseError) -> Self {
-        Self::ParseError(inner)
+        Self::Parse(inner)
     }
 }
 

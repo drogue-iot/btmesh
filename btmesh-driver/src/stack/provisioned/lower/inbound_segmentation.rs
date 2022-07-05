@@ -4,7 +4,7 @@ use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
-use btmesh_common::SeqZero;
+use btmesh_common::{Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
 use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
 use btmesh_pdu::provisioned::lower::{BlockAck, SegmentedLowerPDU};
@@ -78,10 +78,10 @@ impl Blocks {
     /// Construct a new block-tracker.
     ///
     /// * `seg_n` The number of segments to expect.
-    fn new(seg_n: u8) -> Self {
+    fn new(seq_zero: SeqZero, seg_n: u8) -> Self {
         Self {
             seg_n,
-            block_ack: Default::default(),
+            block_ack: BlockAck::new(seq_zero),
         }
     }
 
@@ -143,7 +143,7 @@ impl InFlight {
     fn new_access(seq_zero: SeqZero, seg_n: u8, szmic: SzMic) -> Self {
         Self {
             seq_zero,
-            blocks: Blocks::new(seg_n),
+            blocks: Blocks::new(seq_zero, seg_n),
             reassembly: Reassembly::new_access(szmic),
         }
     }
@@ -151,7 +151,7 @@ impl InFlight {
     fn new_control(seq_zero: SeqZero, seg_n: u8, opcode: ControlOpcode) -> Self {
         Self {
             seq_zero,
-            blocks: Blocks::new(seg_n),
+            blocks: Blocks::new(seq_zero, seg_n),
             reassembly: Reassembly::new_control(opcode),
         }
     }
@@ -425,7 +425,7 @@ mod tests {
 
     #[test]
     fn blocks() {
-        let mut blocks = Blocks::new(3);
+        let mut blocks = Blocks::new(SeqZero::new(42), 3);
 
         assert_eq!(Ok(false), blocks.is_complete());
         assert_eq!(Ok(()), blocks.ack(0));

@@ -1,5 +1,5 @@
 use crate::stack::provisioned::ProvisionedStack;
-use btmesh_common::InsufficientBuffer;
+use btmesh_common::{InsufficientBuffer, SeqZero};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
@@ -22,10 +22,12 @@ impl<const N: usize> TransmitQueue<N> {
     ) -> Result<(), InsufficientBuffer> {
         let slot = self.queue.iter_mut().find(|e| matches!(e, None));
 
+        let seq_zero = upper_pdu.meta().seq().into();
+
         if let Some(slot) = slot {
             slot.replace(QueueEntry {
                 upper_pdu,
-                acked: Acked::new(num_segments),
+                acked: Acked::new(seq_zero, num_segments),
             });
         }
 
@@ -39,10 +41,10 @@ struct Acked {
 }
 
 impl Acked {
-    fn new(num_segments: u8) -> Self {
+    fn new(seq_zero: SeqZero, num_segments: u8) -> Self {
         Self {
             num_segments,
-            block_ack: Default::default(),
+            block_ack: BlockAck::new(seq_zero),
         }
     }
 }
