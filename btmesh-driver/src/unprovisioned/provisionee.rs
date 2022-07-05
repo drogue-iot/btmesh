@@ -4,19 +4,17 @@ use super::pdu::{
 };
 use super::transcript::Transcript;
 use crate::DriverError;
-use btmesh_common::{
-    crypto::{
-        self,
-        provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
-    },
-    ParseError,
+use btmesh_common::crypto::{
+    aes_cmac,
+    provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
+    s1,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
-enum Provisioning {
+pub enum Provisioning {
     Beaconing(Provisionee<Beaconing>),
     Invitation(Provisionee<Invitation>),
     KeyExchange(Provisionee<KeyExchange>),
@@ -26,7 +24,14 @@ enum Provisioning {
 }
 
 impl Provisioning {
-    fn next(
+    pub fn new(capabilities: Capabilities) -> Self {
+        Self::Beaconing(Provisionee {
+            transcript: Transcript::default(),
+            state: Beaconing { capabilities },
+        })
+    }
+
+    pub fn next(
         self,
         pdu: ProvisioningPDU,
         mut rng: impl RngCore + CryptoRng,
@@ -74,11 +79,16 @@ impl Provisioning {
 
                 let mut random_device = [0; 16];
                 rng.fill_bytes(&mut random_device);
+                let salt = device.transcript.confirmation_salt()?;
+                let key = prck(&device.state.shared_secret, &*salt.into_bytes())?;
+                let mut bytes: Vec<u8, 32> = Vec::new();
+                bytes.extend_from_slice(&random_device)?;
+                bytes.extend_from_slice(&device.state.auth_value.get_bytes())?;
+                let confirmation = aes_cmac(&key.into_bytes(), &bytes)?.into_bytes().into();
                 device.state.random_device.replace(random_device);
-                let confirmation_device = device.confirmation_device()?;
                 Ok((
                     Provisioning::Authentication(device),
-                    Some(ProvisioningPDU::Confirmation(confirmation_device)),
+                    Some(ProvisioningPDU::Confirmation(Confirmation { confirmation })),
                 ))
             }
             (Provisioning::Authentication(mut device), ProvisioningPDU::Random(random)) => {
@@ -92,34 +102,20 @@ impl Provisioning {
                 ))
             }
             (Provisioning::DataDistribution(device), ProvisioningPDU::Data(mut data)) => {
-                let mut provisioning_salt = [0; 48];
-                provisioning_salt[0..16]
-                    .copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
-                provisioning_salt[16..32].copy_from_slice(&device.state.random_provisioner);
-                provisioning_salt[32..48].copy_from_slice(&device.state.random_device);
-                let provisioning_salt = &crypto::s1(&provisioning_salt)?.into_bytes()[0..];
+                let mut salt = [0; 48];
+                salt[0..16].copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
+                salt[16..32].copy_from_slice(&device.state.random_provisioner);
+                salt[32..48].copy_from_slice(&device.state.random_device);
+                let salt = &s1(&salt)?.into_bytes()[0..];
+                let key = &prsk(&device.state.shared_secret, &salt)?.into_bytes()[0..];
+                let nonce = &prsn(&device.state.shared_secret, &salt)?.into_bytes()[3..];
 
-                let session_key =
-                    &prsk(&device.state.shared_secret, &provisioning_salt)?.into_bytes()[0..];
-
-                let session_nonce =
-                    &prsn(&device.state.shared_secret, &provisioning_salt)?.into_bytes()[3..];
-
-                if try_decrypt_confirmation(
-                    &session_key,
-                    &session_nonce,
-                    &mut data.encrypted,
-                    &data.mic,
-                    None,
-                )
-                .is_ok()
-                {
-                    Ok((
+                match try_decrypt_confirmation(&key, &nonce, &mut data.encrypted, &data.mic, None) {
+                    Ok(_) => Ok((
                         Provisioning::Complete(ProvisioningData::parse(&data.encrypted)?),
                         Some(ProvisioningPDU::Complete),
-                    ))
-                } else {
-                    Err(DriverError::CryptoError)
+                    )),
+                    Err(_) => Err(DriverError::CryptoError),
                 }
             }
             _ => Err(DriverError::InvalidState),
@@ -127,18 +123,9 @@ impl Provisioning {
     }
 }
 
-struct Provisionee<S> {
+pub struct Provisionee<S> {
     transcript: Transcript,
     state: S,
-}
-
-impl Provisionee<Beaconing> {
-    fn new(capabilities: Capabilities) -> Self {
-        Provisionee {
-            transcript: Transcript::default(),
-            state: Beaconing { capabilities },
-        }
-    }
 }
 
 impl From<Provisionee<Beaconing>> for Provisionee<Invitation> {
@@ -181,49 +168,32 @@ impl From<Provisionee<Authentication>> for Provisionee<DataDistribution> {
         Provisionee {
             transcript: p.transcript,
             state: DataDistribution {
-                random_provisioner: p.state.random_provisioner.unwrap(),
-                random_device: p.state.random_device.unwrap(),
                 shared_secret: p.state.shared_secret,
+                random_device: p.state.random_device.unwrap(),
+                random_provisioner: p.state.random_provisioner.unwrap(),
             },
         }
     }
 }
 
-struct Beaconing {
+pub struct Beaconing {
     capabilities: Capabilities,
 }
-struct Invitation {
+pub struct Invitation {
     auth_value: Option<AuthValue>,
 }
-struct KeyExchange {
+pub struct KeyExchange {
     auth_value: AuthValue,
     shared_secret: Option<[u8; 32]>,
 }
-struct Authentication {
+pub struct Authentication {
     auth_value: AuthValue,
     shared_secret: [u8; 32],
     random_device: Option<[u8; 16]>,
     random_provisioner: Option<[u8; 16]>,
 }
-struct DataDistribution {
+pub struct DataDistribution {
     shared_secret: [u8; 32],
-    random_provisioner: [u8; 16],
     random_device: [u8; 16],
-}
-
-impl Provisionee<Authentication> {
-    fn confirmation_device(&self) -> Result<Confirmation, ParseError> {
-        let salt = self.transcript.confirmation_salt()?;
-        let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
-        let mut bytes: Vec<u8, 32> = Vec::new();
-        bytes.extend_from_slice(&self.state.random_device.unwrap())?;
-        bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;
-        let confirmation_device = crypto::aes_cmac(&key.into_bytes(), &bytes)?;
-
-        let mut confirmation = [0; 16];
-        for (i, byte) in confirmation_device.into_bytes().iter().enumerate() {
-            confirmation[i] = *byte;
-        }
-        Ok(Confirmation { confirmation })
-    }
+    random_provisioner: [u8; 16],
 }

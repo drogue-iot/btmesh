@@ -67,3 +67,9 @@ impl From<TryFromSliceError> for DriverError {
         Self::InvalidKeyLength
     }
 }
+
+impl From<()> for DriverError {
+    fn from(_: ()) -> Self {
+        Self::InsufficientSpace
+    }
+}
