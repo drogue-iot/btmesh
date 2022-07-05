@@ -32,7 +32,13 @@ impl<const N: usize> InboundSegmentation<N> {
     pub fn process(
         &mut self,
         pdu: &SegmentedLowerPDU<ProvisionedStack>,
-    ) -> Result<(BlockAck, Option<UpperPDU<ProvisionedStack>>), DriverError> {
+    ) -> Result<
+        (
+            (BlockAck, UpperMetadata),
+            Option<UpperPDU<ProvisionedStack>>,
+        ),
+        DriverError,
+    > {
         let src = pdu.meta().src();
         let in_flight = if let Some(current) = self.current.get_mut(&src) {
             current
@@ -49,12 +55,17 @@ impl<const N: usize> InboundSegmentation<N> {
         }
 
         if in_flight.already_seen(pdu)? {
-            Ok((in_flight.block_ack(), None))
+            Ok(
+                ((in_flight.block_ack(), UpperMetadata::from_segmented_lower_pdu(pdu)),
+                None) )
         } else {
             in_flight.ingest(pdu)?;
 
             Ok((
-                in_flight.block_ack(),
+                (
+                    in_flight.block_ack(),
+                    UpperMetadata::from_segmented_lower_pdu(pdu),
+                ),
                 if in_flight.is_complete()? {
                     let reassembled =
                         Some(in_flight.reassemble(UpperMetadata::from_segmented_lower_pdu(pdu))?);

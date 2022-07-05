@@ -11,10 +11,12 @@ use btmesh_common::mic::SzMic;
 use btmesh_pdu::provisioned::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
-use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
+use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use core::borrow::Borrow;
+use core::ops::Deref;
 use heapless::Vec;
+use btmesh_common::InsufficientBuffer;
 
 #[derive(Default)]
 pub struct LowerDriver {
@@ -28,7 +30,7 @@ impl ProvisionedStack {
     pub fn process_inbound_cleartext_network_pdu(
         &mut self,
         network_pdu: &CleartextNetworkPDU<ProvisionedStack>,
-    ) -> Result<(Option<BlockAck>, Option<UpperPDU<ProvisionedStack>>), DriverError> {
+    ) -> Result<(Option<(BlockAck, UpperMetadata)>, Option<UpperPDU<ProvisionedStack>>), DriverError> {
         let lower_pdu = LowerPDU::parse(network_pdu, LowerMetadata::from_network_pdu(network_pdu))?;
 
         match &lower_pdu {
@@ -57,8 +59,8 @@ impl ProvisionedStack {
                 )),
             },
             LowerPDU::Segmented(inner) => {
-                let (block_ack, upper_pdu) = self.lower.inbound_segmentation.process(inner)?;
-                Ok((Some(block_ack), upper_pdu))
+                let ((block_ack, meta), upper_pdu) = self.lower.inbound_segmentation.process(inner)?;
+                Ok((Some((block_ack, meta)), upper_pdu))
             }
         }
     }
@@ -66,10 +68,11 @@ impl ProvisionedStack {
     pub fn process_outbound_block_ack(
         &mut self,
         sequence: &Sequence,
-        block_ack: &BlockAck,
+        block_ack: BlockAck,
+        meta: UpperMetadata,
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let network_pdus =
-            self.process_outbound_upper_pdu(sequence, &block_ack_to_upper_pdu(block_ack), false)?;
+            self.process_outbound_upper_pdu(sequence, &block_ack_to_upper_pdu(block_ack, meta)?, false)?;
 
         let network_pdus = network_pdus
             .iter()
@@ -91,6 +94,18 @@ impl ProvisionedStack {
     }
 }
 
-fn block_ack_to_upper_pdu(block_ack: &BlockAck) -> UpperPDU<ProvisionedStack> {
-    todo!()
+fn block_ack_to_upper_pdu(block_ack: BlockAck, meta: UpperMetadata) -> Result<UpperPDU<ProvisionedStack>, InsufficientBuffer> {
+    let mut parameters = [0; 6];
+
+    let seq_zero = (block_ack.seq_zero().value() << 2).to_be_bytes();
+    parameters[0] = seq_zero[0];
+    parameters[1] = seq_zero[1];
+
+    let block_ack = block_ack.value().to_be_bytes();
+    parameters[2] = block_ack[0];
+    parameters[3] = block_ack[1];
+    parameters[4] = block_ack[2];
+    parameters[5] = block_ack[3];
+
+    Ok(UpperControlPDU::new( ControlOpcode::SegmentAcknowledgement, &parameters, meta)?.into())
 }

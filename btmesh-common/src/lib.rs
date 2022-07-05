@@ -224,7 +224,12 @@ impl SeqZero {
     pub fn parse(data: u16) -> Result<Self, ParseError> {
         Ok(Self(data))
     }
+
+    pub fn value(&self) -> u16 {
+        self.0
+    }
 }
+
 
 impl BitAnd<u16> for SeqZero {
     type Output = u16;

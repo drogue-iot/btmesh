@@ -111,16 +111,16 @@ impl<S: System> LowerPDU<S> {
 
             match (network_pdu.ctl(), seg) {
                 (Ctl::Access, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(
-                    UnsegmentedLowerAccessPDU::parse(&data[1..], meta)?,
+                    UnsegmentedLowerAccessPDU::parse(&data, meta)?,
                 ))),
                 (Ctl::Access, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Access(
-                    SegmentedLowerAccessPDU::parse(&data[1..], meta)?,
+                    SegmentedLowerAccessPDU::parse(&data, meta)?,
                 ))),
                 (Ctl::Control, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Control(
-                    UnsegmentedLowerControlPDU::parse(&data[1..], meta)?,
+                    UnsegmentedLowerControlPDU::parse(&data, meta)?,
                 ))),
                 (Ctl::Control, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Control(
-                    SegmentedLowerControlPDU::parse(&data[1..], meta)?,
+                    SegmentedLowerControlPDU::parse(&data, meta)?,
                 ))),
             }
         } else {
@@ -160,8 +160,12 @@ impl BlockAck {
         Ok(())
     }
 
-    fn value(&self) -> u32 {
+    pub fn value(&self) -> u32 {
         self.0
+    }
+
+    pub fn seq_zero(&self) -> SeqZero {
+        self.1
     }
 }
 

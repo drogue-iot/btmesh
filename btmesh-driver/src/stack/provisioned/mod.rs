@@ -4,7 +4,7 @@ use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
-use crate::DriverError;
+use crate::{DriverError, UpperMetadata};
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
@@ -58,22 +58,24 @@ pub struct ProvisionedStack {
 }
 
 pub struct ReceiveResult {
-    pub block_ack: Option<BlockAck>,
+    pub block_ack: Option<(BlockAck, UpperMetadata)>,
     pub message: Option<Message<ProvisionedStack>>,
 }
 
-impl TryFrom<(Option<BlockAck>, Option<Message<ProvisionedStack>>)> for ReceiveResult {
+impl TryFrom<(Option<(BlockAck, UpperMetadata)>, Option<Message<ProvisionedStack>>)> for ReceiveResult {
     type Error = ();
 
     fn try_from(
-        value: (Option<BlockAck>, Option<Message<ProvisionedStack>>),
+        value: (Option<(BlockAck, UpperMetadata)>, Option<Message<ProvisionedStack>>),
     ) -> Result<Self, Self::Error> {
         match value {
             (None, None) => Err(()),
-            _ => Ok(ReceiveResult {
-                block_ack: value.0,
-                message: value.1,
-            }),
+            _ => {
+                Ok(ReceiveResult {
+                    block_ack: value.0,
+                    message: value.1,
+                })
+            }
         }
     }
 }
@@ -99,7 +101,7 @@ impl ProvisionedStack {
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
-            let (block_ack, upper_pdu) =
+            let (block_ack_meta, upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
 
             let message = if let Some(upper_pdu) = upper_pdu {
@@ -108,7 +110,7 @@ impl ProvisionedStack {
                 None
             };
 
-            Ok((block_ack, message).try_into().ok())
+            Ok((block_ack_meta, message).try_into().ok())
         } else {
             // nothing doing, bad result, nothing parsed, keep on truckin'
             Ok(None)
