@@ -230,7 +230,6 @@ impl SeqZero {
     }
 }
 
-
 impl BitAnd<u16> for SeqZero {
     type Output = u16;
 

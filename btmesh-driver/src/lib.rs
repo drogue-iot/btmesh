@@ -15,10 +15,10 @@ use crate::stack::interface::NetworkInterfaces;
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
 use crate::stack::provisioned::sequence::Sequence;
+use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::Stack;
 pub use error::DriverError;
-use crate::stack::provisioned::system::UpperMetadata;
 
 pub struct Driver<N: NetworkInterfaces> {
     stack: Stack,
@@ -55,7 +55,9 @@ impl<N: NetworkInterfaces> Driver<N> {
                 if let Some(result) = stack.process_inbound_network_pdu(pdu)? {
                     if let Some((block_ack, meta)) = result.block_ack {
                         // send outbound block-ack
-                        for network_pdu in stack.process_outbound_block_ack(sequence, block_ack, meta)? {
+                        for network_pdu in
+                            stack.process_outbound_block_ack(sequence, block_ack, meta)?
+                        {
                             // don't error if we can't send.
                             self.network.transmit(&PDU::Network(network_pdu)).await.ok();
                         }

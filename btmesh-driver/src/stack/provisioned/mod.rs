@@ -62,20 +62,26 @@ pub struct ReceiveResult {
     pub message: Option<Message<ProvisionedStack>>,
 }
 
-impl TryFrom<(Option<(BlockAck, UpperMetadata)>, Option<Message<ProvisionedStack>>)> for ReceiveResult {
+impl
+    TryFrom<(
+        Option<(BlockAck, UpperMetadata)>,
+        Option<Message<ProvisionedStack>>,
+    )> for ReceiveResult
+{
     type Error = ();
 
     fn try_from(
-        value: (Option<(BlockAck, UpperMetadata)>, Option<Message<ProvisionedStack>>),
+        value: (
+            Option<(BlockAck, UpperMetadata)>,
+            Option<Message<ProvisionedStack>>,
+        ),
     ) -> Result<Self, Self::Error> {
         match value {
             (None, None) => Err(()),
-            _ => {
-                Ok(ReceiveResult {
-                    block_ack: value.0,
-                    message: value.1,
-                })
-            }
+            _ => Ok(ReceiveResult {
+                block_ack: value.0,
+                message: value.1,
+            }),
         }
     }
 }

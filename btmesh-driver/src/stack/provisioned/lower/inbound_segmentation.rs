@@ -55,9 +55,13 @@ impl<const N: usize> InboundSegmentation<N> {
         }
 
         if in_flight.already_seen(pdu)? {
-            Ok(
-                ((in_flight.block_ack(), UpperMetadata::from_segmented_lower_pdu(pdu)),
-                None) )
+            Ok((
+                (
+                    in_flight.block_ack(),
+                    UpperMetadata::from_segmented_lower_pdu(pdu),
+                ),
+                None,
+            ))
         } else {
             in_flight.ingest(pdu)?;
 
