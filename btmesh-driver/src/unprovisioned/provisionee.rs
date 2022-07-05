@@ -107,10 +107,10 @@ impl Provisionee {
                 salt[16..32].copy_from_slice(&device.state.random_provisioner);
                 salt[32..48].copy_from_slice(&device.state.random_device);
                 let salt = &s1(&salt)?.into_bytes()[0..];
-                let key = &prsk(&device.state.shared_secret, &salt)?.into_bytes()[0..];
-                let nonce = &prsn(&device.state.shared_secret, &salt)?.into_bytes()[3..];
+                let key = &prsk(&device.state.shared_secret, salt)?.into_bytes()[0..];
+                let nonce = &prsn(&device.state.shared_secret, salt)?.into_bytes()[3..];
 
-                match try_decrypt_confirmation(&key, &nonce, &mut data.encrypted, &data.mic, None) {
+                match try_decrypt_confirmation(key, nonce, &mut data.encrypted, &data.mic, None) {
                     Ok(_) => Ok((
                         Provisionee::Complete(ProvisioningData::parse(&data.encrypted)?),
                         Some(ProvisioningPDU::Complete),

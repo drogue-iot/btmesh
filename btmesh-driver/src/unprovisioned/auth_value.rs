@@ -163,12 +163,12 @@ fn random_alphanumeric(mut rng: impl RngCore, size: u8) -> Result<Vec<u8, 8>, Pa
     for _ in 0..size {
         loop {
             let candidate = (rng.next_u32() & 0xFF) as u8;
-            if candidate >= 64 && candidate <= 90 {
+            if (64..=90).contains(&candidate) {
                 // Capital ASCII letters A-Z
                 random
                     .push(candidate)
                     .map_err(|_| ParseError::InsufficientBuffer)?;
-            } else if candidate >= 48 && candidate <= 57 {
+            } else if (48..=57).contains(&candidate) {
                 // ASCII numbers 0-9
                 random
                     .push(candidate)

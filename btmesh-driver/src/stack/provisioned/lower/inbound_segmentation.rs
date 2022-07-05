@@ -343,7 +343,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
-        assert_eq!(true, in_flight.is_valid(&pdu));
+        assert!(in_flight.is_valid(&pdu));
 
         let pdu = SegmentedLowerAccessPDU::new(
             None,
@@ -365,7 +365,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
-        assert_eq!(false, in_flight.is_valid(&pdu));
+        assert!(!in_flight.is_valid(&pdu));
     }
 
     #[test]
@@ -397,7 +397,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
-        assert_eq!(false, in_flight.is_valid(&pdu));
+        assert!(!in_flight.is_valid(&pdu));
 
         let in_flight = InFlight::new_access(seq_zero, seg_n, SzMic::Bit32);
 
@@ -420,7 +420,7 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Control(pdu);
 
-        assert_eq!(false, in_flight.is_valid(&pdu));
+        assert!(!in_flight.is_valid(&pdu));
     }
 
     #[test]
@@ -502,7 +502,7 @@ mod tests {
             let transmic = result.transmic();
             assert_eq!(b"LZYX", transmic.as_ref());
         } else {
-            assert!(false)
+            panic!("shouldn't happen")
         }
     }
 }
