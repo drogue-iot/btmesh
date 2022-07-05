@@ -14,18 +14,18 @@ use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
-pub enum Provisioning {
-    Beaconing(Provisionee<Beaconing>),
-    Invitation(Provisionee<Invitation>),
-    KeyExchange(Provisionee<KeyExchange>),
-    Authentication(Provisionee<Authentication>),
-    DataDistribution(Provisionee<DataDistribution>),
+pub enum Provisionee {
+    Beaconing(Phase<Beaconing>),
+    Invitation(Phase<Invitation>),
+    KeyExchange(Phase<KeyExchange>),
+    Authentication(Phase<Authentication>),
+    DataDistribution(Phase<DataDistribution>),
     Complete(ProvisioningData),
 }
 
-impl Provisioning {
+impl Provisionee {
     pub fn new(capabilities: Capabilities) -> Self {
-        Self::Beaconing(Provisionee {
+        Self::Beaconing(Phase {
             transcript: Transcript::default(),
             state: Beaconing { capabilities },
         })
@@ -37,16 +37,16 @@ impl Provisioning {
         mut rng: impl RngCore + CryptoRng,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
-            (Provisioning::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
+            (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let capabilities = device.state.capabilities.clone();
                 device.transcript.add_invite(&invite)?;
                 device.transcript.add_capabilities(&capabilities)?;
                 Ok((
-                    Provisioning::Invitation(device.into()),
+                    Provisionee::Invitation(device.into()),
                     Some(ProvisioningPDU::Capabilities(capabilities)),
                 ))
             }
-            (Provisioning::Invitation(mut device), ProvisioningPDU::Start(start)) => {
+            (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
                 device.transcript.add_start(&start)?;
                 device
@@ -55,9 +55,9 @@ impl Provisioning {
                     .replace(determine_auth_value(rng, &start)?);
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
-                Ok((Provisioning::KeyExchange(device.into()), None))
+                Ok((Provisionee::KeyExchange(device.into()), None))
             }
-            (Provisioning::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
+            (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
                 // TODO: invalid key (sec 5.4.3.1) should fail provisioning (sec 5.4.4)
                 device.transcript.add_pubkey_provisioner(&peer_key)?;
                 let private = SecretKey::random(rng);
@@ -67,11 +67,11 @@ impl Provisioning {
                 let pk: PublicKey = private.public_key().try_into()?;
                 device.transcript.add_pubkey_device(&pk)?;
                 Ok((
-                    Provisioning::Authentication(device.into()),
+                    Provisionee::Authentication(device.into()),
                     Some(ProvisioningPDU::PublicKey(pk)),
                 ))
             }
-            (Provisioning::Authentication(mut device), ProvisioningPDU::Confirmation(_value)) => {
+            (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(_value)) => {
                 // TODO: should we introduce a sub-state for Input OOB
                 // to know when to send back an InputComplete PDU?
 
@@ -87,21 +87,21 @@ impl Provisioning {
                 let confirmation = aes_cmac(&key.into_bytes(), &bytes)?.into_bytes().into();
                 device.state.random_device.replace(random_device);
                 Ok((
-                    Provisioning::Authentication(device),
+                    Provisionee::Authentication(device),
                     Some(ProvisioningPDU::Confirmation(Confirmation { confirmation })),
                 ))
             }
-            (Provisioning::Authentication(mut device), ProvisioningPDU::Random(random)) => {
+            (Provisionee::Authentication(mut device), ProvisioningPDU::Random(random)) => {
                 device.state.random_provisioner.replace(random.random);
                 let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
                 Ok((
-                    Provisioning::DataDistribution(device.into()),
+                    Provisionee::DataDistribution(device.into()),
                     Some(ProvisioningPDU::Random(Random {
                         random: device_random,
                     })),
                 ))
             }
-            (Provisioning::DataDistribution(device), ProvisioningPDU::Data(mut data)) => {
+            (Provisionee::DataDistribution(device), ProvisioningPDU::Data(mut data)) => {
                 let mut salt = [0; 48];
                 salt[0..16].copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
                 salt[16..32].copy_from_slice(&device.state.random_provisioner);
@@ -112,7 +112,7 @@ impl Provisioning {
 
                 match try_decrypt_confirmation(&key, &nonce, &mut data.encrypted, &data.mic, None) {
                     Ok(_) => Ok((
-                        Provisioning::Complete(ProvisioningData::parse(&data.encrypted)?),
+                        Provisionee::Complete(ProvisioningData::parse(&data.encrypted)?),
                         Some(ProvisioningPDU::Complete),
                     )),
                     Err(_) => Err(DriverError::CryptoError),
@@ -123,23 +123,23 @@ impl Provisioning {
     }
 }
 
-pub struct Provisionee<S> {
+pub struct Phase<S> {
     transcript: Transcript,
     state: S,
 }
 
-impl From<Provisionee<Beaconing>> for Provisionee<Invitation> {
-    fn from(p: Provisionee<Beaconing>) -> Provisionee<Invitation> {
-        Provisionee {
+impl From<Phase<Beaconing>> for Phase<Invitation> {
+    fn from(p: Phase<Beaconing>) -> Phase<Invitation> {
+        Phase {
             transcript: p.transcript,
             state: Invitation { auth_value: None },
         }
     }
 }
 
-impl From<Provisionee<Invitation>> for Provisionee<KeyExchange> {
-    fn from(p: Provisionee<Invitation>) -> Provisionee<KeyExchange> {
-        Provisionee {
+impl From<Phase<Invitation>> for Phase<KeyExchange> {
+    fn from(p: Phase<Invitation>) -> Phase<KeyExchange> {
+        Phase {
             transcript: p.transcript,
             state: KeyExchange {
                 auth_value: p.state.auth_value.unwrap(),
@@ -149,9 +149,9 @@ impl From<Provisionee<Invitation>> for Provisionee<KeyExchange> {
     }
 }
 
-impl From<Provisionee<KeyExchange>> for Provisionee<Authentication> {
-    fn from(p: Provisionee<KeyExchange>) -> Provisionee<Authentication> {
-        Provisionee {
+impl From<Phase<KeyExchange>> for Phase<Authentication> {
+    fn from(p: Phase<KeyExchange>) -> Phase<Authentication> {
+        Phase {
             transcript: p.transcript,
             state: Authentication {
                 auth_value: p.state.auth_value,
@@ -163,9 +163,9 @@ impl From<Provisionee<KeyExchange>> for Provisionee<Authentication> {
     }
 }
 
-impl From<Provisionee<Authentication>> for Provisionee<DataDistribution> {
-    fn from(p: Provisionee<Authentication>) -> Provisionee<DataDistribution> {
-        Provisionee {
+impl From<Phase<Authentication>> for Phase<DataDistribution> {
+    fn from(p: Phase<Authentication>) -> Phase<DataDistribution> {
+        Phase {
             transcript: p.transcript,
             state: DataDistribution {
                 shared_secret: p.state.shared_secret,
