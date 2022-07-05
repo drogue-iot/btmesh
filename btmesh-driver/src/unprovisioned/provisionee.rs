@@ -197,3 +197,30 @@ pub struct DataDistribution {
     random_device: [u8; 16],
     random_provisioner: [u8; 16],
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::unprovisioned::pdu::Invite;
+    use rand_core::OsRng;
+
+    #[test]
+    fn invitation() {
+        let size = 69;
+        let caps = Capabilities {
+            number_of_elements: size,
+            ..Default::default()
+        };
+        let fsm = Provisionee::new(caps);
+        assert!(matches!(fsm, Provisionee::Beaconing(_)));
+        let pdu = ProvisioningPDU::Invite(Invite {
+            attention_duration: 30,
+        });
+        let (fsm, pdu) = fsm.next(pdu, OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::Invitation(_)));
+        match pdu {
+            Some(ProvisioningPDU::Capabilities(c)) => assert_eq!(c.number_of_elements, size),
+            _ => panic!("wrong pdu returned for invite"),
+        }
+    }
+}

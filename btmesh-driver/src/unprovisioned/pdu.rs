@@ -46,7 +46,7 @@ impl Invite {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Capabilities {
     pub number_of_elements: u8,
@@ -654,9 +654,10 @@ impl StaticOOBType {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OOBSize {
+    #[default]
     NotSupported,
     MaximumSize(u8 /* 1-8 decimal */),
 }
