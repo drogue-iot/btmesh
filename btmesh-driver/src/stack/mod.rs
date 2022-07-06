@@ -14,9 +14,7 @@ pub enum Stack {
 impl Stack {
     pub fn device_state(&self) -> DeviceState {
         match self {
-            Stack::Unprovisioned(_, _) => {
-                DeviceState::Unprovisioned { uuid: todo!() }
-            }
+            Stack::Unprovisioned(_, _) => DeviceState::Unprovisioned { uuid: todo!() },
             Stack::Provisioned(_, _) => DeviceState::Provisioned,
         }
     }

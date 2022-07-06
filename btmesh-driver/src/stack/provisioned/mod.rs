@@ -5,7 +5,7 @@ use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::{DriverError, UpperMetadata};
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, };
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
