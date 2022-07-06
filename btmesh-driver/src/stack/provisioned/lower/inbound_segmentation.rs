@@ -24,6 +24,12 @@ impl<const N: usize> Default for InboundSegmentation<N> {
     }
 }
 
+pub struct SegmentationResult {
+    pub block_ack: BlockAck,
+    pub meta: UpperMetadata,
+    pub upper_pdu: Option<UpperPDU<ProvisionedStack>>,
+}
+
 impl<const N: usize> InboundSegmentation<N> {
     /// Accept an inbound segmented `LowerPDU`, and attempt to reassemble
     /// into an `UpperPDU`. If processed without error, will return a tuple
@@ -32,13 +38,7 @@ impl<const N: usize> InboundSegmentation<N> {
     pub fn process(
         &mut self,
         pdu: &SegmentedLowerPDU<ProvisionedStack>,
-    ) -> Result<
-        (
-            (BlockAck, UpperMetadata),
-            Option<UpperPDU<ProvisionedStack>>,
-        ),
-        DriverError,
-    > {
+    ) -> Result<SegmentationResult, DriverError> {
         let src = pdu.meta().src();
         let in_flight = if let Some(current) = self.current.get_mut(&src) {
             current
@@ -55,22 +55,17 @@ impl<const N: usize> InboundSegmentation<N> {
         }
 
         if in_flight.already_seen(pdu)? {
-            Ok((
-                (
-                    in_flight.block_ack(),
-                    UpperMetadata::from_segmented_lower_pdu(pdu),
-                ),
-                None,
-            ))
+            Ok(SegmentationResult {
+                block_ack: in_flight.block_ack(),
+                meta: UpperMetadata::from_segmented_lower_pdu(pdu),
+                upper_pdu: None,
+            })
         } else {
             in_flight.ingest(pdu)?;
-
-            Ok((
-                (
-                    in_flight.block_ack(),
-                    UpperMetadata::from_segmented_lower_pdu(pdu),
-                ),
-                if in_flight.is_complete()? {
+            Ok(SegmentationResult {
+                block_ack: in_flight.block_ack(),
+                meta: UpperMetadata::from_segmented_lower_pdu(pdu),
+                upper_pdu: if in_flight.is_complete()? {
                     let reassembled =
                         Some(in_flight.reassemble(UpperMetadata::from_segmented_lower_pdu(pdu))?);
                     self.current.remove(&src);
@@ -78,7 +73,7 @@ impl<const N: usize> InboundSegmentation<N> {
                 } else {
                     None
                 },
-            ))
+            })
         }
     }
 }

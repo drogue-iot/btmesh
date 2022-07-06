@@ -25,6 +25,7 @@ pub struct LowerDriver {
 impl ProvisionedStack {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
+    #[allow(clippy::type_complexity)]
     pub fn process_inbound_cleartext_network_pdu(
         &mut self,
         network_pdu: &CleartextNetworkPDU<ProvisionedStack>,
@@ -63,9 +64,8 @@ impl ProvisionedStack {
                 )),
             },
             LowerPDU::Segmented(inner) => {
-                let ((block_ack, meta), upper_pdu) =
-                    self.lower.inbound_segmentation.process(inner)?;
-                Ok((Some((block_ack, meta)), upper_pdu))
+                let result = self.lower.inbound_segmentation.process(inner)?;
+                Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
             }
         }
     }
