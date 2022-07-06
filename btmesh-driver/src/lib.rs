@@ -4,7 +4,7 @@
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 
-use btmesh_common::{IvIndex, Seq, Uuid};
+use btmesh_common::{Seq, Uuid};
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use rand_core::{CryptoRng, RngCore};
@@ -60,8 +60,6 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     pub async fn process(&mut self) -> Result<(), DriverError> {
         let device_state = self.stack.device_state();
 
-        let iv_index = todo!();
-
         let pdu = self.network.receive(&device_state).await?;
         match (&pdu, &mut self.stack) {
             (PDU::Provisioning(pdu), Stack::Unprovisioned(stack, num_elements)) => {
@@ -96,7 +94,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                         }
                     }
 
-                    if let Some(message) = result.message {
+                    if let Some(_message) = result.message {
                         // dispatch to element(s)
                     }
                 }

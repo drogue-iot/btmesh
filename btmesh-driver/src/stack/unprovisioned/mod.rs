@@ -45,7 +45,7 @@ impl UnprovisionedStack {
                 Ok(None)
             }
         } else {
-            return Err(DriverError::InvalidState);
+            Err(DriverError::InvalidState)
         }
     }
 }

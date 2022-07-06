@@ -68,6 +68,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
         }
     }
 
+    #[allow(clippy::await_holding_refcell_ref)]
     async fn transmit_provisioning_pdu(&self, pdu: &ProvisioningPDU) -> Result<(), BearerError> {
         let segments = self.segmentation.process_outbound(pdu)?;
 
@@ -281,6 +282,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
         }
     }
 
+    #[allow(clippy::await_holding_refcell_ref)]
     pub async fn retransmit(&self) -> Result<(), BearerError> {
         if let Some(outbound) = &*self.outbound_pdu.borrow() {
             for pdu in outbound.iter() {

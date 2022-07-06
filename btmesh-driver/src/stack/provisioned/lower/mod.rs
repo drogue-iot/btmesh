@@ -14,8 +14,6 @@ use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
 use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
-use core::borrow::Borrow;
-use core::ops::Deref;
 use heapless::Vec;
 
 #[derive(Default)]

@@ -4,7 +4,7 @@ use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{Seq, SeqZero};
+use btmesh_common::{SeqZero};
 use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
 use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
 use btmesh_pdu::provisioned::lower::{BlockAck, SegmentedLowerPDU};

@@ -5,12 +5,11 @@ use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::{DriverError, UpperMetadata};
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, };
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
-use core::cell::RefCell;
 use heapless::Vec;
 use secrets::Secrets;
 
@@ -124,7 +123,7 @@ impl ProvisionedStack {
             .network_state
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
-        if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(&network_pdu, iv_index)? {
+        if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
             let (block_ack_meta, upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
 

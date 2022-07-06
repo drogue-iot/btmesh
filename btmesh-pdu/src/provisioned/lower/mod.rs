@@ -4,7 +4,6 @@ pub mod control;
 use crate::provisioned::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
 use crate::provisioned::lower::control::{SegmentedLowerControlPDU, UnsegmentedLowerControlPDU};
 use crate::provisioned::network::CleartextNetworkPDU;
-use crate::provisioned::upper::control::UpperControlPDU;
 use crate::provisioned::System;
 use btmesh_common::{Ctl, ParseError, SeqZero};
 
@@ -111,16 +110,16 @@ impl<S: System> LowerPDU<S> {
 
             match (network_pdu.ctl(), seg) {
                 (Ctl::Access, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Access(
-                    UnsegmentedLowerAccessPDU::parse(&data, meta)?,
+                    UnsegmentedLowerAccessPDU::parse(data, meta)?,
                 ))),
                 (Ctl::Access, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Access(
-                    SegmentedLowerAccessPDU::parse(&data, meta)?,
+                    SegmentedLowerAccessPDU::parse(data, meta)?,
                 ))),
                 (Ctl::Control, false) => Ok(LowerPDU::Unsegmented(UnsegmentedLowerPDU::Control(
-                    UnsegmentedLowerControlPDU::parse(&data, meta)?,
+                    UnsegmentedLowerControlPDU::parse(data, meta)?,
                 ))),
                 (Ctl::Control, true) => Ok(LowerPDU::Segmented(SegmentedLowerPDU::Control(
-                    SegmentedLowerControlPDU::parse(&data, meta)?,
+                    SegmentedLowerControlPDU::parse(data, meta)?,
                 ))),
             }
         } else {
