@@ -9,11 +9,25 @@ pub struct DeviceKey {
     device_key: [u8; 16],
 }
 
+impl DeviceKey {
+    pub fn new(device_key: [u8; 16]) -> Self {
+        Self { device_key }
+    }
+}
+
 impl Deref for DeviceKey {
     type Target = [u8; 16];
 
     fn deref(&self) -> &Self::Target {
         &self.device_key
+    }
+}
+
+impl TryFrom<&[u8]> for DeviceKey {
+    type Error = Error;
+
+    fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+        Ok(DeviceKey::new(value.try_into().map_err(|_| Error)?))
     }
 }
 

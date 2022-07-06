@@ -41,7 +41,10 @@ impl AuthValue {
     }
 }
 
-pub fn determine_auth_value(rng: impl RngCore, start: &Start) -> Result<AuthValue, ParseError> {
+pub fn determine_auth_value<RNG: RngCore>(
+    rng: &mut RNG,
+    start: &Start,
+) -> Result<AuthValue, ParseError> {
     Ok(
         match (&start.authentication_action, &start.authentication_size) {
             (
@@ -88,7 +91,7 @@ pub fn determine_auth_value(rng: impl RngCore, start: &Start) -> Result<AuthValu
     )
 }
 
-fn random_physical_oob(mut rng: impl RngCore, size: u8) -> u32 {
+fn random_physical_oob<RNG: RngCore>(rng: &mut RNG, size: u8) -> u32 {
     // "select a random integer between 0 and 10 to the power of the Authentication Size exclusive"
     //
     // ... which could be an absolute metric tonne of beeps/twists/pushes if AuthSize is large-ish.
@@ -105,7 +108,7 @@ fn random_physical_oob(mut rng: impl RngCore, size: u8) -> u32 {
     }
 }
 
-fn random_numeric(mut rng: impl RngCore, size: u8) -> u32 {
+fn random_numeric<RNG: RngCore>(rng: &mut RNG, size: u8) -> u32 {
     loop {
         let candidate = rng.next_u32();
 
@@ -158,7 +161,7 @@ fn random_numeric(mut rng: impl RngCore, size: u8) -> u32 {
     }
 }
 
-fn random_alphanumeric(mut rng: impl RngCore, size: u8) -> Result<Vec<u8, 8>, ParseError> {
+fn random_alphanumeric<RNG: RngCore>(rng: &mut RNG, size: u8) -> Result<Vec<u8, 8>, ParseError> {
     let mut random = Vec::new();
     for _ in 0..size {
         loop {

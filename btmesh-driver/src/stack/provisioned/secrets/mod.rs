@@ -5,6 +5,7 @@ use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::application::{Aid, ApplicationKey};
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
+use btmesh_pdu::provisioning::ProvisioningData;
 
 pub mod application;
 pub mod network;
@@ -13,6 +14,16 @@ pub struct Secrets {
     device_key: DeviceKey,
     network_keys: NetworkKeys,
     application_keys: ApplicationKeys,
+}
+
+impl From<(DeviceKey, ProvisioningData)> for Secrets {
+    fn from(data: (DeviceKey, ProvisioningData)) -> Self {
+        Self {
+            device_key: data.0,
+            network_keys: data.1.into(),
+            application_keys: Default::default(),
+        }
+    }
 }
 
 impl Secrets {

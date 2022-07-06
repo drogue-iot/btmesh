@@ -25,3 +25,7 @@ pub fn prsn(secret: &[u8], salt: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidK
 pub fn prck(secret: &[u8], salt: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {
     crypto::k1(secret, salt, b"prck")
 }
+
+pub fn prdk(secret: &[u8], salt: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {
+    crypto::k1(secret, salt, b"prdk")
+}

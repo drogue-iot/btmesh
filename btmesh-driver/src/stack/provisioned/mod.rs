@@ -9,6 +9,7 @@ use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
+use btmesh_pdu::provisioning::ProvisioningData;
 use core::cell::RefCell;
 use heapless::Vec;
 use secrets::Secrets;
@@ -44,6 +45,23 @@ pub struct NetworkState {
 impl NetworkState {
     pub fn iv_index(&self) -> &IvIndexState {
         &self.iv_index_state
+    }
+}
+
+impl From<ProvisioningData> for NetworkState {
+    fn from(data: ProvisioningData) -> Self {
+        Self {
+            iv_index_state: data.into(),
+        }
+    }
+}
+
+impl From<ProvisioningData> for IvIndexState {
+    fn from(data: ProvisioningData) -> Self {
+        Self {
+            iv_index: IvIndex::new(data.iv_index),
+            iv_update_flag: data.iv_update_flag,
+        }
     }
 }
 

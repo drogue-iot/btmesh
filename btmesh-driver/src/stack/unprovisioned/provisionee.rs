@@ -1,6 +1,8 @@
 use super::auth_value::{determine_auth_value, AuthValue};
 use super::transcript::Transcript;
 use crate::DriverError;
+use btmesh_common::crypto::device::DeviceKey;
+use btmesh_common::crypto::provisioning::prdk;
 use btmesh_common::crypto::{
     aes_cmac,
     provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
@@ -20,7 +22,7 @@ pub enum Provisionee {
     KeyExchange(Phase<KeyExchange>),
     Authentication(Phase<Authentication>),
     DataDistribution(Phase<DataDistribution>),
-    Complete(ProvisioningData),
+    Complete(DeviceKey, ProvisioningData),
 }
 
 impl Provisionee {
@@ -31,12 +33,12 @@ impl Provisionee {
         })
     }
 
-    pub fn next(
+    pub fn next<RNG: RngCore + CryptoRng>(
         self,
-        pdu: ProvisioningPDU,
-        mut rng: impl RngCore + CryptoRng,
+        pdu: &ProvisioningPDU,
+        rng: &mut RNG,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
-        match (self, pdu) {
+        match (self, &pdu) {
             (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let capabilities = device.state.capabilities.clone();
                 device.transcript.add_invite(&invite)?;
@@ -61,7 +63,7 @@ impl Provisionee {
                 // TODO: invalid key (sec 5.4.3.1) should fail provisioning (sec 5.4.4)
                 device.transcript.add_pubkey_provisioner(&peer_key)?;
                 let private = SecretKey::random(rng);
-                let public: p256::PublicKey = peer_key.into();
+                let public: p256::PublicKey = p256::PublicKey::from(*peer_key);
                 let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
                 device.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
                 let pk: PublicKey = private.public_key().try_into()?;
@@ -101,7 +103,7 @@ impl Provisionee {
                     })),
                 ))
             }
-            (Provisionee::DataDistribution(device), ProvisioningPDU::Data(mut data)) => {
+            (Provisionee::DataDistribution(device), ProvisioningPDU::Data(data)) => {
                 let mut salt = [0; 48];
                 salt[0..16].copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
                 salt[16..32].copy_from_slice(&device.state.random_provisioner);
@@ -110,11 +112,19 @@ impl Provisionee {
                 let key = &prsk(&device.state.shared_secret, salt)?.into_bytes()[0..];
                 let nonce = &prsn(&device.state.shared_secret, salt)?.into_bytes()[3..];
 
-                match try_decrypt_confirmation(key, nonce, &mut data.encrypted, &data.mic, None) {
-                    Ok(_) => Ok((
-                        Provisionee::Complete(ProvisioningData::parse(&data.encrypted)?),
-                        Some(ProvisioningPDU::Complete),
-                    )),
+                let mut decrypted = [0; 25];
+                decrypted.copy_from_slice(&data.encrypted);
+
+                match try_decrypt_confirmation(key, nonce, &mut decrypted, &data.mic, None) {
+                    Ok(_) => {
+                        let device_key = &*prdk(&device.state.shared_secret, salt)?.into_bytes();
+                        let device_key = DeviceKey::try_from(device_key)
+                            .map_err(|_| DriverError::CryptoError)?;
+                        Ok((
+                            Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
+                            Some(ProvisioningPDU::Complete),
+                        ))
+                    }
                     Err(_) => Err(DriverError::CryptoError),
                 }
             }
@@ -216,7 +226,7 @@ mod tests {
         let pdu = ProvisioningPDU::Invite(Invite {
             attention_duration: 30,
         });
-        let (fsm, pdu) = fsm.next(pdu, OsRng).unwrap();
+        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
         assert!(matches!(fsm, Provisionee::Invitation(_)));
         match pdu {
             Some(ProvisioningPDU::Capabilities(c)) => assert_eq!(c.number_of_elements, size),

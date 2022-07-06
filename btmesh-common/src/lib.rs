@@ -57,11 +57,25 @@ pub enum IvUpdateFlag {
     InProgress,
 }
 
+impl IvUpdateFlag {
+    pub fn parse(data: u8) -> Self {
+        if data == 0 {
+            Self::Normal
+        } else {
+            Self::InProgress
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IvIndex(u32);
 
 impl IvIndex {
+    pub fn new(iv_index: u32) -> Self {
+        Self(iv_index)
+    }
+
     pub fn parse(iv_index: &[u8]) -> Result<Self, ParseError> {
         if iv_index.len() == 4 {
             Ok(Self(u32::from_be_bytes([

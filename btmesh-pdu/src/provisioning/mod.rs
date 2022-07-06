@@ -1,5 +1,5 @@
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{InsufficientBuffer, IvUpdateFlag, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
@@ -310,12 +310,13 @@ impl Data {
     }
 }
 
+#[derive(Copy, Clone)]
 /// The decrypted provisioning data wrapped in `Data` above.
 pub struct ProvisioningData {
     pub network_key: [u8; 16],
     // TODO: pub key_index: NetKeyIndex,
     pub key_refresh_flag: KeyRefreshFlag,
-    pub iv_update_flag: IVUpdateFlag,
+    pub iv_update_flag: IvUpdateFlag,
     pub iv_index: u32,
     pub unicast_address: UnicastAddress,
 }
@@ -337,7 +338,7 @@ impl ProvisioningData {
                     .map_err(|_| ParseError::InvalidLength)?,
                 // TODO: key_index,
                 key_refresh_flag: KeyRefreshFlag::parse(flags & 0b00000001),
-                iv_update_flag: IVUpdateFlag::parse(flags & 0b00000010),
+                iv_update_flag: IvUpdateFlag::parse(flags & 0b00000010),
                 iv_index,
                 unicast_address,
             })
@@ -366,30 +367,6 @@ impl KeyRefreshFlag {
 impl Default for KeyRefreshFlag {
     fn default() -> Self {
         Self::Phase0
-    }
-}
-
-// TODO: probably move this elsewhere
-#[derive(Copy, Clone, Serialize, Deserialize)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum IVUpdateFlag {
-    NormalOperation,
-    UpdateActive,
-}
-
-impl IVUpdateFlag {
-    fn parse(data: u8) -> Self {
-        if data == 0 {
-            Self::NormalOperation
-        } else {
-            Self::UpdateActive
-        }
-    }
-}
-
-impl Default for IVUpdateFlag {
-    fn default() -> Self {
-        Self::NormalOperation
     }
 }
 

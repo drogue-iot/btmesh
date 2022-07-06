@@ -1,6 +1,7 @@
 use crate::stack::provisioned::system::NetworkKeyHandle;
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
+use btmesh_pdu::provisioning::ProvisioningData;
 
 pub(crate) struct NetworkKeys<const N: usize = 4> {
     pub(crate) keys: [Option<NetworkKey>; N],
@@ -10,6 +11,14 @@ impl<const N: usize> Default for NetworkKeys<N> {
     fn default() -> Self {
         let keys = [None; N];
         Self { keys }
+    }
+}
+
+impl<const N: usize> From<ProvisioningData> for NetworkKeys<N> {
+    fn from(data: ProvisioningData) -> Self {
+        let mut keys = Self::default();
+        keys.keys[0].replace(NetworkKey::new(data.network_key).unwrap());
+        keys
     }
 }
 
