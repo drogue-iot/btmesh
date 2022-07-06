@@ -38,10 +38,10 @@ impl Provisionee {
         pdu: &ProvisioningPDU,
         rng: &mut RNG,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
-        match (self, &pdu) {
+        match (self, pdu) {
             (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let capabilities = device.state.capabilities.clone();
-                device.transcript.add_invite(&invite)?;
+                device.transcript.add_invite(invite)?;
                 device.transcript.add_capabilities(&capabilities)?;
                 Ok((
                     Provisionee::Invitation(device.into()),
@@ -50,20 +50,20 @@ impl Provisionee {
             }
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
-                device.transcript.add_start(&start)?;
+                device.transcript.add_start(start)?;
                 device
                     .state
                     .auth_value
-                    .replace(determine_auth_value(rng, &start)?);
+                    .replace(determine_auth_value(rng, start)?);
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
                 Ok((Provisionee::KeyExchange(device.into()), None))
             }
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
                 // TODO: invalid key (sec 5.4.3.1) should fail provisioning (sec 5.4.4)
-                device.transcript.add_pubkey_provisioner(&peer_key)?;
+                device.transcript.add_pubkey_provisioner(peer_key)?;
                 let private = SecretKey::random(rng);
-                let public: p256::PublicKey = p256::PublicKey::from(*peer_key);
+                let public: p256::PublicKey = peer_key.into();
                 let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
                 device.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
                 let pk: PublicKey = private.public_key().try_into()?;

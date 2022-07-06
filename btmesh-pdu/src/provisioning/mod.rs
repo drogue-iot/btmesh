@@ -219,8 +219,8 @@ impl TryFrom<p256::PublicKey> for PublicKey {
     }
 }
 
-impl From<PublicKey> for p256::PublicKey {
-    fn from(pk: PublicKey) -> p256::PublicKey {
+impl From<&PublicKey> for p256::PublicKey {
+    fn from(pk: &PublicKey) -> p256::PublicKey {
         p256::PublicKey::from_encoded_point(&p256::EncodedPoint::from_affine_coordinates(
             &pk.x.into(),
             &pk.y.into(),
