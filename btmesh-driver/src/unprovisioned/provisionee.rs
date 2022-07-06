@@ -1,13 +1,13 @@
 use super::auth_value::{determine_auth_value, AuthValue};
-use super::pdu::{
-    Capabilities, Confirmation, ProvisioningData, ProvisioningPDU, PublicKey, Random,
-};
 use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::{
     aes_cmac,
     provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
     s1,
+};
+use btmesh_pdu::provisioning::{
+    Capabilities, Confirmation, ProvisioningData, ProvisioningPDU, PublicKey, Random,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
@@ -201,7 +201,7 @@ pub struct DataDistribution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::unprovisioned::pdu::Invite;
+    use btmesh_pdu::provisioning::Invite;
     use rand_core::OsRng;
 
     #[test]

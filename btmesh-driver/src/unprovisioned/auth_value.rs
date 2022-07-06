@@ -1,5 +1,5 @@
-use super::pdu::{InputOOBAction, OOBAction, OOBSize, OutputOOBAction, Start};
 use btmesh_common::ParseError;
+use btmesh_pdu::provisioning::{InputOOBAction, OOBAction, OOBSize, OutputOOBAction, Start};
 use heapless::Vec;
 use rand_core::RngCore;
 

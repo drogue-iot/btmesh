@@ -1,7 +1,7 @@
-use super::pdu::{Capabilities, Invite, PublicKey, Start};
 use aes::Aes128;
 use btmesh_common::crypto::s1;
 use btmesh_common::InsufficientBuffer;
+use btmesh_pdu::provisioning::{Capabilities, Invite, PublicKey, Start};
 use cmac::crypto_mac::{InvalidKeyLength, Output};
 use cmac::Cmac;
 use heapless::Vec;
