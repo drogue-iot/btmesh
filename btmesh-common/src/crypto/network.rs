@@ -1,7 +1,7 @@
 use crate::crypto::nonce::NetworkNonce;
 use crate::crypto::{aes_ccm_decrypt_detached, aes_ccm_encrypt_detached};
 use crate::mic::InvalidLength;
-use crate::{crypto, ParseError};
+use crate::{crypto, NetworkId, ParseError};
 use ccm::aead::Error;
 use cmac::crypto_mac::InvalidKeyLength;
 use core::ops::Deref;
@@ -122,17 +122,25 @@ pub struct NetworkKey {
     privacy_key: PrivacyKey,
     encryption_key: EncryptionKey,
     nid: Nid,
+    network_id: NetworkId,
 }
 
 impl NetworkKey {
     pub fn new(network_key: [u8; 16]) -> Result<Self, InvalidKeyLength> {
         let (nid, encryption_key, privacy_key) = crypto::k2(&network_key, &[0x00])?;
 
+        let network_id = NetworkId::new( crypto::k3(&network_key)? );
+
         Ok(Self {
             privacy_key: PrivacyKey(privacy_key),
             encryption_key: EncryptionKey(encryption_key),
             nid: Nid::new(nid),
+            network_id,
         })
+    }
+
+    pub fn network_id(&self) -> NetworkId {
+        self.network_id
     }
 
     pub fn privacy_key(&self) -> PrivacyKey {

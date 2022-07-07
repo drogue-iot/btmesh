@@ -105,7 +105,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
             let data = self.bearer.receive().await?;
             if data.len() >= 2 {
                 match (state, data[1]) {
-                    (DeviceState::Unprovisioned { uuid }, PB_ADV) => {
+                    (DeviceState::Unprovisioned { uuid, in_progress: _ }, PB_ADV) => {
                         if let Some(pdu) = self.receive_pb_adv(&data, uuid).await? {
                             return Ok(PDU::Provisioning(pdu));
                         }

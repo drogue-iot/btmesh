@@ -33,6 +33,15 @@ impl UnprovisionedStack {
         }
     }
 
+    pub fn in_progress(&self) -> bool {
+        if let Some(provisionee) = &self.provisionee {
+            provisionee.in_progress()
+        } else {
+            false
+        }
+
+    }
+
     pub fn process<RNG: RngCore + CryptoRng>(
         &mut self,
         pdu: &ProvisioningPDU,

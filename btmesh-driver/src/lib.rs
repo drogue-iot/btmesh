@@ -8,6 +8,7 @@ use btmesh_common::{Seq, Uuid};
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use rand_core::{CryptoRng, RngCore};
+use btmesh_bearer::beacon::Beacon;
 
 mod error;
 pub mod stack;
@@ -58,11 +59,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         }
     }
 
-    /// Perform a single end-to-end loop through the driver's processing logic.
-    pub async fn process(&mut self) -> Result<(), DriverError> {
-        let device_state = self.stack.device_state();
-
-        let pdu = self.network.receive(&device_state).await?;
+    async fn receive_pdu(&mut self, pdu: &PDU) -> Result<(), DriverError> {
         match (&pdu, &mut self.stack) {
             (PDU::Provisioning(pdu), Stack::Unprovisioned(stack, num_elements, _uuid)) => {
                 if let Some(provisioning_state) = stack.process(pdu, &mut self.rng)? {
@@ -89,7 +86,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                     if let Some((block_ack, meta)) = result.block_ack {
                         // send outbound block-ack
                         for network_pdu in
-                            stack.process_outbound_block_ack(sequence, block_ack, meta)?
+                        stack.process_outbound_block_ack(sequence, block_ack, meta)?
                         {
                             // don't error if we can't send.
                             self.network.transmit(&PDU::Network(network_pdu)).await.ok();
@@ -107,9 +104,36 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         }
         Ok(())
     }
+
+    async fn send_beacon(&self) -> Result<(), DriverError> {
+        match &self.stack {
+            Stack::Unprovisioned(_stack, _num_elements,  uuid)=> {
+                self.network.beacon( Beacon::Unprovisioned(*uuid)).await?;
+            }
+
+            Stack::Provisioned(stack, ..) => {
+                let network_id = stack.secrets().network_key_by_index(0)?.network_id();
+                self.network.beacon( Beacon::Provisioned( network_id ) ).await?;
+            }
+
+        }
+        Ok(())
+    }
+
+    /// Perform a single end-to-end loop through the driver's processing logic.
+    pub async fn process(&mut self) -> Result<(), DriverError> {
+        let device_state = self.stack.device_state();
+
+        let pdu = self.network.receive(&device_state).await?;
+        self.send_beacon().await?;
+
+        self.receive_pdu(&pdu).await?;
+
+        Ok(())
+    }
 }
 
 pub enum DeviceState {
-    Unprovisioned { uuid: Uuid },
+    Unprovisioned { uuid: Uuid, in_progress: bool },
     Provisioned,
 }

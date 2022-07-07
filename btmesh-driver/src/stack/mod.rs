@@ -15,7 +15,9 @@ pub enum Stack {
 impl Stack {
     pub fn device_state(&self) -> DeviceState {
         match self {
-            Stack::Unprovisioned(_, _, uuid) => DeviceState::Unprovisioned { uuid: *uuid },
+            Stack::Unprovisioned(stack, _, uuid) => {
+                 DeviceState::Unprovisioned { uuid: *uuid, in_progress: stack.in_progress() }
+            },
             Stack::Provisioned(_, _) => DeviceState::Provisioned,
         }
     }

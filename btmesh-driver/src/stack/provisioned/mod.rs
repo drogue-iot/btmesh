@@ -140,6 +140,10 @@ impl ProvisionedStack {
         }
     }
 
+    pub(crate) fn secrets(&self) -> &Secrets {
+        &self.secrets
+    }
+
     fn process_outbound(
         &mut self,
         sequence: &Sequence,

@@ -296,6 +296,12 @@ impl Deref for Uuid {
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub struct NetworkId([u8; 8]);
 
+impl NetworkId {
+    pub fn new(network_id: [u8;8]) -> Self {
+        Self(network_id)
+    }
+}
+
 impl Deref for NetworkId {
     type Target = [u8];
 

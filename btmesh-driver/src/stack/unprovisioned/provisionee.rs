@@ -33,6 +33,10 @@ impl Provisionee {
         })
     }
 
+    pub fn in_progress(&self) -> bool {
+        !matches!(self, Self::Beaconing(..) | Self::Complete(..))
+    }
+
     pub fn next<RNG: RngCore + CryptoRng>(
         self,
         pdu: &ProvisioningPDU,
