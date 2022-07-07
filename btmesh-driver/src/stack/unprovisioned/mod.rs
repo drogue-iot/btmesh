@@ -1,14 +1,10 @@
 use crate::stack::unprovisioned::provisionee::Provisionee;
 use crate::DriverError;
-use aes::Aes128;
 use btmesh_common::crypto::device::DeviceKey;
-use btmesh_common::crypto::ZERO;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
-use cmac::crypto_mac::InvalidKeyLength;
-use cmac::{Cmac, Mac, NewMac};
-use core::cell::RefCell;
 use core::hash::{Hash, Hasher};
 use rand_core::{CryptoRng, RngCore};
+use crate::util::hash::FnvHasher;
 
 mod auth_value;
 mod provisionee;
@@ -29,32 +25,6 @@ pub struct UnprovisionedStack {
     last_transmit: Option<LastTransmit>,
 }
 
-struct AesCmacHasher {
-    cmac: RefCell<Cmac<Aes128>>,
-}
-
-impl AesCmacHasher {
-    fn new() -> Result<Self, InvalidKeyLength> {
-        Ok(Self {
-            cmac: RefCell::new(Cmac::new_from_slice(&ZERO)?),
-        })
-    }
-}
-
-impl Hasher for AesCmacHasher {
-    fn finish(&self) -> u64 {
-        let hash = self.cmac.borrow_mut().finalize_reset();
-        let hash = hash.into_bytes();
-        u64::from_be_bytes([
-            hash[0], hash[1], hash[2], hash[3], hash[4], hash[5], hash[6], hash[7],
-        ])
-    }
-
-    fn write(&mut self, bytes: &[u8]) {
-        self.cmac.borrow_mut().update(bytes);
-    }
-}
-
 impl UnprovisionedStack {
     pub fn new(capabilities: Capabilities) -> Self {
         Self {
@@ -68,7 +38,7 @@ impl UnprovisionedStack {
         pdu: &ProvisioningPDU,
         rng: &mut RNG,
     ) -> Result<Option<ProvisioningState>, DriverError> {
-        let mut hasher = AesCmacHasher::new()?;
+        let mut hasher = FnvHasher::default();
         pdu.hash(&mut hasher);
         let hash = hasher.finish();
 

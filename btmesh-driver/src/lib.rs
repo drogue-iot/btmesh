@@ -12,6 +12,8 @@ use rand_core::{CryptoRng, RngCore};
 mod error;
 pub mod stack;
 
+mod util;
+
 use crate::stack::interface::NetworkInterfaces;
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
