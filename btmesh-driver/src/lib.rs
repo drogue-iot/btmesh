@@ -31,10 +31,10 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng> {
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
-    pub fn new_unprovisioned(network: N, rng: R, capabilities: Capabilities) -> Self {
+    pub fn new_unprovisioned(network: N, rng: R, capabilities: Capabilities, uuid: Uuid) -> Self {
         let num_elements = capabilities.number_of_elements;
         Self {
-            stack: Stack::Unprovisioned(UnprovisionedStack::new(capabilities), num_elements),
+            stack: Stack::Unprovisioned(UnprovisionedStack::new(capabilities), num_elements, uuid),
             rng,
             network,
         }
@@ -64,7 +64,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
 
         let pdu = self.network.receive(&device_state).await?;
         match (&pdu, &mut self.stack) {
-            (PDU::Provisioning(pdu), Stack::Unprovisioned(stack, num_elements)) => {
+            (PDU::Provisioning(pdu), Stack::Unprovisioned(stack, num_elements, _uuid)) => {
                 if let Some(provisioning_state) = stack.process(pdu, &mut self.rng)? {
                     match provisioning_state {
                         ProvisioningState::Response(pdu) => {

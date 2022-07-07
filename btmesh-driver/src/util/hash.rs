@@ -1,7 +1,7 @@
 use core::hash::Hasher;
 
-const BASIS: u64 = 0x811c9dc5;
-const PRIME: u64 = 0x1000193;
+const BASIS: u64 = 0xcbf29ce484222325;
+const PRIME: u64 = 0x100000001b3;
 
 /// 64-bit Fowler-Noll-Vo hasher
 pub struct FnvHasher {
