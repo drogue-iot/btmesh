@@ -128,7 +128,10 @@ impl Provisionee {
                     Err(_) => Err(DriverError::CryptoError),
                 }
             }
-            _ => Err(DriverError::InvalidState),
+            (current_state, _) => {
+                // if it's an invalid PDU, assume it's just a wayward PDU and ignore, don't break.
+                Ok((current_state, None))
+            }
         }
     }
 }

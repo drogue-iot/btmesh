@@ -4,7 +4,7 @@ use core::ops::Add;
 use core::ops::Sub;
 use hash32_derive::Hash32;
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnicastAddress(u16);
 
