@@ -148,6 +148,9 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
             Either::Second(_) => {
                 self.send_beacon().await?;
             }
+            _ => {
+                // not actually needed, but my IDE says it is...
+            }
         }
 
         Ok(())
