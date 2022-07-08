@@ -9,7 +9,8 @@ use btmesh_common::crypto::{
     s1,
 };
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, ProvisioningData, ProvisioningPDU, PublicKey, Random,
+    Capabilities, Confirmation, ErrorCode, Failed, ProvisioningData, ProvisioningPDU, PublicKey,
+    Random,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
@@ -23,6 +24,7 @@ pub enum Provisionee {
     Authentication(Phase<Authentication>),
     DataDistribution(Phase<DataDistribution>),
     Complete(DeviceKey, ProvisioningData),
+    Failure,
 }
 
 impl Provisionee {
@@ -34,7 +36,10 @@ impl Provisionee {
     }
 
     pub fn in_progress(&self) -> bool {
-        !matches!(self, Self::Beaconing(..) | Self::Complete(..))
+        !matches!(
+            self,
+            Self::Beaconing(..) | Self::Complete(..) | Self::Failure
+        )
     }
 
     pub fn next<RNG: RngCore + CryptoRng>(
@@ -64,10 +69,12 @@ impl Provisionee {
                 Ok((Provisionee::KeyExchange(device.into()), None))
             }
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
-                // TODO: invalid key (sec 5.4.3.1) should fail provisioning (sec 5.4.4)
+                let public: p256::PublicKey = match peer_key.try_into() {
+                    Ok(key) => key,
+                    Err(_) => return fail(ErrorCode::InvalidFormat),
+                };
                 device.transcript.add_pubkey_provisioner(peer_key)?;
                 let private = SecretKey::random(rng);
-                let public: p256::PublicKey = peer_key.into();
                 let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
                 device.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
                 let pk: PublicKey = private.public_key().try_into()?;
@@ -98,6 +105,10 @@ impl Provisionee {
                 ))
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(random)) => {
+                // TODO: check confirmation (5.4.2.4) "The device
+                // shall send the Provisioning Random after verifying
+                // the confirmation value against the random number it
+                // has received."
                 device.state.random_provisioner.replace(random.random);
                 let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
                 Ok((
@@ -138,6 +149,13 @@ impl Provisionee {
             }
         }
     }
+}
+
+fn fail(error_code: ErrorCode) -> Result<(Provisionee, Option<ProvisioningPDU>), DriverError> {
+    Ok((
+        Provisionee::Failure,
+        Some(ProvisioningPDU::Failed(Failed { error_code })),
+    ))
 }
 
 pub struct Phase<S> {
@@ -239,5 +257,13 @@ mod tests {
             Some(ProvisioningPDU::Capabilities(c)) => assert_eq!(c.number_of_elements, size),
             _ => panic!("wrong pdu returned for invite"),
         }
+    }
+
+    #[test]
+    fn invalid_public_key() {
+        let mut buf = [0; 65];
+        buf[0] = 0x03; // ProvisioningPDU::PUBLIC_KEY;
+        let pk = PublicKey::parse(&buf).unwrap();
+        assert!(matches!(p256::PublicKey::try_from(&pk), Err(_)));
     }
 }
