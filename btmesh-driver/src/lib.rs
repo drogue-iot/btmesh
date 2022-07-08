@@ -32,6 +32,8 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng> {
     stack: Stack,
     network: N,
     rng: R,
+    // --
+    capabilities: Capabilities,
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
@@ -39,12 +41,13 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         let num_elements = capabilities.number_of_elements;
         Self {
             stack: Stack::Unprovisioned {
-                stack: UnprovisionedStack::new(capabilities),
+                stack: UnprovisionedStack::new(capabilities.clone()),
                 num_elements,
                 uuid,
             },
             rng,
             network,
+            capabilities,
         }
     }
 
@@ -55,6 +58,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         secrets: Secrets,
         network_state: NetworkState,
         sequence: Sequence,
+        capabilities: Capabilities,
     ) -> Self {
         Self {
             stack: Stack::Provisioned {
@@ -63,6 +67,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
             },
             rng,
             network,
+            capabilities,
         }
     }
 
@@ -73,11 +78,18 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                 Stack::Unprovisioned {
                     stack,
                     num_elements,
-                    ..
+                    uuid,
                 },
             ) => {
                 if let Some(provisioning_state) = stack.process(pdu, &mut self.rng)? {
                     match provisioning_state {
+                        ProvisioningState::Failed => {
+                            self.stack = Stack::Unprovisioned {
+                                stack: UnprovisionedStack::new(self.capabilities.clone()),
+                                num_elements: self.capabilities.number_of_elements,
+                                uuid: *uuid,
+                            };
+                        }
                         ProvisioningState::Response(pdu) => {
                             self.network.transmit(&PDU::Provisioning(pdu)).await?;
                         }

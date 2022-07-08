@@ -14,6 +14,7 @@ mod transcript;
 pub enum ProvisioningState {
     Response(ProvisioningPDU),
     Data(DeviceKey, ProvisioningData),
+    Failed,
 }
 
 struct LastTransmit {
@@ -74,6 +75,8 @@ impl UnprovisionedStack {
                     *device_key,
                     *provisioning_data,
                 )))
+            } else if let Some(Provisionee::Failure) = &self.provisionee {
+                Ok(Some(ProvisioningState::Failed))
             } else if let Some(response) = response {
                 // stash our response in case we need to retransmit
                 self.last_transmit.replace(LastTransmit {
