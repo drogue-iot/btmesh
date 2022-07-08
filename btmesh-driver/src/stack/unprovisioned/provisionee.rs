@@ -236,7 +236,7 @@ pub struct DataDistribution {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use btmesh_pdu::provisioning::Invite;
+    use btmesh_pdu::provisioning::{Invite, Start};
     use rand_core::OsRng;
 
     #[test]
@@ -260,10 +260,36 @@ mod tests {
     }
 
     #[test]
-    fn invalid_public_key() {
-        let mut buf = [0; 65];
-        buf[0] = 0x03; // ProvisioningPDU::PUBLIC_KEY;
-        let pk = PublicKey::parse(&buf).unwrap();
-        assert!(matches!(p256::PublicKey::try_from(&pk), Err(_)));
+    fn valid_keyexchange() {
+        let fsm = keyexchange();
+        let private = SecretKey::random(OsRng);
+        let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
+        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::Authentication(_)));
+        assert!(matches!(pdu, Some(ProvisioningPDU::PublicKey(_))));
+    }
+
+    #[test]
+    fn invalid_keyexchange() {
+        let fsm = keyexchange();
+        let (x, y) = ([0; 32], [0; 32]);
+        let pdu = ProvisioningPDU::PublicKey(PublicKey { x, y });
+        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::Failure));
+        assert!(
+            matches!(pdu, Some(ProvisioningPDU::Failed(e)) if matches!(e.error_code, ErrorCode::InvalidFormat))
+        );
+    }
+
+    fn keyexchange() -> Provisionee {
+        let fsm = Provisionee::new(Capabilities::default());
+        let invite = ProvisioningPDU::Invite(Invite::default());
+        let (fsm, _) = fsm.next(&invite, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::Invitation(_)));
+        let start = ProvisioningPDU::Start(Start::default());
+        let (fsm, pdu) = fsm.next(&start, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::KeyExchange(_)));
+        assert!(matches!(pdu, None));
+        fsm
     }
 }

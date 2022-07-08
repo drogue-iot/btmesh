@@ -23,7 +23,7 @@ pub enum ProvisioningPDU {
     Failed(Failed),
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Invite {
     pub attention_duration: u8,
@@ -107,7 +107,7 @@ impl Capabilities {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Start {
     pub algorithm: Algorithm,
@@ -479,9 +479,10 @@ impl ProvisioningPDU {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Algorithm {
+    #[default]
     P256,
 }
 
@@ -585,9 +586,10 @@ impl PublicKeyType {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PublicKeySelected {
+    #[default]
     NoPublicKey,
     OOBPublicKey,
 }
@@ -856,9 +858,10 @@ impl Default for InputOOBActions {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OOBAction {
+    #[default]
     None,
     Output(OutputOOBAction),
     Input(InputOOBAction),
@@ -894,9 +897,10 @@ impl OOBAction {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Default, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AuthenticationMethod {
+    #[default]
     No = 0x00,
     Static = 0x01,
     Output = 0x02,
