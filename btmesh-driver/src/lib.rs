@@ -4,11 +4,14 @@
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 
+use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Seq, Uuid};
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
+use core::future::{pending, Future};
+use embassy::time::{Duration, Ticker, Timer};
+use embassy::util::{select, Either};
 use rand_core::{CryptoRng, RngCore};
-use btmesh_bearer::beacon::Beacon;
 
 mod error;
 pub mod stack;
@@ -35,7 +38,11 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     pub fn new_unprovisioned(network: N, rng: R, capabilities: Capabilities, uuid: Uuid) -> Self {
         let num_elements = capabilities.number_of_elements;
         Self {
-            stack: Stack::Unprovisioned(UnprovisionedStack::new(capabilities), num_elements, uuid),
+            stack: Stack::Unprovisioned {
+                stack: UnprovisionedStack::new(capabilities),
+                num_elements,
+                uuid,
+            },
             rng,
             network,
         }
@@ -50,10 +57,10 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         sequence: Sequence,
     ) -> Self {
         Self {
-            stack: Stack::Provisioned(
-                ProvisionedStack::new(device_info, secrets, network_state),
+            stack: Stack::Provisioned {
+                stack: ProvisionedStack::new(device_info, secrets, network_state),
                 sequence,
-            ),
+            },
             rng,
             network,
         }
@@ -61,7 +68,14 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
 
     async fn receive_pdu(&mut self, pdu: &PDU) -> Result<(), DriverError> {
         match (&pdu, &mut self.stack) {
-            (PDU::Provisioning(pdu), Stack::Unprovisioned(stack, num_elements, _uuid)) => {
+            (
+                PDU::Provisioning(pdu),
+                Stack::Unprovisioned {
+                    stack,
+                    num_elements,
+                    ..
+                },
+            ) => {
                 if let Some(provisioning_state) = stack.process(pdu, &mut self.rng)? {
                     match provisioning_state {
                         ProvisioningState::Response(pdu) => {
@@ -73,20 +87,20 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                             let secrets = (device_key, provisioning_data).into();
                             let network_state = provisioning_data.into();
 
-                            self.stack = Stack::Provisioned(
-                                ProvisionedStack::new(device_info, secrets, network_state),
-                                Sequence::new(Seq::new(800)),
-                            );
+                            self.stack = Stack::Provisioned {
+                                stack: ProvisionedStack::new(device_info, secrets, network_state),
+                                sequence: Sequence::new(Seq::new(800)),
+                            };
                         }
                     }
                 }
             }
-            (PDU::Network(pdu), Stack::Provisioned(stack, sequence)) => {
+            (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
                 if let Some(result) = stack.process_inbound_network_pdu(pdu)? {
                     if let Some((block_ack, meta)) = result.block_ack {
                         // send outbound block-ack
                         for network_pdu in
-                        stack.process_outbound_block_ack(sequence, block_ack, meta)?
+                            stack.process_outbound_block_ack(sequence, block_ack, meta)?
                         {
                             // don't error if we can't send.
                             self.network.transmit(&PDU::Network(network_pdu)).await.ok();
@@ -107,15 +121,14 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
 
     async fn send_beacon(&self) -> Result<(), DriverError> {
         match &self.stack {
-            Stack::Unprovisioned(_stack, _num_elements,  uuid)=> {
-                self.network.beacon( Beacon::Unprovisioned(*uuid)).await?;
+            Stack::Unprovisioned { uuid, .. } => {
+                self.network.beacon(Beacon::Unprovisioned(*uuid)).await?;
             }
 
-            Stack::Provisioned(stack, ..) => {
+            Stack::Provisioned { stack, .. } => {
                 let network_id = stack.secrets().network_key_by_index(0)?.network_id();
-                self.network.beacon( Beacon::Provisioned( network_id ) ).await?;
+                self.network.beacon(Beacon::Provisioned(network_id)).await?;
             }
-
         }
         Ok(())
     }
@@ -124,14 +137,38 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     pub async fn process(&mut self) -> Result<(), DriverError> {
         let device_state = self.stack.device_state();
 
-        let pdu = self.network.receive(&device_state).await?;
-        self.send_beacon().await?;
+        let receive_fut = self.network.receive(&device_state);
+        let beacon_fut = self.next_beacon();
 
-        self.receive_pdu(&pdu).await?;
+        match select(receive_fut, beacon_fut).await {
+            Either::First(Ok(pdu)) => {
+                self.receive_pdu(&pdu).await?;
+            }
+            Either::First(Err(err)) => return Err(err.into()),
+            Either::Second(_) => {
+                self.send_beacon().await?;
+            }
+        }
 
         Ok(())
     }
+
+    fn next_beacon(&self) -> BeaconFuture<'_, N, R> {
+        async move {
+            if let Some(next_beacon_deadline) = self.stack.next_beacon_deadline() {
+                Timer::at(next_beacon_deadline).await
+            } else {
+                pending().await
+            }
+        }
+    }
 }
+
+type BeaconFuture<'f, N, R>
+where
+    N: NetworkInterfaces + 'f,
+    R: CryptoRng + RngCore + 'f,
+= impl Future<Output = ()> + 'f;
 
 pub enum DeviceState {
     Unprovisioned { uuid: Uuid, in_progress: bool },

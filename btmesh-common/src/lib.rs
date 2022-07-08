@@ -297,7 +297,7 @@ impl Deref for Uuid {
 pub struct NetworkId([u8; 8]);
 
 impl NetworkId {
-    pub fn new(network_id: [u8;8]) -> Self {
+    pub fn new(network_id: [u8; 8]) -> Self {
         Self(network_id)
     }
 }

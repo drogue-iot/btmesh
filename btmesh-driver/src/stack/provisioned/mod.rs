@@ -10,6 +10,7 @@ use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
+use embassy::time::Instant;
 use heapless::Vec;
 use secrets::Secrets;
 
@@ -113,6 +114,10 @@ impl ProvisionedStack {
             network: NetworkDriver::new(device_info),
             transmit_queue: Default::default(),
         }
+    }
+
+    pub fn next_beacon_deadline(&self) -> Option<Instant> {
+        None
     }
 
     pub fn process_inbound_network_pdu(

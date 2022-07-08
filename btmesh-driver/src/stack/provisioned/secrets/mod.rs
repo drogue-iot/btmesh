@@ -48,10 +48,7 @@ impl Secrets {
             .cloned()
     }
 
-    pub(crate) fn network_key_by_index(
-        &self,
-        index: u8
-    ) -> Result<NetworkKey, DriverError> {
+    pub(crate) fn network_key_by_index(&self, index: u8) -> Result<NetworkKey, DriverError> {
         if let Some(network_key) = self.network_keys.keys[index as usize] {
             Ok(network_key)
         } else {

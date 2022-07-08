@@ -4,6 +4,7 @@ use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
 use core::hash::{Hash, Hasher};
+use embassy::time::Instant;
 use rand_core::{CryptoRng, RngCore};
 
 mod auth_value;
@@ -39,7 +40,10 @@ impl UnprovisionedStack {
         } else {
             false
         }
+    }
 
+    pub fn next_beacon_deadline(&self) -> Option<Instant> {
+        None
     }
 
     pub fn process<RNG: RngCore + CryptoRng>(

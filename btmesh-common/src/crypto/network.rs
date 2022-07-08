@@ -129,7 +129,7 @@ impl NetworkKey {
     pub fn new(network_key: [u8; 16]) -> Result<Self, InvalidKeyLength> {
         let (nid, encryption_key, privacy_key) = crypto::k2(&network_key, &[0x00])?;
 
-        let network_id = NetworkId::new( crypto::k3(&network_key)? );
+        let network_id = NetworkId::new(crypto::k3(&network_key)?);
 
         Ok(Self {
             privacy_key: PrivacyKey(privacy_key),
