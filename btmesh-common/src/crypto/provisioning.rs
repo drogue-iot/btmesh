@@ -4,7 +4,7 @@ use ccm::aead::Error;
 use cmac::crypto_mac::{InvalidKeyLength, Output};
 use cmac::Cmac;
 
-pub fn try_decrypt_confirmation(
+pub fn try_decrypt_data(
     session_key: &[u8],
     session_nonce: &[u8],
     data: &mut [u8],

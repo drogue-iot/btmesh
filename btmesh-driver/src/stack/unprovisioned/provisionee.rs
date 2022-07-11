@@ -2,10 +2,9 @@ use super::auth_value::{determine_auth_value, AuthValue};
 use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
-use btmesh_common::crypto::provisioning::prdk;
 use btmesh_common::crypto::{
     aes_cmac,
-    provisioning::{prck, prsk, prsn, try_decrypt_confirmation},
+    provisioning::{prck, prdk, prsk, prsn, try_decrypt_data},
     s1,
 };
 use btmesh_pdu::provisioning::{
@@ -60,10 +59,7 @@ impl Provisionee {
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
                 device.transcript.add_start(start)?;
-                device
-                    .state
-                    .auth_value
-                    .replace(determine_auth_value(rng, start)?);
+                device.state.auth_value = Some(determine_auth_value(rng, start)?);
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
                 Ok((Provisionee::KeyExchange(device.into()), None))
@@ -73,6 +69,7 @@ impl Provisionee {
                     Ok(key) => key,
                     Err(_) => return fail(ErrorCode::InvalidFormat),
                 };
+                // TODO: logic may depend on which peer (provisioner or device) we are
                 device.transcript.add_pubkey_provisioner(peer_key)?;
                 let private = SecretKey::random(rng);
                 let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
@@ -84,32 +81,24 @@ impl Provisionee {
                     Some(ProvisioningPDU::PublicKey(pk)),
                 ))
             }
-            (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(_value)) => {
-                // TODO: should we introduce a sub-state for Input OOB
-                // to know when to send back an InputComplete PDU?
-
-                // TODO: verify the confirmation from the provisioner, _value
-
+            (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
+                device.state.confirmation = Some(value.confirmation);
                 let mut random_device = [0; 16];
                 rng.fill_bytes(&mut random_device);
-                let salt = device.transcript.confirmation_salt()?;
-                let key = prck(&device.state.shared_secret, &*salt.into_bytes())?;
-                let mut bytes: Vec<u8, 32> = Vec::new();
-                bytes.extend_from_slice(&random_device)?;
-                bytes.extend_from_slice(&device.state.auth_value.get_bytes())?;
-                let confirmation = aes_cmac(&key.into_bytes(), &bytes)?.into_bytes().into();
-                device.state.random_device.replace(random_device);
+                let confirmation = device.confirmation(&random_device)?;
+                device.state.random_device = Some(random_device);
                 Ok((
                     Provisionee::Authentication(device),
                     Some(ProvisioningPDU::Confirmation(Confirmation { confirmation })),
                 ))
             }
-            (Provisionee::Authentication(mut device), ProvisioningPDU::Random(random)) => {
-                // TODO: check confirmation (5.4.2.4) "The device
-                // shall send the Provisioning Random after verifying
-                // the confirmation value against the random number it
-                // has received."
-                device.state.random_provisioner.replace(random.random);
+            (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
+                let confirmation = device.confirmation(&value.random)?;
+                match device.state.confirmation {
+                    Some(v) if v == confirmation => (),
+                    _ => return fail(ErrorCode::ConfirmationFailed),
+                }
+                device.state.random_provisioner = Some(value.random);
                 let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
                 Ok((
                     Provisionee::DataDistribution(device.into()),
@@ -130,7 +119,7 @@ impl Provisionee {
                 let mut decrypted = [0; 25];
                 decrypted.copy_from_slice(&data.encrypted);
 
-                match try_decrypt_confirmation(key, nonce, &mut decrypted, &data.mic, None) {
+                match try_decrypt_data(key, nonce, &mut decrypted, &data.mic, None) {
                     Ok(_) => {
                         let device_key = &*prdk(&device.state.shared_secret, salt)?.into_bytes();
                         let device_key = DeviceKey::try_from(device_key)
@@ -191,6 +180,7 @@ impl From<Phase<KeyExchange>> for Phase<Authentication> {
             state: Authentication {
                 auth_value: p.state.auth_value,
                 shared_secret: p.state.shared_secret.unwrap(),
+                confirmation: None,
                 random_device: None,
                 random_provisioner: None,
             },
@@ -224,6 +214,7 @@ pub struct KeyExchange {
 pub struct Authentication {
     auth_value: AuthValue,
     shared_secret: [u8; 32],
+    confirmation: Option<[u8; 16]>,
     random_device: Option<[u8; 16]>,
     random_provisioner: Option<[u8; 16]>,
 }
@@ -231,6 +222,17 @@ pub struct DataDistribution {
     shared_secret: [u8; 32],
     random_device: [u8; 16],
     random_provisioner: [u8; 16],
+}
+
+impl Phase<Authentication> {
+    fn confirmation(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
+        let salt = self.transcript.confirmation_salt()?;
+        let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
+        let mut bytes: Vec<u8, 32> = Vec::new();
+        bytes.extend_from_slice(random)?;
+        bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;
+        Ok(aes_cmac(&key.into_bytes(), &bytes)?.into_bytes().into())
+    }
 }
 
 #[cfg(test)]
