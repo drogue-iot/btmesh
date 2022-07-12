@@ -122,8 +122,7 @@ impl Provisionee {
                 match try_decrypt_data(key, nonce, &mut decrypted, &data.mic, None) {
                     Ok(_) => {
                         let device_key = &*prdk(&device.state.shared_secret, salt)?.into_bytes();
-                        let device_key = DeviceKey::try_from(device_key)
-                            .map_err(|_| DriverError::CryptoError)?;
+                        let device_key = DeviceKey::try_from(device_key)?;
                         Ok((
                             Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
                             Some(ProvisioningPDU::Complete),

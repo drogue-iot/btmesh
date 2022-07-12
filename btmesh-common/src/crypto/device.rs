@@ -24,10 +24,10 @@ impl Deref for DeviceKey {
 }
 
 impl TryFrom<&[u8]> for DeviceKey {
-    type Error = Error;
+    type Error = crate::ParseError;
 
     fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
-        Ok(DeviceKey::new(value.try_into().map_err(|_| Error)?))
+        Ok(DeviceKey::new(value.try_into()?))
     }
 }
 
