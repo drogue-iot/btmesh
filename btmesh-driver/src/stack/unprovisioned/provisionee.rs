@@ -179,9 +179,7 @@ impl From<Phase<KeyExchange>> for Phase<Authentication> {
             state: Authentication {
                 auth_value: p.state.auth_value,
                 shared_secret: p.state.shared_secret.unwrap(),
-                confirmation: None,
-                random_device: None,
-                random_provisioner: None,
+                ..Default::default()
             },
         }
     }
@@ -210,6 +208,7 @@ pub struct KeyExchange {
     auth_value: AuthValue,
     shared_secret: Option<[u8; 32]>,
 }
+#[derive(Default)]
 pub struct Authentication {
     auth_value: AuthValue,
     shared_secret: [u8; 32],
@@ -280,6 +279,29 @@ mod tests {
         assert!(
             matches!(pdu, Some(ProvisioningPDU::Failed(e)) if matches!(e.error_code, ErrorCode::InvalidFormat))
         );
+    }
+
+    #[test]
+    fn confirmation() {
+        let fsm = keyexchange();
+        let private = SecretKey::random(OsRng);
+        let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
+        let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        let confirmation: [u8; 16];
+        match fsm {
+            Provisionee::Authentication(ref auth) => {
+                let mut random = [0; 16];
+                OsRng.fill_bytes(&mut random);
+                confirmation = auth.confirmation(&random).unwrap();
+            }
+            _ => panic!("wrong state returned"),
+        }
+        let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
+        let (_fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        match pdu {
+            Some(ProvisioningPDU::Confirmation(c)) => assert_ne!(c.confirmation, confirmation),
+            _ => panic!("wrong pdu returned"),
+        }
     }
 
     fn keyexchange() -> Provisionee {

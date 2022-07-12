@@ -3,7 +3,9 @@ use btmesh_pdu::provisioning::{InputOOBAction, OOBAction, OOBSize, OutputOOBActi
 use heapless::Vec;
 use rand_core::RngCore;
 
+#[derive(Default)]
 pub enum AuthValue {
+    #[default]
     None,
     InputEvents(u32),
     OutputEvents(u32),
