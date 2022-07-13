@@ -9,7 +9,7 @@ use btmesh_common::{Seq, Uuid};
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use core::future::{pending, Future};
-use embassy::time::{Duration, Ticker, Timer};
+use embassy::time::Timer;
 use embassy::util::{select, Either};
 use rand_core::{CryptoRng, RngCore};
 
@@ -149,23 +149,20 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     pub async fn process(&mut self) -> Result<(), DriverError> {
         let device_state = self.stack.device_state();
 
-        let receive_fut = self.network.receive(&device_state);
-        let beacon_fut = self.next_beacon();
+        loop {
+            let receive_fut = self.network.receive(&device_state);
+            let beacon_fut = self.next_beacon();
 
-        match select(receive_fut, beacon_fut).await {
-            Either::First(Ok(pdu)) => {
-                self.receive_pdu(&pdu).await?;
-            }
-            Either::First(Err(err)) => return Err(err.into()),
-            Either::Second(_) => {
-                self.send_beacon().await?;
-            }
-            _ => {
-                // not actually needed, but my IDE says it is...
+            match select(receive_fut, beacon_fut).await {
+                Either::First(Ok(pdu)) => {
+                    self.receive_pdu(&pdu).await?;
+                }
+                Either::First(Err(err)) => return Err(err.into()),
+                Either::Second(_) => {
+                    self.send_beacon().await?;
+                }
             }
         }
-
-        Ok(())
     }
 
     fn next_beacon(&self) -> BeaconFuture<'_, N, R> {
