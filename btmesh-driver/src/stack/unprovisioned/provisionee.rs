@@ -287,21 +287,21 @@ mod tests {
         let private = SecretKey::random(OsRng);
         let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
         let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
-        let confirmation: [u8; 16];
-        match fsm {
-            Provisionee::Authentication(ref auth) => {
-                let mut random = [0; 16];
-                OsRng.fill_bytes(&mut random);
-                confirmation = auth.confirmation(&random).unwrap();
-            }
+        let mut random = [0; 16];
+        OsRng.fill_bytes(&mut random);
+        let confirmation = match &fsm {
+            Provisionee::Authentication(ref auth) => auth.confirmation(&random).unwrap(),
             _ => panic!("wrong state returned"),
-        }
+        };
         let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
-        let (_fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
         match pdu {
             Some(ProvisioningPDU::Confirmation(c)) => assert_ne!(c.confirmation, confirmation),
             _ => panic!("wrong pdu returned"),
         }
+        let pdu = ProvisioningPDU::Random(Random { random });
+        let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::DataDistribution(_)));
     }
 
     fn keyexchange() -> Provisionee {
