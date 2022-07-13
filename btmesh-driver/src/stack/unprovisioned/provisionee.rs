@@ -282,26 +282,24 @@ mod tests {
     }
 
     #[test]
-    fn confirmation() {
-        let fsm = keyexchange();
-        let private = SecretKey::random(OsRng);
-        let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
-        let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+    fn valid_confirmation() {
         let mut random = [0; 16];
         OsRng.fill_bytes(&mut random);
-        let confirmation = match &fsm {
-            Provisionee::Authentication(ref auth) => auth.confirmation(&random).unwrap(),
-            _ => panic!("wrong state returned"),
-        };
-        let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
-        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
-        match pdu {
-            Some(ProvisioningPDU::Confirmation(c)) => assert_ne!(c.confirmation, confirmation),
-            _ => panic!("wrong pdu returned"),
-        }
+        let fsm = confirmation(&random);
         let pdu = ProvisioningPDU::Random(Random { random });
         let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
         assert!(matches!(fsm, Provisionee::DataDistribution(_)));
+    }
+
+    #[test]
+    fn invalid_confirmation() {
+        let mut random = [0; 16];
+        let fsm = confirmation(&random);
+        // Use a different random to break confirmation...
+        OsRng.fill_bytes(&mut random);
+        let pdu = ProvisioningPDU::Random(Random { random });
+        let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        assert!(matches!(fsm, Provisionee::Failure));
     }
 
     fn keyexchange() -> Provisionee {
@@ -313,6 +311,24 @@ mod tests {
         let (fsm, pdu) = fsm.next(&start, &mut OsRng).unwrap();
         assert!(matches!(fsm, Provisionee::KeyExchange(_)));
         assert!(matches!(pdu, None));
+        fsm
+    }
+
+    fn confirmation(random: &[u8]) -> Provisionee {
+        let fsm = keyexchange();
+        let private = SecretKey::random(OsRng);
+        let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
+        let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        let confirmation = match &fsm {
+            Provisionee::Authentication(ref auth) => auth.confirmation(random).unwrap(),
+            _ => panic!("wrong state returned"),
+        };
+        let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
+        let (fsm, pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
+        match pdu {
+            Some(ProvisioningPDU::Confirmation(c)) => assert_ne!(c.confirmation, confirmation),
+            _ => panic!("wrong pdu returned"),
+        }
         fsm
     }
 }
