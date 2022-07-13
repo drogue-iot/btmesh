@@ -67,7 +67,7 @@ impl Provisionee {
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
                 let public: p256::PublicKey = match peer_key.try_into() {
                     Ok(key) => key,
-                    Err(_) => return fail(ErrorCode::InvalidFormat),
+                    Err(_) => return Provisionee::fail(ErrorCode::InvalidFormat),
                 };
                 // TODO: logic may depend on which peer (provisioner or device) we are
                 device.transcript.add_pubkey_provisioner(peer_key)?;
@@ -85,7 +85,7 @@ impl Provisionee {
                 device.state.confirmation = Some(value.confirmation);
                 let mut random_device = [0; 16];
                 rng.fill_bytes(&mut random_device);
-                let confirmation = device.confirmation(&random_device)?;
+                let confirmation = device.confirm(&random_device)?;
                 device.state.random_device = Some(random_device);
                 Ok((
                     Provisionee::Authentication(device),
@@ -93,10 +93,10 @@ impl Provisionee {
                 ))
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
-                let confirmation = device.confirmation(&value.random)?;
+                let confirmation = device.confirm(&value.random)?;
                 match device.state.confirmation {
                     Some(v) if v == confirmation => (),
-                    _ => return fail(ErrorCode::ConfirmationFailed),
+                    _ => return Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
                 device.state.random_provisioner = Some(value.random);
                 let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
@@ -137,13 +137,13 @@ impl Provisionee {
             }
         }
     }
-}
 
-fn fail(error_code: ErrorCode) -> Result<(Provisionee, Option<ProvisioningPDU>), DriverError> {
-    Ok((
-        Provisionee::Failure,
-        Some(ProvisioningPDU::Failed(Failed { error_code })),
-    ))
+    fn fail(error_code: ErrorCode) -> Result<(Provisionee, Option<ProvisioningPDU>), DriverError> {
+        Ok((
+            Provisionee::Failure,
+            Some(ProvisioningPDU::Failed(Failed { error_code })),
+        ))
+    }
 }
 
 pub struct Phase<S> {
@@ -223,7 +223,7 @@ pub struct DataDistribution {
 }
 
 impl Phase<Authentication> {
-    fn confirmation(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
+    fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
         let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
@@ -320,7 +320,7 @@ mod tests {
         let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
         let (fsm, _pdu) = fsm.next(&pdu, &mut OsRng).unwrap();
         let confirmation = match &fsm {
-            Provisionee::Authentication(ref auth) => auth.confirmation(random).unwrap(),
+            Provisionee::Authentication(ref auth) => auth.confirm(random).unwrap(),
             _ => panic!("wrong state returned"),
         };
         let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
