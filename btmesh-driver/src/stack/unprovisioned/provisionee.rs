@@ -59,7 +59,7 @@ impl Provisionee {
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
                 device.transcript.add_start(start)?;
-                device.state.auth_value = Some(determine_auth_value(rng, start)?);
+                device.state.auth_value = determine_auth_value(rng, start)?;
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
                 Ok((Provisionee::KeyExchange(device.into()), None))
@@ -155,7 +155,7 @@ impl From<Phase<Beaconing>> for Phase<Invitation> {
     fn from(p: Phase<Beaconing>) -> Phase<Invitation> {
         Phase {
             transcript: p.transcript,
-            state: Invitation { auth_value: None },
+            state: Invitation::default(),
         }
     }
 }
@@ -165,7 +165,7 @@ impl From<Phase<Invitation>> for Phase<KeyExchange> {
         Phase {
             transcript: p.transcript,
             state: KeyExchange {
-                auth_value: p.state.auth_value.unwrap(),
+                auth_value: p.state.auth_value,
                 shared_secret: None,
             },
         }
@@ -201,8 +201,9 @@ impl From<Phase<Authentication>> for Phase<DataDistribution> {
 pub struct Beaconing {
     capabilities: Capabilities,
 }
+#[derive(Default)]
 pub struct Invitation {
-    auth_value: Option<AuthValue>,
+    auth_value: AuthValue,
 }
 pub struct KeyExchange {
     auth_value: AuthValue,
