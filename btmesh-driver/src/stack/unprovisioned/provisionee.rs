@@ -1,17 +1,12 @@
-use super::auth_value::{determine_auth_value, AuthValue};
+use super::auth_value::determine_auth_value;
+use super::phases::*;
 use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
-use btmesh_common::crypto::{
-    aes_cmac,
-    provisioning::{prck, prdk, prsk, prsn, try_decrypt_data},
-    s1,
-};
 use btmesh_pdu::provisioning::{
     Capabilities, Confirmation, ErrorCode, Failed, ProvisioningData, ProvisioningPDU, PublicKey,
     Random,
 };
-use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
@@ -108,28 +103,11 @@ impl Provisionee {
                 ))
             }
             (Provisionee::DataDistribution(device), ProvisioningPDU::Data(data)) => {
-                let mut salt = [0; 48];
-                salt[0..16].copy_from_slice(&device.transcript.confirmation_salt()?.into_bytes());
-                salt[16..32].copy_from_slice(&device.state.random_provisioner);
-                salt[32..48].copy_from_slice(&device.state.random_device);
-                let salt = &s1(&salt)?.into_bytes()[0..];
-                let key = &prsk(&device.state.shared_secret, salt)?.into_bytes()[0..];
-                let nonce = &prsn(&device.state.shared_secret, salt)?.into_bytes()[3..];
-
-                let mut decrypted = [0; 25];
-                decrypted.copy_from_slice(&data.encrypted);
-
-                match try_decrypt_data(key, nonce, &mut decrypted, &data.mic, None) {
-                    Ok(_) => {
-                        let device_key = &*prdk(&device.state.shared_secret, salt)?.into_bytes();
-                        let device_key = DeviceKey::try_from(device_key)?;
-                        Ok((
-                            Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
-                            Some(ProvisioningPDU::Complete),
-                        ))
-                    }
-                    Err(_) => Err(DriverError::CryptoError),
-                }
+                let (device_key, decrypted) = device.decrypt(data)?;
+                Ok((
+                    Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
+                    Some(ProvisioningPDU::Complete),
+                ))
             }
             (current_state, _) => {
                 // if it's an invalid PDU, assume it's just a wayward PDU and ignore, don't break.
@@ -143,94 +121,6 @@ impl Provisionee {
             Provisionee::Failure,
             Some(ProvisioningPDU::Failed(Failed { error_code })),
         ))
-    }
-}
-
-pub struct Phase<S> {
-    transcript: Transcript,
-    state: S,
-}
-
-impl From<Phase<Beaconing>> for Phase<Invitation> {
-    fn from(p: Phase<Beaconing>) -> Phase<Invitation> {
-        Phase {
-            transcript: p.transcript,
-            state: Invitation::default(),
-        }
-    }
-}
-
-impl From<Phase<Invitation>> for Phase<KeyExchange> {
-    fn from(p: Phase<Invitation>) -> Phase<KeyExchange> {
-        Phase {
-            transcript: p.transcript,
-            state: KeyExchange {
-                auth_value: p.state.auth_value,
-                shared_secret: None,
-            },
-        }
-    }
-}
-
-impl From<Phase<KeyExchange>> for Phase<Authentication> {
-    fn from(p: Phase<KeyExchange>) -> Phase<Authentication> {
-        Phase {
-            transcript: p.transcript,
-            state: Authentication {
-                auth_value: p.state.auth_value,
-                shared_secret: p.state.shared_secret.unwrap(),
-                ..Default::default()
-            },
-        }
-    }
-}
-
-impl From<Phase<Authentication>> for Phase<DataDistribution> {
-    fn from(p: Phase<Authentication>) -> Phase<DataDistribution> {
-        Phase {
-            transcript: p.transcript,
-            state: DataDistribution {
-                shared_secret: p.state.shared_secret,
-                random_device: p.state.random_device.unwrap(),
-                random_provisioner: p.state.random_provisioner.unwrap(),
-            },
-        }
-    }
-}
-
-pub struct Beaconing {
-    capabilities: Capabilities,
-}
-#[derive(Default)]
-pub struct Invitation {
-    auth_value: AuthValue,
-}
-pub struct KeyExchange {
-    auth_value: AuthValue,
-    shared_secret: Option<[u8; 32]>,
-}
-#[derive(Default)]
-pub struct Authentication {
-    auth_value: AuthValue,
-    shared_secret: [u8; 32],
-    confirmation: Option<[u8; 16]>,
-    random_device: Option<[u8; 16]>,
-    random_provisioner: Option<[u8; 16]>,
-}
-pub struct DataDistribution {
-    shared_secret: [u8; 32],
-    random_device: [u8; 16],
-    random_provisioner: [u8; 16],
-}
-
-impl Phase<Authentication> {
-    fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
-        let salt = self.transcript.confirmation_salt()?;
-        let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
-        let mut bytes: Vec<u8, 32> = Vec::new();
-        bytes.extend_from_slice(random)?;
-        bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;
-        Ok(aes_cmac(&key.into_bytes(), &bytes)?.into_bytes().into())
     }
 }
 

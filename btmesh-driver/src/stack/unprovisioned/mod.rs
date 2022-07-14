@@ -8,6 +8,7 @@ use embassy::time::Instant;
 use rand_core::{CryptoRng, RngCore};
 
 mod auth_value;
+mod phases;
 mod provisionee;
 mod transcript;
 
