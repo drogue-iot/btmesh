@@ -58,8 +58,8 @@ impl Phase<KeyExchange> {
         };
         match &self.state.private {
             Some(v) => {
-                let pk = &v.public_key().try_into()?;
-                self.transcript.add_pubkey_provisioner(pk)?;
+                let provisioner_pk = &v.public_key().try_into()?;
+                self.transcript.add_pubkey_provisioner(provisioner_pk)?;
                 self.transcript.add_pubkey_device(key)?;
                 let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
                 self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
@@ -67,12 +67,12 @@ impl Phase<KeyExchange> {
             }
             None => {
                 let v = SecretKey::random(rng);
-                let dk = &v.public_key().try_into()?;
+                let device_pk = v.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(key)?;
-                self.transcript.add_pubkey_device(dk)?;
+                self.transcript.add_pubkey_device(&device_pk)?;
                 let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
                 self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-                Ok(Some(v.public_key().try_into()?))
+                Ok(Some(device_pk))
             }
         }
     }
