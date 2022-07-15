@@ -56,25 +56,24 @@ impl Phase<KeyExchange> {
             Ok(v) => v,
             Err(_) => return Err(ParseError::InvalidValue.into()),
         };
-        match &self.state.private {
+        let (private, result) = match self.state.private.take() {
             Some(v) => {
                 let provisioner_pk = &v.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(provisioner_pk)?;
                 self.transcript.add_pubkey_device(key)?;
-                let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
-                self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-                Ok(None)
+                (v, Ok(None))
             }
             None => {
                 let v = SecretKey::random(rng);
                 let device_pk = v.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(key)?;
                 self.transcript.add_pubkey_device(&device_pk)?;
-                let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
-                self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-                Ok(Some(device_pk))
+                (v, Ok(Some(device_pk)))
             }
-        }
+        };
+        let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
+        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+        result
     }
 }
 
