@@ -4,11 +4,8 @@ use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, ErrorCode, Failed, ProvisioningData, ProvisioningPDU, PublicKey,
-    Random,
+    Capabilities, Confirmation, ErrorCode, Failed, ProvisioningData, ProvisioningPDU, Random,
 };
-use p256::elliptic_curve::ecdh::diffie_hellman;
-use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
 pub enum Provisionee {
@@ -60,21 +57,15 @@ impl Provisionee {
                 Ok((Provisionee::KeyExchange(device.into()), None))
             }
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
-                let public: p256::PublicKey = match peer_key.try_into() {
-                    Ok(key) => key,
-                    Err(_) => return Provisionee::fail(ErrorCode::InvalidFormat),
-                };
-                // TODO: logic may depend on which peer (provisioner or device) we are
-                device.transcript.add_pubkey_provisioner(peer_key)?;
-                let private = SecretKey::random(rng);
-                let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
-                device.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-                let pk: PublicKey = private.public_key().try_into()?;
-                device.transcript.add_pubkey_device(&pk)?;
-                Ok((
-                    Provisionee::Authentication(device.into()),
-                    Some(ProvisioningPDU::PublicKey(pk)),
-                ))
+                match device.calculate_ecdh(peer_key, rng) {
+                    Ok(Some(key)) => Ok((
+                        Provisionee::Authentication(device.into()),
+                        Some(ProvisioningPDU::PublicKey(key)),
+                    )),
+                    Ok(None) => Ok((Provisionee::Authentication(device.into()), None)),
+                    Err(DriverError::Parse(_)) => Provisionee::fail(ErrorCode::InvalidFormat),
+                    Err(e) => Err(e),
+                }
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
                 device.state.confirmation = Some(value.confirmation);
@@ -127,7 +118,8 @@ impl Provisionee {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use btmesh_pdu::provisioning::{Invite, Start};
+    use btmesh_pdu::provisioning::{Invite, PublicKey, Start};
+    use p256::SecretKey;
     use rand_core::OsRng;
 
     #[test]

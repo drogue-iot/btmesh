@@ -7,8 +7,12 @@ use btmesh_common::crypto::{
     provisioning::{prck, prdk, prsk, prsn, try_decrypt_data},
     s1,
 };
-use btmesh_pdu::provisioning::{Capabilities, Data};
+use btmesh_common::ParseError;
+use btmesh_pdu::provisioning::{Capabilities, Data, PublicKey};
 use heapless::Vec;
+use p256::elliptic_curve::ecdh::diffie_hellman;
+use p256::SecretKey;
+use rand_core::{CryptoRng, RngCore};
 
 pub struct Phase<S> {
     pub transcript: Transcript,
@@ -22,9 +26,11 @@ pub struct Beaconing {
 pub struct Invitation {
     pub auth_value: AuthValue,
 }
+#[derive(Default)]
 pub struct KeyExchange {
     auth_value: AuthValue,
-    pub shared_secret: Option<[u8; 32]>,
+    private: Option<SecretKey>,
+    shared_secret: Option<[u8; 32]>,
 }
 #[derive(Default)]
 pub struct Authentication {
@@ -38,6 +44,38 @@ pub struct DataDistribution {
     shared_secret: [u8; 32],
     random_device: [u8; 16],
     random_provisioner: [u8; 16],
+}
+
+impl Phase<KeyExchange> {
+    pub fn calculate_ecdh<RNG: RngCore + CryptoRng>(
+        &mut self,
+        key: &PublicKey,
+        rng: &mut RNG,
+    ) -> Result<Option<PublicKey>, DriverError> {
+        let public: p256::PublicKey = match key.try_into() {
+            Ok(v) => v,
+            Err(_) => return Err(ParseError::InvalidValue.into()),
+        };
+        match &self.state.private {
+            Some(v) => {
+                let pk = &v.public_key().try_into()?;
+                self.transcript.add_pubkey_provisioner(pk)?;
+                self.transcript.add_pubkey_device(key)?;
+                let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
+                self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+                Ok(None)
+            }
+            None => {
+                let v = SecretKey::random(rng);
+                let dk = &v.public_key().try_into()?;
+                self.transcript.add_pubkey_provisioner(key)?;
+                self.transcript.add_pubkey_device(dk)?;
+                let secret = &diffie_hellman(v.to_nonzero_scalar(), public.as_affine());
+                self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+                Ok(Some(v.public_key().try_into()?))
+            }
+        }
+    }
 }
 
 impl Phase<Authentication> {
@@ -89,7 +127,7 @@ impl From<Phase<Invitation>> for Phase<KeyExchange> {
             transcript: p.transcript,
             state: KeyExchange {
                 auth_value: p.state.auth_value,
-                shared_secret: None,
+                ..Default::default()
             },
         }
     }
