@@ -1,6 +1,4 @@
-use super::auth_value::determine_auth_value;
 use super::phases::*;
-use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{
@@ -20,10 +18,7 @@ pub enum Provisionee {
 
 impl Provisionee {
     pub fn new(capabilities: Capabilities) -> Self {
-        Self::Beaconing(Phase {
-            transcript: Transcript::default(),
-            state: Beaconing { capabilities },
-        })
+        Self::Beaconing(Phase::<Beaconing>::new(capabilities))
     }
 
     pub fn in_progress(&self) -> bool {
@@ -40,18 +35,12 @@ impl Provisionee {
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
-                let capabilities = device.state.capabilities.clone();
-                device.transcript.add_invite(invite)?;
-                device.transcript.add_capabilities(&capabilities)?;
-                Ok((
-                    Provisionee::Invitation(device.into()),
-                    Some(ProvisioningPDU::Capabilities(capabilities)),
-                ))
+                let response = device.invite(invite)?;
+                Ok((Provisionee::Invitation(device.into()), Some(response)))
             }
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
-                device.transcript.add_start(start)?;
-                device.state.auth_value = determine_auth_value(rng, start)?;
+                device.start(start, rng)?;
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
                 Ok((Provisionee::KeyExchange(device.into()), None))

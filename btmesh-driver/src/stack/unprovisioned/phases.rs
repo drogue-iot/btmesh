@@ -1,4 +1,4 @@
-use super::auth_value::AuthValue;
+use super::auth_value::{determine_auth_value, AuthValue};
 use super::transcript::Transcript;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
@@ -8,23 +8,23 @@ use btmesh_common::crypto::{
     s1,
 };
 use btmesh_common::ParseError;
-use btmesh_pdu::provisioning::{Capabilities, Data, PublicKey};
+use btmesh_pdu::provisioning::{Capabilities, Data, Invite, ProvisioningPDU, PublicKey, Start};
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
 pub struct Phase<S> {
-    pub transcript: Transcript,
+    transcript: Transcript,
     pub state: S,
 }
 
 pub struct Beaconing {
-    pub capabilities: Capabilities,
+    capabilities: Capabilities,
 }
 #[derive(Default)]
 pub struct Invitation {
-    pub auth_value: AuthValue,
+    auth_value: AuthValue,
 }
 #[derive(Default)]
 pub struct KeyExchange {
@@ -44,6 +44,33 @@ pub struct DataDistribution {
     shared_secret: [u8; 32],
     random_device: [u8; 16],
     random_provisioner: [u8; 16],
+}
+
+impl Phase<Beaconing> {
+    pub fn new(capabilities: Capabilities) -> Self {
+        Phase {
+            transcript: Transcript::default(),
+            state: Beaconing { capabilities },
+        }
+    }
+    pub fn invite(&mut self, invitation: &Invite) -> Result<ProvisioningPDU, DriverError> {
+        let capabilities = self.state.capabilities.clone();
+        self.transcript.add_invite(invitation)?;
+        self.transcript.add_capabilities(&capabilities)?;
+        Ok(ProvisioningPDU::Capabilities(capabilities))
+    }
+}
+
+impl Phase<Invitation> {
+    pub fn start<RNG: RngCore + CryptoRng>(
+        &mut self,
+        start: &Start,
+        rng: &mut RNG,
+    ) -> Result<(), DriverError> {
+        self.transcript.add_start(start)?;
+        self.state.auth_value = determine_auth_value(rng, start)?;
+        Ok(())
+    }
 }
 
 impl Phase<KeyExchange> {
