@@ -8,7 +8,9 @@ use btmesh_common::crypto::{
     s1,
 };
 use btmesh_common::ParseError;
-use btmesh_pdu::provisioning::{Capabilities, Data, Invite, ProvisioningPDU, PublicKey, Start};
+use btmesh_pdu::provisioning::{
+    Capabilities, Confirmation, Data, Invite, ProvisioningPDU, PublicKey, Random, Start,
+};
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
@@ -16,7 +18,7 @@ use rand_core::{CryptoRng, RngCore};
 
 pub struct Phase<S> {
     transcript: Transcript,
-    pub state: S,
+    state: S,
 }
 
 pub struct Beaconing {
@@ -36,9 +38,9 @@ pub struct KeyExchange {
 pub struct Authentication {
     auth_value: AuthValue,
     shared_secret: [u8; 32],
-    pub confirmation: Option<[u8; 16]>,
-    pub random_device: Option<[u8; 16]>,
-    pub random_provisioner: Option<[u8; 16]>,
+    confirmation: Option<[u8; 16]>,
+    random_device: Option<[u8; 16]>,
+    random_provisioner: Option<[u8; 16]>,
 }
 pub struct DataDistribution {
     shared_secret: [u8; 32],
@@ -74,21 +76,6 @@ impl Phase<Invitation> {
 }
 
 impl Phase<KeyExchange> {
-    fn validate(pk: &PublicKey) -> Result<p256::PublicKey, DriverError> {
-        match pk.try_into() {
-            Ok(v) => Ok(v),
-            Err(_) => Err(ParseError::InvalidValue.into()),
-        }
-    }
-    fn calculate(
-        &mut self,
-        private: &SecretKey,
-        public: &p256::PublicKey,
-    ) -> Result<(), DriverError> {
-        let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
-        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-        Ok(())
-    }
     pub fn calculate_ecdh_provisioner(
         &mut self,
         key: &PublicKey,
@@ -123,10 +110,47 @@ impl Phase<KeyExchange> {
             }
         }
     }
+    fn validate(pk: &PublicKey) -> Result<p256::PublicKey, DriverError> {
+        match pk.try_into() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(ParseError::InvalidValue.into()),
+        }
+    }
+    fn calculate(
+        &mut self,
+        private: &SecretKey,
+        public: &p256::PublicKey,
+    ) -> Result<(), DriverError> {
+        let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
+        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+        Ok(())
+    }
 }
 
 impl Phase<Authentication> {
-    pub fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
+    pub fn store<RNG: RngCore + CryptoRng>(
+        &mut self,
+        value: &Confirmation,
+        rng: &mut RNG,
+    ) -> Result<ProvisioningPDU, DriverError> {
+        self.state.confirmation = Some(value.confirmation);
+        let mut random_device = [0; 16];
+        rng.fill_bytes(&mut random_device);
+        let confirmation = self.confirm(&random_device)?;
+        self.state.random_device = Some(random_device);
+        Ok(ProvisioningPDU::Confirmation(Confirmation { confirmation }))
+    }
+    pub fn check(&mut self, value: &Random) -> Result<ProvisioningPDU, DriverError> {
+        let confirmation = self.confirm(&value.random)?;
+        match self.state.confirmation {
+            Some(v) if v == confirmation => (),
+            _ => return Err(DriverError::CryptoError),
+        }
+        self.state.random_provisioner = Some(value.random);
+        let random = self.state.random_device.ok_or(DriverError::CryptoError)?;
+        Ok(ProvisioningPDU::Random(Random { random }))
+    }
+    pub(super) fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
         let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();

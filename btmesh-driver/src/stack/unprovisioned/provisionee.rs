@@ -2,7 +2,7 @@ use super::phases::*;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, ErrorCode, Failed, ProvisioningData, ProvisioningPDU, Random,
+    Capabilities, ErrorCode, Failed, ProvisioningData, ProvisioningPDU,
 };
 use rand_core::{CryptoRng, RngCore};
 
@@ -56,30 +56,16 @@ impl Provisionee {
                 }
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
-                device.state.confirmation = Some(value.confirmation);
-                let mut random_device = [0; 16];
-                rng.fill_bytes(&mut random_device);
-                let confirmation = device.confirm(&random_device)?;
-                device.state.random_device = Some(random_device);
-                Ok((
-                    Provisionee::Authentication(device),
-                    Some(ProvisioningPDU::Confirmation(Confirmation { confirmation })),
-                ))
+                let response = device.store(value, rng)?;
+                Ok((Provisionee::Authentication(device), Some(response)))
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
-                let confirmation = device.confirm(&value.random)?;
-                match device.state.confirmation {
-                    Some(v) if v == confirmation => (),
-                    _ => return Provisionee::fail(ErrorCode::ConfirmationFailed),
+                match device.check(value) {
+                    Ok(response) => {
+                        Ok((Provisionee::DataDistribution(device.into()), Some(response)))
+                    }
+                    Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
-                device.state.random_provisioner = Some(value.random);
-                let device_random = device.state.random_device.ok_or(DriverError::CryptoError)?;
-                Ok((
-                    Provisionee::DataDistribution(device.into()),
-                    Some(ProvisioningPDU::Random(Random {
-                        random: device_random,
-                    })),
-                ))
             }
             (Provisionee::DataDistribution(device), ProvisioningPDU::Data(data)) => {
                 let (device_key, decrypted) = device.decrypt(data)?;
@@ -106,7 +92,7 @@ impl Provisionee {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use btmesh_pdu::provisioning::{Invite, PublicKey, Start};
+    use btmesh_pdu::provisioning::{Confirmation, Invite, PublicKey, Random, Start};
     use p256::SecretKey;
     use rand_core::OsRng;
 
