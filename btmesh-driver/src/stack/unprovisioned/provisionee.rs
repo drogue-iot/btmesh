@@ -57,14 +57,13 @@ impl Provisionee {
                 Ok((Provisionee::KeyExchange(device.into()), None))
             }
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
-                match device.calculate_ecdh(peer_key, rng) {
-                    Ok(Some(key)) => Ok((
+                match device.calculate_ecdh_device(peer_key, rng) {
+                    Ok(key) => Ok((
                         Provisionee::Authentication(device.into()),
                         Some(ProvisioningPDU::PublicKey(key)),
                     )),
-                    Ok(None) => Ok((Provisionee::Authentication(device.into()), None)),
                     Err(DriverError::Parse(_)) => Provisionee::fail(ErrorCode::InvalidFormat),
-                    Err(e) => Err(e),
+                    Err(_) => Provisionee::fail(ErrorCode::UnexpectedError),
                 }
             }
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {

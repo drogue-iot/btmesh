@@ -47,33 +47,54 @@ pub struct DataDistribution {
 }
 
 impl Phase<KeyExchange> {
-    pub fn calculate_ecdh<RNG: RngCore + CryptoRng>(
+    fn validate(pk: &PublicKey) -> Result<p256::PublicKey, DriverError> {
+        match pk.try_into() {
+            Ok(v) => Ok(v),
+            Err(_) => Err(ParseError::InvalidValue.into()),
+        }
+    }
+    fn calculate(
+        &mut self,
+        private: &SecretKey,
+        public: p256::PublicKey,
+    ) -> Result<(), DriverError> {
+        let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
+        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+        Ok(())
+    }
+    pub fn calculate_ecdh_provisioner(
+        &mut self,
+        key: &PublicKey,
+    ) -> Result<PublicKey, DriverError> {
+        let public = Self::validate(key)?;
+        match self.state.private.take() {
+            Some(private) => {
+                self.calculate(&private, public)?;
+                let pk = private.public_key().try_into()?;
+                self.transcript.add_pubkey_provisioner(&pk)?;
+                self.transcript.add_pubkey_device(key)?;
+                Ok(pk)
+            }
+            None => Err(DriverError::InvalidState),
+        }
+    }
+    pub fn calculate_ecdh_device<RNG: RngCore + CryptoRng>(
         &mut self,
         key: &PublicKey,
         rng: &mut RNG,
-    ) -> Result<Option<PublicKey>, DriverError> {
-        let public: p256::PublicKey = match key.try_into() {
-            Ok(v) => v,
-            Err(_) => return Err(ParseError::InvalidValue.into()),
-        };
-        let (private, result) = match self.state.private.take() {
-            Some(v) => {
-                let provisioner_pk = &v.public_key().try_into()?;
-                self.transcript.add_pubkey_provisioner(provisioner_pk)?;
-                self.transcript.add_pubkey_device(key)?;
-                (v, Ok(None))
-            }
+    ) -> Result<PublicKey, DriverError> {
+        let public = Self::validate(key)?;
+        match self.state.private.take() {
+            Some(_) => Err(DriverError::InvalidState),
             None => {
-                let v = SecretKey::random(rng);
-                let device_pk = v.public_key().try_into()?;
+                let private = SecretKey::random(rng);
+                self.calculate(&private, public)?;
+                let pk = private.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(key)?;
-                self.transcript.add_pubkey_device(&device_pk)?;
-                (v, Ok(Some(device_pk)))
+                self.transcript.add_pubkey_device(&pk)?;
+                Ok(pk)
             }
-        };
-        let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
-        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
-        result
+        }
     }
 }
 
