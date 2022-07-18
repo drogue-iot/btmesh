@@ -56,7 +56,7 @@ impl Phase<KeyExchange> {
     fn calculate(
         &mut self,
         private: &SecretKey,
-        public: p256::PublicKey,
+        public: &p256::PublicKey,
     ) -> Result<(), DriverError> {
         let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
         self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
@@ -69,7 +69,7 @@ impl Phase<KeyExchange> {
         let public = Self::validate(key)?;
         match self.state.private.take() {
             Some(private) => {
-                self.calculate(&private, public)?;
+                self.calculate(&private, &public)?;
                 let pk = private.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(&pk)?;
                 self.transcript.add_pubkey_device(key)?;
@@ -88,7 +88,7 @@ impl Phase<KeyExchange> {
             Some(_) => Err(DriverError::InvalidState),
             None => {
                 let private = SecretKey::random(rng);
-                self.calculate(&private, public)?;
+                self.calculate(&private, &public)?;
                 let pk = private.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(key)?;
                 self.transcript.add_pubkey_device(&pk)?;
