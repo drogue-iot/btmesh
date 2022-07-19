@@ -16,6 +16,7 @@ use p256::elliptic_curve::ecdh::diffie_hellman;
 use p256::SecretKey;
 use rand_core::{CryptoRng, RngCore};
 
+#[derive(Default)]
 pub struct Phase<S> {
     transcript: Transcript,
     state: S,
@@ -27,6 +28,7 @@ pub struct Beaconing {
 #[derive(Default)]
 pub struct Invitation {
     auth_value: AuthValue,
+    private: Option<SecretKey>,
 }
 #[derive(Default)]
 pub struct KeyExchange {
@@ -72,6 +74,25 @@ impl Phase<Invitation> {
         self.transcript.add_start(start)?;
         self.state.auth_value = determine_auth_value(rng, start)?;
         Ok(())
+    }
+    pub fn capabilities<RNG: RngCore + CryptoRng>(
+        &mut self,
+        _capabilities: &Capabilities,
+        rng: &mut RNG,
+    ) -> Result<impl Iterator<Item = ProvisioningPDU>, DriverError> {
+        let mut response: Vec<ProvisioningPDU, 2> = Vec::new();
+        // TODO: derive Start from Capabilities
+        response
+            .push(ProvisioningPDU::Start(Start::default()))
+            .map_err(|_| DriverError::InsufficientSpace)?;
+
+        let private = SecretKey::random(rng);
+        let public = private.public_key().try_into()?;
+        response
+            .push(ProvisioningPDU::PublicKey(public))
+            .map_err(|_| DriverError::InsufficientSpace)?;
+        self.state.private = Some(private);
+        Ok(response.into_iter())
     }
 }
 

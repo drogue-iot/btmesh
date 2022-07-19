@@ -34,10 +34,12 @@ impl Provisionee {
         rng: &mut RNG,
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
+            // INVITE
             (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let response = device.invite(invite)?;
                 Ok((Provisionee::Invitation(device.into()), Some(response)))
             }
+            // START
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
                 device.start(start, rng)?;
@@ -45,6 +47,7 @@ impl Provisionee {
                 // it is so that it can blink/flash/accept input
                 Ok((Provisionee::KeyExchange(device.into()), None))
             }
+            // PUBLIC KEY
             (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
                 match device.calculate_ecdh_device(peer_key, rng) {
                     Ok(key) => Ok((
@@ -55,10 +58,12 @@ impl Provisionee {
                     Err(_) => Provisionee::fail(ErrorCode::UnexpectedError),
                 }
             }
+            // CONFIRMATION
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
                 let response = device.store(value, rng)?;
                 Ok((Provisionee::Authentication(device), Some(response)))
             }
+            // RANDOM
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
                 match device.check(value) {
                     Ok(response) => {
@@ -67,6 +72,7 @@ impl Provisionee {
                     Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
             }
+            // DATA
             (Provisionee::DataDistribution(device), ProvisioningPDU::Data(data)) => {
                 let (device_key, decrypted) = device.decrypt(data)?;
                 Ok((
@@ -74,9 +80,9 @@ impl Provisionee {
                     Some(ProvisioningPDU::Complete),
                 ))
             }
-            (current_state, _) => {
+            (current, _) => {
                 // if it's an invalid PDU, assume it's just a wayward PDU and ignore, don't break.
-                Ok((current_state, None))
+                Ok((current, None))
             }
         }
     }
