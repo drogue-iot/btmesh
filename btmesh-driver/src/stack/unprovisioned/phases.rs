@@ -79,20 +79,14 @@ impl Phase<Invitation> {
         &mut self,
         _capabilities: &Capabilities,
         rng: &mut RNG,
-    ) -> Result<impl Iterator<Item = ProvisioningPDU>, DriverError> {
-        let mut response: Vec<ProvisioningPDU, 2> = Vec::new();
+    ) -> Result<[ProvisioningPDU; 2], DriverError> {
         // TODO: derive Start from Capabilities
-        response
-            .push(ProvisioningPDU::Start(Start::default()))
-            .map_err(|_| DriverError::InsufficientSpace)?;
-
+        let start = ProvisioningPDU::Start(Start::default());
         let private = SecretKey::random(rng);
         let public = private.public_key().try_into()?;
-        response
-            .push(ProvisioningPDU::PublicKey(public))
-            .map_err(|_| DriverError::InsufficientSpace)?;
+        let key = ProvisioningPDU::PublicKey(public);
         self.state.private = Some(private);
-        Ok(response.into_iter())
+        Ok([start, key])
     }
 }
 
