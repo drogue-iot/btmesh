@@ -37,7 +37,10 @@ impl Provisionee {
             // INVITE
             (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
                 let response = device.invite(invite)?;
-                Ok((Provisionee::Invitation(device.into()), Some(response)))
+                Ok((
+                    Provisionee::Invitation(device.into()),
+                    Some(ProvisioningPDU::Capabilities(response)),
+                ))
             }
             // START
             (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
@@ -60,15 +63,19 @@ impl Provisionee {
             }
             // CONFIRMATION
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
-                let response = device.store(value, rng)?;
-                Ok((Provisionee::Authentication(device), Some(response)))
+                let response = device.swap_confirmation(value, rng)?;
+                Ok((
+                    Provisionee::Authentication(device),
+                    Some(ProvisioningPDU::Confirmation(response)),
+                ))
             }
             // RANDOM
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
-                match device.check(value) {
-                    Ok(response) => {
-                        Ok((Provisionee::DataDistribution(device.into()), Some(response)))
-                    }
+                match device.check_confirmation(value) {
+                    Ok(response) => Ok((
+                        Provisionee::DataDistribution(device.into()),
+                        Some(ProvisioningPDU::Random(response)),
+                    )),
                     Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
             }

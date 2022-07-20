@@ -1,7 +1,7 @@
 use super::phases::*;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
-use btmesh_pdu::provisioning::{ErrorCode, Failed, ProvisioningData, ProvisioningPDU};
+use btmesh_pdu::provisioning::{ErrorCode, Failed, Invite, ProvisioningData, ProvisioningPDU};
 use rand_core::{CryptoRng, RngCore};
 
 pub enum Provisioner {
@@ -21,8 +21,8 @@ pub enum ResponsePDU {
 }
 
 impl Provisioner {
-    pub fn new() -> Self {
-        Self::Invitation(Phase::<Invitation>::default())
+    pub fn new(invitation: &Invite) -> Result<Self, DriverError> {
+        Ok(Self::Invitation(Phase::<Invitation>::new(invitation)?))
     }
 
     pub fn next<RNG: RngCore + CryptoRng>(
@@ -33,13 +33,20 @@ impl Provisioner {
         match (self, pdu) {
             // CAPABILITIES
             (Provisioner::Invitation(mut prvnr), ProvisioningPDU::Capabilities(caps)) => {
-                let response = prvnr.capabilities(caps, rng)?;
+                let (start, pk) = prvnr.capabilities(caps, rng)?;
                 Ok((
                     Provisioner::KeyExchange(prvnr.into()),
-                    ResponsePDU::Two(response),
+                    ResponsePDU::Two([
+                        ProvisioningPDU::Start(start),
+                        ProvisioningPDU::PublicKey(pk),
+                    ]),
                 ))
             }
+            // PUBLIC KEY
             (Provisioner::KeyExchange(mut prvnr), ProvisioningPDU::PublicKey(peer_key)) => {
+                // TODO: OOB capabilities should determine whether we
+                // return a Confirmation here or wait for the device
+                // to send us an InputComplete
                 match prvnr.calculate_ecdh_provisioner(peer_key) {
                     Ok(_key) => Ok((Provisioner::Authentication(prvnr.into()), ResponsePDU::None)),
                     Err(DriverError::Parse(_)) => Provisioner::fail(ErrorCode::InvalidFormat),

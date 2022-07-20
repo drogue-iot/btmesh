@@ -9,7 +9,7 @@ use btmesh_common::crypto::{
 };
 use btmesh_common::ParseError;
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, Data, Invite, ProvisioningPDU, PublicKey, Random, Start,
+    Capabilities, Confirmation, Data, Invite, PublicKey, Random, Start,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
@@ -57,15 +57,23 @@ impl Phase<Beaconing> {
             state: Beaconing { capabilities },
         }
     }
-    pub fn invite(&mut self, invitation: &Invite) -> Result<ProvisioningPDU, DriverError> {
+    pub fn invite(&mut self, invitation: &Invite) -> Result<Capabilities, DriverError> {
         let capabilities = self.state.capabilities.clone();
         self.transcript.add_invite(invitation)?;
         self.transcript.add_capabilities(&capabilities)?;
-        Ok(ProvisioningPDU::Capabilities(capabilities))
+        Ok(capabilities)
     }
 }
 
 impl Phase<Invitation> {
+    pub fn new(invitation: &Invite) -> Result<Self, DriverError> {
+        let mut result = Phase {
+            transcript: Transcript::default(),
+            state: Invitation::default(),
+        };
+        result.transcript.add_invite(invitation)?;
+        Ok(result)
+    }
     pub fn start<RNG: RngCore + CryptoRng>(
         &mut self,
         start: &Start,
@@ -77,16 +85,24 @@ impl Phase<Invitation> {
     }
     pub fn capabilities<RNG: RngCore + CryptoRng>(
         &mut self,
-        _capabilities: &Capabilities,
+        capabilities: &Capabilities,
         rng: &mut RNG,
-    ) -> Result<[ProvisioningPDU; 2], DriverError> {
+    ) -> Result<(Start, PublicKey), DriverError> {
+        self.transcript.add_capabilities(capabilities)?;
         // TODO: derive Start from Capabilities
-        let start = ProvisioningPDU::Start(Start::default());
+        let start = Start::default();
+        self.start(&start, rng)?; // updates transcript and sets auth_value
+        let public_key = self.create_key(rng)?;
+        Ok((start, public_key))
+    }
+    fn create_key<RNG: RngCore + CryptoRng>(
+        &mut self,
+        rng: &mut RNG,
+    ) -> Result<PublicKey, DriverError> {
         let private = SecretKey::random(rng);
         let public = private.public_key().try_into()?;
-        let key = ProvisioningPDU::PublicKey(public);
         self.state.private = Some(private);
-        Ok([start, key])
+        Ok(public)
     }
 }
 
@@ -143,19 +159,19 @@ impl Phase<KeyExchange> {
 }
 
 impl Phase<Authentication> {
-    pub fn store<RNG: RngCore + CryptoRng>(
+    pub fn swap_confirmation<RNG: RngCore + CryptoRng>(
         &mut self,
         value: &Confirmation,
         rng: &mut RNG,
-    ) -> Result<ProvisioningPDU, DriverError> {
+    ) -> Result<Confirmation, DriverError> {
         self.state.confirmation = Some(value.confirmation);
         let mut random_device = [0; 16];
         rng.fill_bytes(&mut random_device);
         let confirmation = self.confirm(&random_device)?;
         self.state.random_device = Some(random_device);
-        Ok(ProvisioningPDU::Confirmation(Confirmation { confirmation }))
+        Ok(Confirmation { confirmation })
     }
-    pub fn check(&mut self, value: &Random) -> Result<ProvisioningPDU, DriverError> {
+    pub fn check_confirmation(&mut self, value: &Random) -> Result<Random, DriverError> {
         let confirmation = self.confirm(&value.random)?;
         match self.state.confirmation {
             Some(v) if v == confirmation => (),
@@ -163,7 +179,7 @@ impl Phase<Authentication> {
         }
         self.state.random_provisioner = Some(value.random);
         let random = self.state.random_device.ok_or(DriverError::CryptoError)?;
-        Ok(ProvisioningPDU::Random(Random { random }))
+        Ok(Random { random })
     }
     pub(super) fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
