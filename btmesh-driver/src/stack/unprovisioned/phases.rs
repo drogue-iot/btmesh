@@ -35,14 +35,15 @@ pub struct KeyExchange {
     auth_value: AuthValue,
     private: Option<SecretKey>,
     shared_secret: Option<[u8; 32]>,
+    random_provisioner: [u8; 16],
 }
 #[derive(Default)]
 pub struct Authentication {
     auth_value: AuthValue,
     shared_secret: [u8; 32],
     confirmation: Option<[u8; 16]>,
-    random_device: Option<[u8; 16]>,
-    random_provisioner: Option<[u8; 16]>,
+    random_device: [u8; 16],
+    random_provisioner: [u8; 16],
 }
 pub struct DataDistribution {
     shared_secret: [u8; 32],
@@ -107,10 +108,11 @@ impl Phase<Invitation> {
 }
 
 impl Phase<KeyExchange> {
-    pub fn calculate_ecdh_provisioner(
+    pub fn calculate_ecdh_provisioner<RNG: RngCore + CryptoRng>(
         &mut self,
         key: &PublicKey,
-    ) -> Result<PublicKey, DriverError> {
+        rng: &mut RNG,
+    ) -> Result<[u8; 16], DriverError> {
         let public = Self::validate(key)?;
         match self.state.private.take() {
             Some(private) => {
@@ -118,7 +120,8 @@ impl Phase<KeyExchange> {
                 let pk = private.public_key().try_into()?;
                 self.transcript.add_pubkey_provisioner(&pk)?;
                 self.transcript.add_pubkey_device(key)?;
-                Ok(pk)
+                rng.fill_bytes(&mut self.state.random_provisioner);
+                Ok(self.state.random_provisioner)
             }
             None => Err(DriverError::InvalidState),
         }
@@ -159,27 +162,44 @@ impl Phase<KeyExchange> {
 }
 
 impl Phase<Authentication> {
-    pub fn swap_confirmation<RNG: RngCore + CryptoRng>(
+    pub fn device_confirmation<RNG: RngCore + CryptoRng>(
         &mut self,
         value: &Confirmation,
         rng: &mut RNG,
     ) -> Result<Confirmation, DriverError> {
         self.state.confirmation = Some(value.confirmation);
-        let mut random_device = [0; 16];
-        rng.fill_bytes(&mut random_device);
-        let confirmation = self.confirm(&random_device)?;
-        self.state.random_device = Some(random_device);
+        rng.fill_bytes(&mut self.state.random_device);
+        let confirmation = self.confirm(&self.state.random_device)?;
         Ok(Confirmation { confirmation })
     }
-    pub fn check_confirmation(&mut self, value: &Random) -> Result<Random, DriverError> {
+    pub fn provisioner_confirmation(
+        &mut self,
+        value: &Confirmation,
+    ) -> Result<Random, DriverError> {
+        self.state.confirmation = Some(value.confirmation);
+        Ok(Random {
+            random: self.state.random_provisioner,
+        })
+    }
+    pub fn device_check(&mut self, value: &Random) -> Result<Random, DriverError> {
         let confirmation = self.confirm(&value.random)?;
         match self.state.confirmation {
             Some(v) if v == confirmation => (),
             _ => return Err(DriverError::CryptoError),
         }
-        self.state.random_provisioner = Some(value.random);
-        let random = self.state.random_device.ok_or(DriverError::CryptoError)?;
-        Ok(Random { random })
+        self.state.random_provisioner = value.random;
+        Ok(Random {
+            random: self.state.random_device,
+        })
+    }
+    pub fn provisioner_check(&mut self, value: &Random) -> Result<(), DriverError> {
+        let confirmation = self.confirm(&value.random)?;
+        match self.state.confirmation {
+            Some(v) if v == confirmation => (),
+            _ => return Err(DriverError::CryptoError),
+        }
+        self.state.random_device = value.random;
+        Ok(())
     }
     pub(super) fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
@@ -242,6 +262,7 @@ impl From<Phase<KeyExchange>> for Phase<Authentication> {
             state: Authentication {
                 auth_value: p.state.auth_value,
                 shared_secret: p.state.shared_secret.unwrap(),
+                random_provisioner: p.state.random_provisioner,
                 ..Default::default()
             },
         }
@@ -254,8 +275,8 @@ impl From<Phase<Authentication>> for Phase<DataDistribution> {
             transcript: p.transcript,
             state: DataDistribution {
                 shared_secret: p.state.shared_secret,
-                random_device: p.state.random_device.unwrap(),
-                random_provisioner: p.state.random_provisioner.unwrap(),
+                random_device: p.state.random_device,
+                random_provisioner: p.state.random_provisioner,
             },
         }
     }

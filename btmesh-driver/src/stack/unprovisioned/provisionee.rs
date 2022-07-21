@@ -63,7 +63,7 @@ impl Provisionee {
             }
             // CONFIRMATION
             (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
-                let response = device.swap_confirmation(value, rng)?;
+                let response = device.device_confirmation(value, rng)?;
                 Ok((
                     Provisionee::Authentication(device),
                     Some(ProvisioningPDU::Confirmation(response)),
@@ -71,7 +71,7 @@ impl Provisionee {
             }
             // RANDOM
             (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
-                match device.check_confirmation(value) {
+                match device.device_check(value) {
                     Ok(response) => Ok((
                         Provisionee::DataDistribution(device.into()),
                         Some(ProvisioningPDU::Random(response)),
