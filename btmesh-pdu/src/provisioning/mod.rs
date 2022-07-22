@@ -313,7 +313,7 @@ impl Data {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, PartialEq)]
 /// The decrypted provisioning data wrapped in `Data` above.
 pub struct ProvisioningData {
     pub network_key: [u8; 16],
@@ -350,7 +350,7 @@ impl ProvisioningData {
 }
 
 // TODO: probably move this elsewhere
-#[derive(Copy, Clone, Serialize, Deserialize, Hash)]
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum KeyRefreshFlag {
     Phase0,

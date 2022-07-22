@@ -33,6 +33,11 @@ impl Provisioner {
         match (self, pdu) {
             // CAPABILITIES
             (Provisioner::Invitation(mut phase), ProvisioningPDU::Capabilities(caps)) => {
+		// TODO: This is when we know how many elements the
+		// device has. How do we let the caller of this state
+		// machine know that we need to reserve the
+		// data.unicast_address passed to Provisioner::new
+		// plus caps.number_of_elements?
                 let (start, pk) = phase.capabilities(caps, rng)?;
                 Ok((
                     Provisioner::KeyExchange(phase.into()),
