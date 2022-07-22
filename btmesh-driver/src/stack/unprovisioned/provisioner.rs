@@ -1,6 +1,5 @@
 use super::phases::*;
 use crate::DriverError;
-use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{
     Confirmation, ErrorCode, Failed, Invite, ProvisioningData, ProvisioningPDU,
 };
@@ -11,7 +10,7 @@ pub enum Provisioner {
     KeyExchange(Phase<KeyExchange>),
     Authentication(Phase<Authentication>),
     DataDistribution(Phase<DataDistribution>),
-    Complete(DeviceKey, ProvisioningData),
+    Success,
     Failure,
 }
 
@@ -22,8 +21,8 @@ pub enum ResponsePDU {
 }
 
 impl Provisioner {
-    pub fn new(invitation: &Invite) -> Result<Self, DriverError> {
-        Ok(Self::Invitation(Phase::<Invitation>::new(invitation)?))
+    pub fn new(invite: &Invite, data: ProvisioningData) -> Result<Self, DriverError> {
+        Ok(Self::Invitation(Phase::<Invitation>::new(invite, data)?))
     }
 
     pub fn next<RNG: RngCore + CryptoRng>(
@@ -74,13 +73,20 @@ impl Provisioner {
             }
             // RANDOM
             (Provisioner::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
-                match phase.provisioner_check(value) {
-                    Ok(_) => Ok((
-                        Provisioner::DataDistribution(phase.into()),
-                        ResponsePDU::None, // TODO: not this
-                    )),
-                    Err(_) => Provisioner::fail(ErrorCode::ConfirmationFailed),
+                if phase.provisioner_check(value).is_ok() {
+                    let phase: Phase<DataDistribution> = phase.into();
+                    let response = phase.encrypt()?;
+                    Ok((
+                        Provisioner::DataDistribution(phase),
+                        ResponsePDU::One(ProvisioningPDU::Data(response)),
+                    ))
+                } else {
+                    Provisioner::fail(ErrorCode::ConfirmationFailed)
                 }
+            }
+            // COMPLETE
+            (Provisioner::DataDistribution(_), ProvisioningPDU::Complete) => {
+                Ok((Provisioner::Success, ResponsePDU::None))
             }
             (current, _) => {
                 // if it's an invalid PDU, assume it's just a wayward PDU and ignore, don't break.

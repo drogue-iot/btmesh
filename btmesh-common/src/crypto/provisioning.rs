@@ -9,9 +9,17 @@ pub fn try_decrypt_data(
     session_nonce: &[u8],
     data: &mut [u8],
     mic: &[u8],
-    additional_data: Option<&[u8]>,
 ) -> Result<(), Error> {
-    crypto::aes_ccm_decrypt_detached(session_key, session_nonce, data, mic, additional_data)
+    crypto::aes_ccm_decrypt_detached(session_key, session_nonce, data, mic, None)
+}
+
+pub fn encrypt_data(
+    session_key: &[u8],
+    session_nonce: &[u8],
+    data: &mut [u8],
+    mic: &mut [u8],
+) -> Result<(), Error> {
+    crypto::aes_ccm_encrypt_detached(session_key, session_nonce, data, mic, None)
 }
 
 pub fn prsk(secret: &[u8], salt: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {

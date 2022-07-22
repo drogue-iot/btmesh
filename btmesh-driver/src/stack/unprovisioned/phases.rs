@@ -4,12 +4,12 @@ use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_common::crypto::{
     aes_cmac,
-    provisioning::{prck, prdk, prsk, prsn, try_decrypt_data},
+    provisioning::{encrypt_data, prck, prdk, prsk, prsn, try_decrypt_data},
     s1,
 };
 use btmesh_common::ParseError;
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, Data, Invite, PublicKey, Random, Start,
+    Capabilities, Confirmation, Data, Invite, ProvisioningData, PublicKey, Random, Start,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
@@ -19,9 +19,10 @@ use rand_core::{CryptoRng, RngCore};
 #[derive(Default)]
 pub struct Phase<S> {
     transcript: Transcript,
+    data: Option<ProvisioningData>,
     state: S,
 }
-
+#[derive(Default)]
 pub struct Beaconing {
     capabilities: Capabilities,
 }
@@ -54,8 +55,8 @@ pub struct DataDistribution {
 impl Phase<Beaconing> {
     pub fn new(capabilities: Capabilities) -> Self {
         Phase {
-            transcript: Transcript::default(),
             state: Beaconing { capabilities },
+            ..Default::default()
         }
     }
     pub fn invite(&mut self, invitation: &Invite) -> Result<Capabilities, DriverError> {
@@ -67,11 +68,9 @@ impl Phase<Beaconing> {
 }
 
 impl Phase<Invitation> {
-    pub fn new(invitation: &Invite) -> Result<Self, DriverError> {
-        let mut result = Phase {
-            transcript: Transcript::default(),
-            state: Invitation::default(),
-        };
+    pub fn new(invitation: &Invite, data: ProvisioningData) -> Result<Self, DriverError> {
+        let mut result = Self::default();
+        result.data = Some(data);
         result.transcript.add_invite(invitation)?;
         Ok(result)
     }
@@ -218,18 +217,36 @@ impl Phase<DataDistribution> {
         salt[16..32].copy_from_slice(&self.state.random_provisioner);
         salt[32..48].copy_from_slice(&self.state.random_device);
         let salt = &s1(&salt)?.into_bytes()[0..];
-        let key = &prsk(&self.state.shared_secret, salt)?.into_bytes()[0..];
+        let session_key = &prsk(&self.state.shared_secret, salt)?.into_bytes()[0..];
         let nonce = &prsn(&self.state.shared_secret, salt)?.into_bytes()[3..];
 
         let mut decrypted = [0; 25];
         decrypted.copy_from_slice(&data.encrypted);
 
-        match try_decrypt_data(key, nonce, &mut decrypted, &data.mic, None) {
+        match try_decrypt_data(session_key, nonce, &mut decrypted, &data.mic) {
             Ok(_) => {
                 let device_key = &*prdk(&self.state.shared_secret, salt)?.into_bytes();
                 Ok((device_key.try_into()?, decrypted))
             }
             Err(_) => Err(DriverError::CryptoError),
+        }
+    }
+    pub fn encrypt(&self) -> Result<Data, DriverError> {
+        let mut salt = [0; 48];
+        salt[0..16].copy_from_slice(&self.transcript.confirmation_salt()?.into_bytes());
+        salt[16..32].copy_from_slice(&self.state.random_provisioner);
+        salt[32..48].copy_from_slice(&self.state.random_device);
+        let salt = &s1(&salt)?.into_bytes()[0..];
+        let session_key = &prsk(&self.state.shared_secret, salt)?.into_bytes()[0..];
+        let nonce = &prsn(&self.state.shared_secret, salt)?.into_bytes()[3..];
+
+        let mut encrypted = [0; 25];
+        let mut mic = [0; 8];
+
+        if encrypt_data(session_key, nonce, &mut encrypted, &mut mic).is_err() {
+            Err(DriverError::CryptoError)
+        } else {
+            Ok(Data { encrypted, mic })
         }
     }
 }
@@ -238,7 +255,7 @@ impl From<Phase<Beaconing>> for Phase<Invitation> {
     fn from(p: Phase<Beaconing>) -> Phase<Invitation> {
         Phase {
             transcript: p.transcript,
-            state: Invitation::default(),
+            ..Default::default()
         }
     }
 }
@@ -247,6 +264,7 @@ impl From<Phase<Invitation>> for Phase<KeyExchange> {
     fn from(p: Phase<Invitation>) -> Phase<KeyExchange> {
         Phase {
             transcript: p.transcript,
+            data: p.data,
             state: KeyExchange {
                 auth_value: p.state.auth_value,
                 ..Default::default()
@@ -259,6 +277,7 @@ impl From<Phase<KeyExchange>> for Phase<Authentication> {
     fn from(p: Phase<KeyExchange>) -> Phase<Authentication> {
         Phase {
             transcript: p.transcript,
+            data: p.data,
             state: Authentication {
                 auth_value: p.state.auth_value,
                 shared_secret: p.state.shared_secret.unwrap(),
@@ -273,6 +292,7 @@ impl From<Phase<Authentication>> for Phase<DataDistribution> {
     fn from(p: Phase<Authentication>) -> Phase<DataDistribution> {
         Phase {
             transcript: p.transcript,
+            data: p.data,
             state: DataDistribution {
                 shared_secret: p.state.shared_secret,
                 random_device: p.state.random_device,
