@@ -33,10 +33,10 @@ impl Provisioner {
     ) -> Result<(Self, ResponsePDU), DriverError> {
         match (self, pdu) {
             // CAPABILITIES
-            (Provisioner::Invitation(mut prov), ProvisioningPDU::Capabilities(caps)) => {
-                let (start, pk) = prov.capabilities(caps, rng)?;
+            (Provisioner::Invitation(mut phase), ProvisioningPDU::Capabilities(caps)) => {
+                let (start, pk) = phase.capabilities(caps, rng)?;
                 Ok((
-                    Provisioner::KeyExchange(prov.into()),
+                    Provisioner::KeyExchange(phase.into()),
                     ResponsePDU::Two([
                         ProvisioningPDU::Start(start),
                         ProvisioningPDU::PublicKey(pk),
@@ -44,39 +44,39 @@ impl Provisioner {
                 ))
             }
             // PUBLIC KEY
-            (Provisioner::KeyExchange(mut prov), ProvisioningPDU::PublicKey(peer_key)) => {
+            (Provisioner::KeyExchange(mut phase), ProvisioningPDU::PublicKey(peer_key)) => {
                 // TODO: OOB capabilities should determine whether we
                 // return a Confirmation here or wait for the device
                 // to send us an InputComplete
 
                 // TODO: Deal better with ErrorCode / ParseError / DriverError
 
-                // match prov.calculate_ecdh_provisioner(peer_key, rng) {
-                //     Ok(_key) => Ok((Provisioner::Authentication(prov.into()), ResponsePDU::None)),
+                // match phase.calculate_ecdh_provisioner(peer_key, rng) {
+                //     Ok(_key) => Ok((Provisioner::Authentication(phase.into()), ResponsePDU::None)),
                 //     Err(DriverError::Parse(_)) => Provisioner::fail(ErrorCode::InvalidFormat),
                 //     Err(_) => Provisioner::fail(ErrorCode::UnexpectedError),
                 // }
 
                 // TODO: this better, i.e. calculate sets random_provisioner and then returns it... wtf?
-                let random = prov.calculate_ecdh_provisioner(peer_key, rng)?;
-                let phase: Phase<Authentication> = prov.into();
+                let random = phase.calculate_ecdh_provisioner(peer_key, rng)?;
+                let phase: Phase<Authentication> = phase.into();
                 let confirmation = phase.confirm(&random)?;
                 let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
                 Ok((Provisioner::Authentication(phase), ResponsePDU::One(pdu)))
             }
             // CONFIRMATION
-            (Provisioner::Authentication(mut prov), ProvisioningPDU::Confirmation(value)) => {
-                let response = prov.provisioner_confirmation(value)?;
+            (Provisioner::Authentication(mut phase), ProvisioningPDU::Confirmation(value)) => {
+                let response = phase.provisioner_confirmation(value)?;
                 Ok((
-                    Provisioner::Authentication(prov),
+                    Provisioner::Authentication(phase),
                     ResponsePDU::One(ProvisioningPDU::Random(response)),
                 ))
             }
             // RANDOM
-            (Provisioner::Authentication(mut prov), ProvisioningPDU::Random(value)) => {
-                match prov.provisioner_check(value) {
+            (Provisioner::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
+                match phase.provisioner_check(value) {
                     Ok(_) => Ok((
-                        Provisioner::DataDistribution(prov.into()),
+                        Provisioner::DataDistribution(phase.into()),
                         ResponsePDU::None, // TODO: not this
                     )),
                     Err(_) => Provisioner::fail(ErrorCode::ConfirmationFailed),

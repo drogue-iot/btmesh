@@ -35,26 +35,26 @@ impl Provisionee {
     ) -> Result<(Self, Option<ProvisioningPDU>), DriverError> {
         match (self, pdu) {
             // INVITE
-            (Provisionee::Beaconing(mut device), ProvisioningPDU::Invite(invite)) => {
-                let response = device.invite(invite)?;
+            (Provisionee::Beaconing(mut phase), ProvisioningPDU::Invite(invite)) => {
+                let response = phase.invite(invite)?;
                 Ok((
-                    Provisionee::Invitation(device.into()),
+                    Provisionee::Invitation(phase.into()),
                     Some(ProvisioningPDU::Capabilities(response)),
                 ))
             }
             // START
-            (Provisionee::Invitation(mut device), ProvisioningPDU::Start(start)) => {
+            (Provisionee::Invitation(mut phase), ProvisioningPDU::Start(start)) => {
                 // TODO: spec says to set the "Attention Timer" to 0x00
-                device.start(start, rng)?;
+                phase.start(start, rng)?;
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
-                Ok((Provisionee::KeyExchange(device.into()), None))
+                Ok((Provisionee::KeyExchange(phase.into()), None))
             }
             // PUBLIC KEY
-            (Provisionee::KeyExchange(mut device), ProvisioningPDU::PublicKey(peer_key)) => {
-                match device.calculate_ecdh_device(peer_key, rng) {
+            (Provisionee::KeyExchange(mut phase), ProvisioningPDU::PublicKey(peer_key)) => {
+                match phase.calculate_ecdh_device(peer_key, rng) {
                     Ok(key) => Ok((
-                        Provisionee::Authentication(device.into()),
+                        Provisionee::Authentication(phase.into()),
                         Some(ProvisioningPDU::PublicKey(key)),
                     )),
                     Err(DriverError::Parse(_)) => Provisionee::fail(ErrorCode::InvalidFormat),
@@ -62,26 +62,26 @@ impl Provisionee {
                 }
             }
             // CONFIRMATION
-            (Provisionee::Authentication(mut device), ProvisioningPDU::Confirmation(value)) => {
-                let response = device.device_confirmation(value, rng)?;
+            (Provisionee::Authentication(mut phase), ProvisioningPDU::Confirmation(value)) => {
+                let response = phase.device_confirmation(value, rng)?;
                 Ok((
-                    Provisionee::Authentication(device),
+                    Provisionee::Authentication(phase),
                     Some(ProvisioningPDU::Confirmation(response)),
                 ))
             }
             // RANDOM
-            (Provisionee::Authentication(mut device), ProvisioningPDU::Random(value)) => {
-                match device.device_check(value) {
+            (Provisionee::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
+                match phase.device_check(value) {
                     Ok(response) => Ok((
-                        Provisionee::DataDistribution(device.into()),
+                        Provisionee::DataDistribution(phase.into()),
                         Some(ProvisioningPDU::Random(response)),
                     )),
                     Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
             }
             // DATA
-            (Provisionee::DataDistribution(device), ProvisioningPDU::Data(data)) => {
-                let (device_key, decrypted) = device.decrypt(data)?;
+            (Provisionee::DataDistribution(phase), ProvisioningPDU::Data(data)) => {
+                let (device_key, decrypted) = phase.decrypt(data)?;
                 Ok((
                     Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
                     Some(ProvisioningPDU::Complete),
