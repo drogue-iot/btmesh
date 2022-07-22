@@ -69,8 +69,10 @@ impl Phase<Beaconing> {
 
 impl Phase<Invitation> {
     pub fn new(invitation: &Invite, data: ProvisioningData) -> Result<Self, DriverError> {
-        let mut result = Self::default();
-        result.data = Some(data);
+        let mut result = Self {
+            data: Some(data),
+            ..Default::default()
+        };
         result.transcript.add_invite(invitation)?;
         Ok(result)
     }
