@@ -242,6 +242,7 @@ impl Phase<DataDistribution> {
         let session_key = &prsk(&self.state.shared_secret, salt)?.into_bytes()[0..];
         let nonce = &prsn(&self.state.shared_secret, salt)?.into_bytes()[3..];
 
+        // TODO: this is stupid. We need to actually emit self.data
         let mut encrypted = [0; 25];
         let mut mic = [0; 8];
 
@@ -269,6 +270,7 @@ impl From<Phase<Invitation>> for Phase<KeyExchange> {
             data: p.data,
             state: KeyExchange {
                 auth_value: p.state.auth_value,
+                private: p.state.private,
                 ..Default::default()
             },
         }

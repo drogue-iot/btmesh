@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub mod advertising;
 pub mod generic;
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ProvisioningPDU {
     Invite(Invite),
@@ -23,7 +23,7 @@ pub enum ProvisioningPDU {
     Failed(Failed),
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Invite {
     pub attention_duration: u8,
@@ -49,7 +49,7 @@ impl Invite {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Capabilities {
     pub number_of_elements: u8,
@@ -107,7 +107,7 @@ impl Capabilities {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Start {
     pub algorithm: Algorithm,
@@ -172,7 +172,7 @@ impl Start {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PublicKey {
     pub x: [u8; 32],
@@ -233,7 +233,7 @@ impl TryFrom<&PublicKey> for p256::PublicKey {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Confirmation {
     pub confirmation: [u8; 16],
@@ -261,7 +261,7 @@ impl Confirmation {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Random {
     pub random: [u8; 16],
@@ -289,7 +289,7 @@ impl Random {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Data {
     pub encrypted: [u8; 25],
@@ -313,7 +313,7 @@ impl Data {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq)]
+#[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
 /// The decrypted provisioning data wrapped in `Data` above.
 pub struct ProvisioningData {
     pub network_key: [u8; 16],
@@ -350,7 +350,7 @@ impl ProvisioningData {
 }
 
 // TODO: probably move this elsewhere
-#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq)]
+#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum KeyRefreshFlag {
     Phase0,
@@ -387,7 +387,7 @@ impl defmt::Format for ProvisioningData {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Failed {
     pub error_code: ErrorCode,
@@ -479,7 +479,7 @@ impl ProvisioningPDU {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Algorithm {
     #[default]
@@ -504,7 +504,7 @@ impl Algorithm {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Algorithms(Vec<Algorithm, 16>);
 
@@ -560,7 +560,7 @@ impl Default for Algorithms {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PublicKeyType {
     pub available: bool,
@@ -586,7 +586,7 @@ impl PublicKeyType {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PublicKeySelected {
     #[default]
@@ -613,7 +613,7 @@ impl PublicKeySelected {
     }
 }
 
-#[derive(Copy, Clone, Default, Hash)]
+#[derive(Copy, Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct StaticOOBType {
     pub available: bool,
@@ -639,7 +639,7 @@ impl StaticOOBType {
     }
 }
 
-#[derive(Copy, Clone, Default, Hash)]
+#[derive(Copy, Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OOBSize {
     #[default]
@@ -666,7 +666,7 @@ impl OOBSize {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OutputOOBAction {
     Blink = 0b0000000000000001,
@@ -694,7 +694,7 @@ impl OutputOOBAction {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct OutputOOBActions(Vec<OutputOOBAction, 5>);
 
@@ -766,7 +766,7 @@ impl Default for OutputOOBActions {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum InputOOBAction {
     Push = 0b0000000000000001,
@@ -792,7 +792,7 @@ impl InputOOBAction {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InputOOBActions(Vec<InputOOBAction, 4>);
 
@@ -858,7 +858,7 @@ impl Default for InputOOBActions {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum OOBAction {
     #[default]
@@ -897,7 +897,7 @@ impl OOBAction {
     }
 }
 
-#[derive(Clone, Default, Hash)]
+#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum AuthenticationMethod {
     #[default]
@@ -929,7 +929,7 @@ impl AuthenticationMethod {
     }
 }
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum ErrorCode {
     Prohibited = 0x00,

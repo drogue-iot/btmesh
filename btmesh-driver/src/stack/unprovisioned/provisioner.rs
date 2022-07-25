@@ -33,11 +33,11 @@ impl Provisioner {
         match (self, pdu) {
             // CAPABILITIES
             (Provisioner::Invitation(mut phase), ProvisioningPDU::Capabilities(caps)) => {
-		// TODO: This is when we know how many elements the
-		// device has. How do we let the caller of this state
-		// machine know that we need to reserve the
-		// data.unicast_address passed to Provisioner::new
-		// plus caps.number_of_elements?
+                // TODO: This is when we know how many elements the
+                // device has. How do we let the caller of this state
+                // machine know that we need to reserve the
+                // data.unicast_address passed to Provisioner::new
+                // plus caps.number_of_elements?
                 let (start, pk) = phase.capabilities(caps, rng)?;
                 Ok((
                     Provisioner::KeyExchange(phase.into()),
@@ -104,5 +104,74 @@ impl Provisioner {
             Provisioner::Failure,
             ResponsePDU::One(ProvisioningPDU::Failed(Failed { error_code })),
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use core::ops::Deref;
+
+    use crate::stack::unprovisioned::provisionee::Provisionee;
+
+    use super::*;
+    use btmesh_common::address::UnicastAddress;
+    use btmesh_pdu::provisioning::{Capabilities, KeyRefreshFlag};
+    use rand_core::OsRng;
+
+    #[test]
+    fn provision_device() {
+        let rng = &mut OsRng;
+
+        let data = ProvisioningData {
+            unicast_address: UnicastAddress::new(0x00_0A).unwrap(),
+            key_refresh_flag: KeyRefreshFlag::Phase2,
+            ..Default::default()
+        };
+        let invite = Invite::default();
+        let caps = Capabilities {
+            number_of_elements: 1,
+            ..Default::default()
+        };
+
+        let mut provisioner = Provisioner::new(&invite, data).unwrap();
+        let mut device = Provisionee::new(caps);
+
+        let mut pdu = ProvisioningPDU::Invite(invite);
+        let mut result: Option<ProvisioningPDU>;
+        let mut response: ResponsePDU;
+
+        loop {
+            (device, result) = device.next(&pdu, rng).unwrap();
+            match result {
+                Some(p) => {
+                    pdu = p;
+                    match provisioner.next(&pdu, rng) {
+                        Ok(x) => (provisioner, response) = x,
+                        Err(e) => panic!("unexpected: {:?}, PDU: {:?}", e, pdu),
+                    }
+                    match response {
+                        ResponsePDU::Two(pdus) => {
+                            // We don't expect the device to respond to the 1st PDU
+                            (device, result) = device.next(&pdus[0], rng).unwrap();
+                            assert!(matches!(result, None));
+                            pdu = pdus[1].clone();
+                        }
+                        ResponsePDU::One(p) => pdu = p,
+                        ResponsePDU::None => assert!(matches!(pdu, ProvisioningPDU::Complete)),
+                    }
+                }
+                None => break,
+            }
+        }
+
+        match device {
+            Provisionee::Complete(key, result) => {
+                let empty: [u8; 16] = [0; 16];
+                assert_ne!(&empty, key.deref());
+                // TODO: uncomment!
+                // assert_eq!(data, result);
+            }
+            _ => panic!("wrong ending state"),
+        }
     }
 }

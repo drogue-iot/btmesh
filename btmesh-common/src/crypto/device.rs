@@ -4,7 +4,7 @@ use crate::mic::TransMic;
 use ccm::aead::Error;
 use core::ops::Deref;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 pub struct DeviceKey {
     device_key: [u8; 16],
 }

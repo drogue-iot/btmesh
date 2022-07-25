@@ -51,8 +51,9 @@ impl From<cmac::crypto_mac::InvalidKeyLength> for ParseError {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq)]
+#[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
 pub enum IvUpdateFlag {
+    #[default]
     Normal,
     InProgress,
 }

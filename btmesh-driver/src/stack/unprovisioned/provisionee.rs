@@ -82,8 +82,9 @@ impl Provisionee {
             // DATA
             (Provisionee::DataDistribution(phase), ProvisioningPDU::Data(data)) => {
                 let (device_key, decrypted) = phase.decrypt(data)?;
+                let data = ProvisioningData::parse(&decrypted)?;
                 Ok((
-                    Provisionee::Complete(device_key, ProvisioningData::parse(&decrypted)?),
+                    Provisionee::Complete(device_key, data),
                     Some(ProvisioningPDU::Complete),
                 ))
             }
