@@ -40,10 +40,8 @@ impl Invite {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::INVITE)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.push(self.attention_duration)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::INVITE)?;
+        xmit.push(self.attention_duration)?;
         Ok(())
     }
 }
@@ -91,10 +89,8 @@ impl Capabilities {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::CAPABILITIES)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.push(self.number_of_elements)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::CAPABILITIES)?;
+        xmit.push(self.number_of_elements)?;
         self.algorithms.emit(xmit)?;
         self.public_key_type.emit(xmit)?;
         self.static_oob_type.emit(xmit)?;
@@ -160,8 +156,7 @@ impl Start {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::START)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::START)?;
         self.algorithm.emit(xmit)?;
         self.public_key.emit(xmit)?;
         self.authentication_method.emit(xmit)?;
@@ -184,23 +179,16 @@ impl PublicKey {
             Err(ParseError::InvalidPDUFormat)
         } else {
             Ok(PublicKey {
-                x: data[1..33]
-                    .try_into()
-                    .map_err(|_| ParseError::InsufficientBuffer)?,
-                y: data[33..65]
-                    .try_into()
-                    .map_err(|_| ParseError::InsufficientBuffer)?,
+                x: data[1..33].try_into()?,
+                y: data[33..65].try_into()?,
             })
         }
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::PUBLIC_KEY)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.x)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.y)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::PUBLIC_KEY)?;
+        xmit.extend_from_slice(&self.x)?;
+        xmit.extend_from_slice(&self.y)?;
         Ok(())
     }
 }
@@ -212,8 +200,8 @@ impl TryFrom<p256::PublicKey> for PublicKey {
         let x = xy.x().unwrap();
         let y = xy.y().unwrap();
         Ok(PublicKey {
-            x: <[u8; 32]>::try_from(x.as_slice()).map_err(|_| ParseError::InsufficientBuffer)?,
-            y: <[u8; 32]>::try_from(y.as_slice()).map_err(|_| ParseError::InsufficientBuffer)?,
+            x: <[u8; 32]>::try_from(x.as_slice())?,
+            y: <[u8; 32]>::try_from(y.as_slice())?,
         })
     }
 }
@@ -252,10 +240,8 @@ impl Confirmation {
     }
 
     fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::CONFIRMATION)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.confirmation)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::CONFIRMATION)?;
+        xmit.extend_from_slice(&self.confirmation)?;
         Ok(())
     }
 }
@@ -280,10 +266,8 @@ impl Random {
     }
 
     fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::RANDOM)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.random)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::RANDOM)?;
+        xmit.extend_from_slice(&self.random)?;
         Ok(())
     }
 }
@@ -311,12 +295,9 @@ impl Data {
         }
     }
     fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::DATA)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.encrypted)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.mic)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::DATA)?;
+        xmit.extend_from_slice(&self.encrypted)?;
+        xmit.extend_from_slice(&self.mic)?;
         Ok(())
     }
 }
@@ -356,18 +337,14 @@ impl ProvisioningData {
         }
     }
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&self.network_key)
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&[0; 2]) // TODO: key_index
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.network_key)?;
+        xmit.extend_from_slice(&[0; 2])?; // TODO: key_index
         let mut flags = 0;
         self.key_refresh_flag.emit(&mut flags);
         self.iv_update_flag.emit(&mut flags);
-        xmit.push(flags).map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.iv_index.to_be_bytes())
-            .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.unicast_address.as_bytes())
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(flags)?;
+        xmit.extend_from_slice(&self.iv_index.to_be_bytes())?;
+        xmit.extend_from_slice(&self.unicast_address.as_bytes())?;
         Ok(())
     }
 }
@@ -403,8 +380,7 @@ impl Failed {
         }
     }
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.push(ProvisioningPDU::FAILED)
-            .map_err(|_| InsufficientBuffer)?;
+        xmit.push(ProvisioningPDU::FAILED)?;
         self.error_code.emit(xmit)?;
         Ok(())
     }
@@ -448,13 +424,11 @@ impl ProvisioningPDU {
             ProvisioningPDU::Capabilities(capabilities) => capabilities.emit(xmit),
             ProvisioningPDU::Start(start) => start.emit(xmit),
             ProvisioningPDU::PublicKey(public_key) => public_key.emit(xmit),
-            ProvisioningPDU::InputComplete => xmit
-                .push(Self::INPUT_COMPLETE)
-                .map_err(|_| InsufficientBuffer),
+            ProvisioningPDU::InputComplete => Ok(xmit.push(Self::INPUT_COMPLETE)?),
             ProvisioningPDU::Confirmation(confirmation) => confirmation.emit(xmit),
             ProvisioningPDU::Random(random) => random.emit(xmit),
             ProvisioningPDU::Data(data) => data.emit(xmit),
-            ProvisioningPDU::Complete => xmit.push(Self::COMPLETE).map_err(|_| InsufficientBuffer),
+            ProvisioningPDU::Complete => Ok(xmit.push(Self::COMPLETE)?),
             ProvisioningPDU::Failed(failed) => failed.emit(xmit),
         }
     }
@@ -494,7 +468,7 @@ impl Algorithm {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            Algorithm::P256 => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
+            Algorithm::P256 => xmit.push(0x00)?,
         }
 
         Ok(())
@@ -543,8 +517,7 @@ impl Algorithms {
 
         let bits = bits.unwrap_or(0);
 
-        xmit.extend_from_slice(&bits.to_be_bytes())
-            .map_err(|_| InsufficientBuffer)
+        Ok(xmit.extend_from_slice(&bits.to_be_bytes())?)
     }
 }
 
@@ -576,10 +549,11 @@ impl PublicKeyType {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         if self.available {
-            xmit.push(0b1).map_err(|_| InsufficientBuffer)
+            xmit.push(0b1)?
         } else {
-            xmit.push(0b0).map_err(|_| InsufficientBuffer)
+            xmit.push(0b0)?
         }
+        Ok(())
     }
 }
 
@@ -602,8 +576,8 @@ impl PublicKeySelected {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            PublicKeySelected::NoPublicKey => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
-            PublicKeySelected::OOBPublicKey => xmit.push(0x01).map_err(|_| InsufficientBuffer)?,
+            PublicKeySelected::NoPublicKey => xmit.push(0x00)?,
+            PublicKeySelected::OOBPublicKey => xmit.push(0x01)?,
         }
 
         Ok(())
@@ -629,10 +603,11 @@ impl StaticOOBType {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         if self.available {
-            xmit.push(0b1).map_err(|_| InsufficientBuffer)
+            xmit.push(0b1)?
         } else {
-            xmit.push(0b0).map_err(|_| InsufficientBuffer)
+            xmit.push(0b0)?
         }
+        Ok(())
     }
 }
 
@@ -657,9 +632,10 @@ impl OOBSize {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            OOBSize::NotSupported => xmit.push(0).map_err(|_| InsufficientBuffer),
-            OOBSize::MaximumSize(size) => xmit.push(*size).map_err(|_| InsufficientBuffer),
+            OOBSize::NotSupported => xmit.push(0)?,
+            OOBSize::MaximumSize(size) => xmit.push(*size)?,
         }
+        Ok(())
     }
 }
 
@@ -686,8 +662,13 @@ impl OutputOOBAction {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&(*self as u16).to_be_bytes())
-            .map_err(|_| InsufficientBuffer)
+        Ok(xmit.extend_from_slice(&(*self as u16).to_be_bytes())?)
+    }
+}
+
+impl From<OutputOOBAction> for ParseError {
+    fn from(_: OutputOOBAction) -> Self {
+        Self::InsufficientBuffer
     }
 }
 
@@ -711,33 +692,23 @@ impl OutputOOBActions {
 
         let mut actions = OutputOOBActions::new();
         if bits & 0b00000001 != 0 {
-            actions
-                .push(OutputOOBAction::Blink)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(OutputOOBAction::Blink)?;
         }
 
         if bits & 0b00000010 != 0 {
-            actions
-                .push(OutputOOBAction::Beep)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(OutputOOBAction::Beep)?;
         }
 
         if bits & 0b00000100 != 0 {
-            actions
-                .push(OutputOOBAction::Vibrate)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(OutputOOBAction::Vibrate)?;
         }
 
         if bits & 0b00001000 != 0 {
-            actions
-                .push(OutputOOBAction::OutputNumeric)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(OutputOOBAction::OutputNumeric)?;
         }
 
         if bits & 0b00010000 != 0 {
-            actions
-                .push(OutputOOBAction::OutputAlphanumeric)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(OutputOOBAction::OutputAlphanumeric)?;
         }
 
         Ok(actions)
@@ -752,8 +723,7 @@ impl OutputOOBActions {
 
         let bits = bits.unwrap_or(0);
 
-        xmit.extend_from_slice(&bits.to_be_bytes())
-            .map_err(|_| InsufficientBuffer)
+        Ok(xmit.extend_from_slice(&bits.to_be_bytes())?)
     }
 }
 
@@ -784,8 +754,13 @@ impl InputOOBAction {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&(*self as u16).to_be_bytes())
-            .map_err(|_| InsufficientBuffer)
+        Ok(xmit.extend_from_slice(&(*self as u16).to_be_bytes())?)
+    }
+}
+
+impl From<InputOOBAction> for ParseError {
+    fn from(_: InputOOBAction) -> Self {
+        Self::InsufficientBuffer
     }
 }
 
@@ -809,27 +784,19 @@ impl InputOOBActions {
 
         let mut actions = InputOOBActions::new();
         if bits & 0b00000001 != 0 {
-            actions
-                .push(InputOOBAction::Push)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(InputOOBAction::Push)?;
         }
 
         if bits & 0b00000010 != 0 {
-            actions
-                .push(InputOOBAction::Twist)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(InputOOBAction::Twist)?;
         }
 
         if bits & 0b00000100 != 0 {
-            actions
-                .push(InputOOBAction::InputNumeric)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(InputOOBAction::InputNumeric)?;
         }
 
         if bits & 0b00001000 != 0 {
-            actions
-                .push(InputOOBAction::InputAlphanumeric)
-                .map_err(|_| ParseError::InsufficientBuffer)?;
+            actions.push(InputOOBAction::InputAlphanumeric)?;
         }
 
         Ok(actions)
@@ -844,8 +811,7 @@ impl InputOOBActions {
 
         let bits = bits.unwrap_or(0);
 
-        xmit.extend_from_slice(&bits.to_be_bytes())
-            .map_err(|_| InsufficientBuffer)
+        Ok(xmit.extend_from_slice(&bits.to_be_bytes())?)
     }
 }
 
@@ -881,7 +847,7 @@ impl OOBAction {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            OOBAction::None => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
+            OOBAction::None => xmit.push(0x00)?,
             OOBAction::Output(action) => {
                 action.emit(xmit)?;
             }
@@ -917,10 +883,10 @@ impl AuthenticationMethod {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            AuthenticationMethod::No => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
-            AuthenticationMethod::Static => xmit.push(0x01).map_err(|_| InsufficientBuffer)?,
-            AuthenticationMethod::Output => xmit.push(0x02).map_err(|_| InsufficientBuffer)?,
-            AuthenticationMethod::Input => xmit.push(0x03).map_err(|_| InsufficientBuffer)?,
+            AuthenticationMethod::No => xmit.push(0x00)?,
+            AuthenticationMethod::Static => xmit.push(0x01)?,
+            AuthenticationMethod::Output => xmit.push(0x02)?,
+            AuthenticationMethod::Input => xmit.push(0x03)?,
         }
         Ok(())
     }
@@ -957,15 +923,15 @@ impl ErrorCode {
     }
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            Self::Prohibited => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
-            Self::InvalidPDU => xmit.push(0x01).map_err(|_| InsufficientBuffer)?,
-            Self::InvalidFormat => xmit.push(0x02).map_err(|_| InsufficientBuffer)?,
-            Self::UnexpectedPDU => xmit.push(0x03).map_err(|_| InsufficientBuffer)?,
-            Self::ConfirmationFailed => xmit.push(0x04).map_err(|_| InsufficientBuffer)?,
-            Self::OutOfResources => xmit.push(0x05).map_err(|_| InsufficientBuffer)?,
-            Self::DecryptionFailed => xmit.push(0x06).map_err(|_| InsufficientBuffer)?,
-            Self::UnexpectedError => xmit.push(0x07).map_err(|_| InsufficientBuffer)?,
-            Self::CannotAssignAddresses => xmit.push(0x08).map_err(|_| InsufficientBuffer)?,
+            Self::Prohibited => xmit.push(0x00)?,
+            Self::InvalidPDU => xmit.push(0x01)?,
+            Self::InvalidFormat => xmit.push(0x02)?,
+            Self::UnexpectedPDU => xmit.push(0x03)?,
+            Self::ConfirmationFailed => xmit.push(0x04)?,
+            Self::OutOfResources => xmit.push(0x05)?,
+            Self::DecryptionFailed => xmit.push(0x06)?,
+            Self::UnexpectedError => xmit.push(0x07)?,
+            Self::CannotAssignAddresses => xmit.push(0x08)?,
         }
         Ok(())
     }
