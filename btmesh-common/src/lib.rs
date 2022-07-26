@@ -73,25 +73,16 @@ impl IvUpdateFlag {
     }
 }
 
-// TODO: typedef to bool?
 #[derive(Copy, Clone, Hash, PartialEq, Debug, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum KeyRefreshFlag {
-    #[default]
-    False,
-    True,
-}
+pub struct KeyRefreshFlag(pub bool);
 
 impl KeyRefreshFlag {
     pub fn parse(data: u8) -> Self {
-        if data == 0 {
-            Self::False
-        } else {
-            Self::True
-        }
+        Self(data != 0)
     }
     pub fn emit(&self, data: &mut u8) {
-        if self == &Self::True {
+        if self.0 {
             *data |= 0b00000001;
         }
     }

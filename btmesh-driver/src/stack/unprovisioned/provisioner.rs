@@ -124,7 +124,7 @@ mod tests {
 
         let data = ProvisioningData {
             unicast_address: UnicastAddress::new(0x00_0A).unwrap(),
-            key_refresh_flag: KeyRefreshFlag::True,
+            key_refresh_flag: KeyRefreshFlag(true),
             ..Default::default()
         };
         let invite = Invite::default();
