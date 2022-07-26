@@ -242,13 +242,18 @@ impl Phase<DataDistribution> {
         let session_key = &prsk(&self.state.shared_secret, salt)?.into_bytes()[0..];
         let nonce = &prsn(&self.state.shared_secret, salt)?.into_bytes()[3..];
 
-        // TODO: this is stupid. We need to actually emit self.data
-        let mut encrypted = [0; 25];
+        let mut encrypted = Vec::<u8, 25>::new();
+        self.data
+            .ok_or(DriverError::InvalidState)?
+            .emit(&mut encrypted)?;
         let mut mic = [0; 8];
 
         if encrypt_data(session_key, nonce, &mut encrypted, &mut mic).is_err() {
             Err(DriverError::CryptoError)
         } else {
+            let encrypted = encrypted
+                .into_array()
+                .map_err(|_| DriverError::CryptoError)?;
             Ok(Data { encrypted, mic })
         }
     }

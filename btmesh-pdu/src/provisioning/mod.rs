@@ -1,9 +1,8 @@
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::{InsufficientBuffer, IvUpdateFlag, ParseError};
+use btmesh_common::{InsufficientBuffer, IvUpdateFlag, KeyRefreshFlag, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
-use serde::{Deserialize, Serialize};
 
 pub mod advertising;
 pub mod generic;
@@ -347,29 +346,8 @@ impl ProvisioningData {
             })
         }
     }
-}
-
-// TODO: probably move this elsewhere
-#[derive(Copy, Clone, Serialize, Deserialize, Hash, PartialEq, Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum KeyRefreshFlag {
-    Phase0,
-    Phase2,
-}
-
-impl KeyRefreshFlag {
-    fn parse(data: u8) -> Self {
-        if data == 0 {
-            Self::Phase0
-        } else {
-            Self::Phase2
-        }
-    }
-}
-
-impl Default for KeyRefreshFlag {
-    fn default() -> Self {
-        Self::Phase0
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        unimplemented!();
     }
 }
 

@@ -68,6 +68,25 @@ impl IvUpdateFlag {
     }
 }
 
+// TODO: typedef to bool?
+#[derive(Copy, Clone, Hash, PartialEq, Debug, Default)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub enum KeyRefreshFlag {
+    #[default]
+    False,
+    True,
+}
+
+impl KeyRefreshFlag {
+    pub fn parse(data: u8) -> Self {
+        if data == 0 {
+            Self::False
+        } else {
+            Self::True
+        }
+    }
+}
+
 #[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct IvIndex(u32);
