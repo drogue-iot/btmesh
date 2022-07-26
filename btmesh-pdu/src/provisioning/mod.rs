@@ -310,6 +310,15 @@ impl Data {
             })
         }
     }
+    fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        xmit.push(ProvisioningPDU::DATA)
+            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.encrypted)
+            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.mic)
+            .map_err(|_| InsufficientBuffer)?;
+        Ok(())
+    }
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
@@ -393,6 +402,12 @@ impl Failed {
             })
         }
     }
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        xmit.push(ProvisioningPDU::FAILED)
+            .map_err(|_| InsufficientBuffer)?;
+        self.error_code.emit(xmit)?;
+        Ok(())
+    }
 }
 
 impl ProvisioningPDU {
@@ -429,26 +444,18 @@ impl ProvisioningPDU {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
-            ProvisioningPDU::Invite(_) => {
-                unimplemented!()
-            }
+            ProvisioningPDU::Invite(invite) => invite.emit(xmit),
             ProvisioningPDU::Capabilities(capabilities) => capabilities.emit(xmit),
-            ProvisioningPDU::Start(_) => {
-                unimplemented!()
-            }
+            ProvisioningPDU::Start(start) => start.emit(xmit),
             ProvisioningPDU::PublicKey(public_key) => public_key.emit(xmit),
             ProvisioningPDU::InputComplete => xmit
                 .push(Self::INPUT_COMPLETE)
                 .map_err(|_| InsufficientBuffer),
             ProvisioningPDU::Confirmation(confirmation) => confirmation.emit(xmit),
             ProvisioningPDU::Random(random) => random.emit(xmit),
-            ProvisioningPDU::Data(_) => {
-                unimplemented!()
-            }
+            ProvisioningPDU::Data(data) => data.emit(xmit),
             ProvisioningPDU::Complete => xmit.push(Self::COMPLETE).map_err(|_| InsufficientBuffer),
-            ProvisioningPDU::Failed(_) => {
-                unimplemented!()
-            }
+            ProvisioningPDU::Failed(failed) => failed.emit(xmit),
         }
     }
 
@@ -947,5 +954,19 @@ impl ErrorCode {
             0x08 => Ok(Self::CannotAssignAddresses),
             _ => Err(ParseError::InvalidValue),
         }
+    }
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        match self {
+            Self::Prohibited => xmit.push(0x00).map_err(|_| InsufficientBuffer)?,
+            Self::InvalidPDU => xmit.push(0x01).map_err(|_| InsufficientBuffer)?,
+            Self::InvalidFormat => xmit.push(0x02).map_err(|_| InsufficientBuffer)?,
+            Self::UnexpectedPDU => xmit.push(0x03).map_err(|_| InsufficientBuffer)?,
+            Self::ConfirmationFailed => xmit.push(0x04).map_err(|_| InsufficientBuffer)?,
+            Self::OutOfResources => xmit.push(0x05).map_err(|_| InsufficientBuffer)?,
+            Self::DecryptionFailed => xmit.push(0x06).map_err(|_| InsufficientBuffer)?,
+            Self::UnexpectedError => xmit.push(0x07).map_err(|_| InsufficientBuffer)?,
+            Self::CannotAssignAddresses => xmit.push(0x08).map_err(|_| InsufficientBuffer)?,
+        }
+        Ok(())
     }
 }
