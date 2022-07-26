@@ -114,8 +114,8 @@ mod tests {
     use crate::stack::unprovisioned::provisionee::Provisionee;
 
     use super::*;
-    use btmesh_common::address::UnicastAddress;
-    use btmesh_pdu::provisioning::{Capabilities, KeyRefreshFlag};
+    use btmesh_common::{address::UnicastAddress, KeyRefreshFlag};
+    use btmesh_pdu::provisioning::Capabilities;
     use rand_core::OsRng;
 
     #[test]
@@ -124,7 +124,7 @@ mod tests {
 
         let data = ProvisioningData {
             unicast_address: UnicastAddress::new(0x00_0A).unwrap(),
-            key_refresh_flag: KeyRefreshFlag::Phase2,
+            key_refresh_flag: KeyRefreshFlag::True,
             ..Default::default()
         };
         let invite = Invite::default();
@@ -168,8 +168,7 @@ mod tests {
             Provisionee::Complete(key, result) => {
                 let empty: [u8; 16] = [0; 16];
                 assert_ne!(&empty, key.deref());
-                // TODO: uncomment!
-                // assert_eq!(data, result);
+                assert_eq!(data, result);
             }
             _ => panic!("wrong ending state"),
         }

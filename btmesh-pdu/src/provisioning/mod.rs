@@ -347,7 +347,19 @@ impl ProvisioningData {
         }
     }
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        unimplemented!();
+        xmit.extend_from_slice(&self.network_key)
+            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&[0; 2]) // TODO: key_index
+            .map_err(|_| InsufficientBuffer)?;
+        let mut flags = 0;
+        self.key_refresh_flag.emit(&mut flags);
+        self.iv_update_flag.emit(&mut flags);
+        xmit.push(flags).map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.iv_index.to_be_bytes())
+            .map_err(|_| InsufficientBuffer)?;
+        xmit.extend_from_slice(&self.unicast_address.as_bytes())
+            .map_err(|_| InsufficientBuffer)?;
+        Ok(())
     }
 }
 

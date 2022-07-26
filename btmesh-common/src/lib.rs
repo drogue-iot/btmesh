@@ -66,6 +66,11 @@ impl IvUpdateFlag {
             Self::InProgress
         }
     }
+    pub fn emit(&self, data: &mut u8) {
+        if self == &Self::InProgress {
+            *data |= 0b00000010;
+        }
+    }
 }
 
 // TODO: typedef to bool?
@@ -83,6 +88,11 @@ impl KeyRefreshFlag {
             Self::False
         } else {
             Self::True
+        }
+    }
+    pub fn emit(&self, data: &mut u8) {
+        if self == &Self::True {
+            *data |= 0b00000001;
         }
     }
 }
