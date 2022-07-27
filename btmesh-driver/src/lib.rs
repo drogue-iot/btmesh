@@ -145,8 +145,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
         Ok(())
     }
 
-    /// Perform a single end-to-end loop through the driver's processing logic.
-    pub async fn process(&mut self) -> Result<(), DriverError> {
+    pub async fn run(&mut self) -> Result<(), DriverError> {
         let device_state = self.stack.device_state();
 
         loop {

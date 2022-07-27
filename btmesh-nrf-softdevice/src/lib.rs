@@ -9,3 +9,7 @@ compile_error!("No chip feature activated. You must activate exactly one of the 
 
 mod advertising;
 mod gatt;
+
+mod rng;
+
+mod driver;
