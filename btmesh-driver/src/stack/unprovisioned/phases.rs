@@ -259,18 +259,20 @@ impl Phase<DataDistribution> {
     }
 }
 
-impl From<Phase<Beaconing>> for Phase<Invitation> {
-    fn from(p: Phase<Beaconing>) -> Phase<Invitation> {
-        Phase {
+impl TryFrom<Phase<Beaconing>> for Phase<Invitation> {
+    type Error = DriverError;
+    fn try_from(p: Phase<Beaconing>) -> Result<Self, Self::Error> {
+        Ok(Phase {
             transcript: p.transcript,
             ..Default::default()
-        }
+        })
     }
 }
 
-impl From<Phase<Invitation>> for Phase<KeyExchange> {
-    fn from(p: Phase<Invitation>) -> Phase<KeyExchange> {
-        Phase {
+impl TryFrom<Phase<Invitation>> for Phase<KeyExchange> {
+    type Error = DriverError;
+    fn try_from(p: Phase<Invitation>) -> Result<Self, Self::Error> {
+        Ok(Phase {
             transcript: p.transcript,
             data: p.data,
             state: KeyExchange {
@@ -278,13 +280,14 @@ impl From<Phase<Invitation>> for Phase<KeyExchange> {
                 private: p.state.private,
                 ..Default::default()
             },
-        }
+        })
     }
 }
 
-impl From<Phase<KeyExchange>> for Phase<Authentication> {
-    fn from(p: Phase<KeyExchange>) -> Phase<Authentication> {
-        Phase {
+impl TryFrom<Phase<KeyExchange>> for Phase<Authentication> {
+    type Error = DriverError;
+    fn try_from(p: Phase<KeyExchange>) -> Result<Self, Self::Error> {
+        Ok(Phase {
             transcript: p.transcript,
             data: p.data,
             state: Authentication {
@@ -293,13 +296,14 @@ impl From<Phase<KeyExchange>> for Phase<Authentication> {
                 random_provisioner: p.state.random_provisioner,
                 ..Default::default()
             },
-        }
+        })
     }
 }
 
-impl From<Phase<Authentication>> for Phase<DataDistribution> {
-    fn from(p: Phase<Authentication>) -> Phase<DataDistribution> {
-        Phase {
+impl TryFrom<Phase<Authentication>> for Phase<DataDistribution> {
+    type Error = DriverError;
+    fn try_from(p: Phase<Authentication>) -> Result<Self, Self::Error> {
+        Ok(Phase {
             transcript: p.transcript,
             data: p.data,
             state: DataDistribution {
@@ -307,6 +311,6 @@ impl From<Phase<Authentication>> for Phase<DataDistribution> {
                 random_device: p.state.random_device,
                 random_provisioner: p.state.random_provisioner,
             },
-        }
+        })
     }
 }

@@ -40,7 +40,7 @@ impl Provisioner {
                 // plus caps.number_of_elements?
                 let (start, pk) = phase.capabilities(caps, rng)?;
                 Ok((
-                    Provisioner::KeyExchange(phase.into()),
+                    Provisioner::KeyExchange(phase.try_into()?),
                     ResponsePDU::Two([
                         ProvisioningPDU::Start(start),
                         ProvisioningPDU::PublicKey(pk),
@@ -63,7 +63,7 @@ impl Provisioner {
 
                 // TODO: this better, i.e. calculate sets random_provisioner and then returns it... wtf?
                 let random = phase.calculate_ecdh_provisioner(peer_key, rng)?;
-                let phase: Phase<Authentication> = phase.into();
+                let phase: Phase<Authentication> = phase.try_into()?;
                 let confirmation = phase.confirm(&random)?;
                 let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
                 Ok((Provisioner::Authentication(phase), ResponsePDU::One(pdu)))
@@ -79,7 +79,7 @@ impl Provisioner {
             // RANDOM
             (Provisioner::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
                 if phase.provisioner_check(value).is_ok() {
-                    let phase: Phase<DataDistribution> = phase.into();
+                    let phase: Phase<DataDistribution> = phase.try_into()?;
                     let response = phase.encrypt()?;
                     Ok((
                         Provisioner::DataDistribution(phase),
@@ -166,8 +166,7 @@ mod tests {
 
         match device {
             Provisionee::Complete(key, result) => {
-                let empty: [u8; 16] = [0; 16];
-                assert_ne!(&empty, key.deref());
+                assert_ne!(&[0; 16], key.deref());
                 assert_eq!(data, result);
             }
             _ => panic!("wrong ending state"),

@@ -38,7 +38,7 @@ impl Provisionee {
             (Provisionee::Beaconing(mut phase), ProvisioningPDU::Invite(invite)) => {
                 let response = phase.invite(invite)?;
                 Ok((
-                    Provisionee::Invitation(phase.into()),
+                    Provisionee::Invitation(phase.try_into()?),
                     Some(ProvisioningPDU::Capabilities(response)),
                 ))
             }
@@ -48,13 +48,13 @@ impl Provisionee {
                 phase.start(start, rng)?;
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
-                Ok((Provisionee::KeyExchange(phase.into()), None))
+                Ok((Provisionee::KeyExchange(phase.try_into()?), None))
             }
             // PUBLIC KEY
             (Provisionee::KeyExchange(mut phase), ProvisioningPDU::PublicKey(peer_key)) => {
                 match phase.calculate_ecdh_device(peer_key, rng) {
                     Ok(key) => Ok((
-                        Provisionee::Authentication(phase.into()),
+                        Provisionee::Authentication(phase.try_into()?),
                         Some(ProvisioningPDU::PublicKey(key)),
                     )),
                     Err(DriverError::Parse(_)) => Provisionee::fail(ErrorCode::InvalidFormat),
@@ -73,7 +73,7 @@ impl Provisionee {
             (Provisionee::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
                 match phase.device_check(value) {
                     Ok(response) => Ok((
-                        Provisionee::DataDistribution(phase.into()),
+                        Provisionee::DataDistribution(phase.try_into()?),
                         Some(ProvisioningPDU::Random(response)),
                     )),
                     Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
