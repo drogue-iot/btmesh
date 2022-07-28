@@ -38,12 +38,7 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(
-        network: N,
-        rng: R,
-        backing_store: B,
-        capabilities: Capabilities,
-    ) -> Self {
+    pub fn new(network: N, rng: R, backing_store: B, capabilities: Capabilities) -> Self {
         Self {
             stack: Stack::None,
             network,
