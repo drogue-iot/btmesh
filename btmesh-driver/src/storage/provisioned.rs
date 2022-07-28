@@ -22,7 +22,7 @@ impl ProvisionedConfiguration {
     }
 
     pub fn device_info(&self) -> DeviceInfo {
-        self.device_info.clone()
+        self.device_info
     }
 
     pub fn sequence(&self) -> u32 {

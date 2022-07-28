@@ -43,13 +43,12 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         rng: R,
         backing_store: B,
         capabilities: Capabilities,
-        sequence_threshold: u32,
     ) -> Self {
         Self {
             stack: Stack::None,
             network,
             rng,
-            storage: Storage::new(backing_store, capabilities, sequence_threshold),
+            storage: Storage::new(backing_store, capabilities),
         }
     }
 
