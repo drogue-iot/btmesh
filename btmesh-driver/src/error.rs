@@ -1,6 +1,7 @@
 use core::array::TryFromSliceError;
 
 use crate::stack::interface::NetworkError;
+use crate::storage::StorageError;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
@@ -20,6 +21,13 @@ pub enum DriverError {
     Parse(ParseError),
     Network(NetworkError),
     SeqRollover,
+    Storage(StorageError),
+}
+
+impl From<StorageError> for DriverError {
+    fn from(err: StorageError) -> Self {
+        Self::Storage(err)
+    }
 }
 
 impl From<NetworkError> for DriverError {

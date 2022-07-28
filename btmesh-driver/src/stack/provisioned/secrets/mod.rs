@@ -7,9 +7,14 @@ use btmesh_common::crypto::device::DeviceKey;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
 use btmesh_pdu::provisioning::ProvisioningData;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod application;
 pub mod network;
 
+#[derive(Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Secrets {
     device_key: DeviceKey,
     network_keys: NetworkKeys,

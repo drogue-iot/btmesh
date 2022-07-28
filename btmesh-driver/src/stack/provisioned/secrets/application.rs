@@ -1,14 +1,21 @@
 use crate::stack::provisioned::system::ApplicationKeyHandle;
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::application::{Aid, ApplicationKey};
+use heapless::Vec;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[derive(Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub(crate) struct ApplicationKeys<const N: usize = 4> {
-    pub(crate) keys: [Option<ApplicationKey>; N],
+    pub(crate) keys: Vec<Option<ApplicationKey>, N>,
 }
 
 impl<const N: usize> Default for ApplicationKeys<N> {
     fn default() -> Self {
-        let keys = [None; N];
+        let mut keys = Vec::new();
+        keys.resize(N, None).ok();
         Self { keys }
     }
 }

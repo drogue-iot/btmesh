@@ -4,6 +4,7 @@ use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
+use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::{DriverError, UpperMetadata};
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
 use btmesh_pdu::provisioned::lower::BlockAck;
@@ -14,6 +15,9 @@ use embassy::time::Instant;
 use heapless::Vec;
 use secrets::Secrets;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod lower;
 pub mod network;
 pub mod secrets;
@@ -22,7 +26,8 @@ pub mod system;
 pub mod transmit_queue;
 pub mod upper;
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IvIndexState {
     iv_index: IvIndex,
     iv_update_flag: IvUpdateFlag,
@@ -38,6 +43,8 @@ impl IvIndexState {
     }
 }
 
+#[derive(Copy, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
@@ -73,6 +80,19 @@ pub struct ProvisionedStack {
     network: NetworkDriver,
     //
     transmit_queue: TransmitQueue,
+}
+
+impl From<ProvisionedConfiguration> for ProvisionedStack {
+    fn from(content: ProvisionedConfiguration) -> Self {
+        Self {
+            network_state: content.network_state(),
+            secrets: content.secrets(),
+            upper: Default::default(),
+            lower: Default::default(),
+            network: NetworkDriver::new(content.device_info()),
+            transmit_queue: Default::default(),
+        }
+    }
 }
 
 pub struct ReceiveResult {
@@ -114,6 +134,14 @@ impl ProvisionedStack {
             network: NetworkDriver::new(device_info),
             transmit_queue: Default::default(),
         }
+    }
+
+    pub fn network_state(&self) -> NetworkState {
+        self.network_state
+    }
+
+    pub fn device_info(&self) -> DeviceInfo {
+        self.network.device_info()
     }
 
     pub fn next_beacon_deadline(&self) -> Option<Instant> {

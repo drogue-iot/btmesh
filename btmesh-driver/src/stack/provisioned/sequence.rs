@@ -15,4 +15,8 @@ impl Sequence {
     pub fn next(&self) -> Seq {
         Seq::new(self.seq.fetch_add(1, Ordering::Relaxed))
     }
+
+    pub fn current(&self) -> u32 {
+        self.seq.load(Ordering::Relaxed)
+    }
 }

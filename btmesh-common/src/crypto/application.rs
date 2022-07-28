@@ -5,12 +5,14 @@ use crate::{crypto, InsufficientBuffer, ParseError};
 use ccm::aead::Error;
 use cmac::crypto_mac::InvalidKeyLength;
 use core::ops::Deref;
-use hash32_derive::Hash32;
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 use heapless::Vec;
 
 /// Application key identifier.
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Aid(u8);
 
@@ -44,7 +46,8 @@ impl From<u8> for Aid {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct ApplicationKey {
     application_key: [u8; 16],
     aid: Aid,

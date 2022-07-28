@@ -11,7 +11,6 @@ use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
 use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use btmesh_pdu::provisioned::System;
-use hash32_derive::Hash32;
 use heapless::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
@@ -21,7 +20,7 @@ pub enum KeyHandle {
     Application(ApplicationKeyHandle),
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub struct NetworkKeyHandle(pub(crate) u8, pub(crate) Nid);
 
 impl NetworkKeyHandle {
@@ -30,7 +29,7 @@ impl NetworkKeyHandle {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Hash32)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 pub struct ApplicationKeyHandle(pub(crate) u8, pub(crate) Aid);
 
 impl ApplicationKeyHandle {

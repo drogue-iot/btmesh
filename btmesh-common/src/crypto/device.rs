@@ -4,7 +4,11 @@ use crate::mic::TransMic;
 use ccm::aead::Error;
 use core::ops::Deref;
 
-#[derive(Copy, Clone, Debug)]
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
+#[derive(Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DeviceKey {
     device_key: [u8; 16],
 }

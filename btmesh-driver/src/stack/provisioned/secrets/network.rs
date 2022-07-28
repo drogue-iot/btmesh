@@ -2,14 +2,20 @@ use crate::stack::provisioned::system::NetworkKeyHandle;
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
 use btmesh_pdu::provisioning::ProvisioningData;
+use heapless::Vec;
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
+#[derive(Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub(crate) struct NetworkKeys<const N: usize = 4> {
-    pub(crate) keys: [Option<NetworkKey>; N],
+    pub(crate) keys: Vec<Option<NetworkKey>, N>,
 }
 
 impl<const N: usize> Default for NetworkKeys<N> {
     fn default() -> Self {
-        let keys = [None; N];
+        let mut keys = Vec::new();
+        keys.resize(N, None).ok();
         Self { keys }
     }
 }

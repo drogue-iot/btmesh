@@ -16,6 +16,7 @@ use rand_core::{CryptoRng, RngCore};
 mod error;
 pub mod stack;
 
+mod storage;
 mod util;
 
 use crate::stack::interface::NetworkInterfaces;
@@ -26,67 +27,40 @@ use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
+use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
 
-pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng> {
+pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
     stack: Stack,
     network: N,
     rng: R,
-    // --
-    capabilities: Capabilities,
+    storage: Storage<B>,
 }
 
-impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
-    pub fn new_unprovisioned(network: N, rng: R, capabilities: Capabilities, uuid: Uuid) -> Self {
-        let num_elements = capabilities.number_of_elements;
-        Self {
-            stack: Stack::Unprovisioned {
-                stack: UnprovisionedStack::new(capabilities.clone()),
-                num_elements,
-                uuid,
-            },
-            rng,
-            network,
-            capabilities,
-        }
-    }
-
-    pub fn new_provisioned(
+impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
+    pub fn new(
         network: N,
         rng: R,
-        device_info: DeviceInfo,
-        secrets: Secrets,
-        network_state: NetworkState,
-        sequence: Sequence,
+        backing_store: B,
         capabilities: Capabilities,
+        sequence_threshold: u32,
     ) -> Self {
         Self {
-            stack: Stack::Provisioned {
-                stack: ProvisionedStack::new(device_info, secrets, network_state),
-                sequence,
-            },
-            rng,
+            stack: Stack::None,
             network,
-            capabilities,
+            rng,
+            storage: Storage::new(backing_store, capabilities, sequence_threshold),
         }
     }
 
     async fn receive_pdu(&mut self, pdu: &PDU) -> Result<(), DriverError> {
         match (&pdu, &mut self.stack) {
-            (
-                PDU::Provisioning(pdu),
-                Stack::Unprovisioned {
-                    stack,
-                    num_elements,
-                    uuid,
-                },
-            ) => {
+            (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, uuid }) => {
                 if let Some(provisioning_state) = stack.process(pdu, &mut self.rng)? {
                     match provisioning_state {
                         ProvisioningState::Failed => {
                             self.stack = Stack::Unprovisioned {
-                                stack: UnprovisionedStack::new(self.capabilities.clone()),
-                                num_elements: self.capabilities.number_of_elements,
+                                stack: UnprovisionedStack::new(self.storage.capabilities()),
                                 uuid: *uuid,
                             };
                         }
@@ -95,7 +69,10 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                         }
                         ProvisioningState::Data(device_key, provisioning_data) => {
                             let primary_unicast_addr = provisioning_data.unicast_address;
-                            let device_info = DeviceInfo::new(primary_unicast_addr, *num_elements);
+                            let device_info = DeviceInfo::new(
+                                primary_unicast_addr,
+                                self.storage.capabilities().number_of_elements,
+                            );
                             let secrets = (device_key, provisioning_data).into();
                             let network_state = provisioning_data.into();
 
@@ -125,7 +102,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
                 }
             }
             _ => {
-                // PDU incompatible with stack state; ignore.
+                // PDU incompatible with stack state or stack not initialized; ignore.
             }
         }
         Ok(())
@@ -133,6 +110,9 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
 
     async fn send_beacon(&self) -> Result<(), DriverError> {
         match &self.stack {
+            Stack::None => {
+                // nothing
+            }
             Stack::Unprovisioned { uuid, .. } => {
                 self.network.beacon(Beacon::Unprovisioned(*uuid)).await?;
             }
@@ -146,25 +126,50 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     }
 
     pub async fn run(&mut self) -> Result<(), DriverError> {
-        let device_state = self.stack.device_state();
+        let content = self.storage.get().await?;
+
+        match content {
+            Configuration::Unprovisioned(content) => {
+                self.stack = Stack::Unprovisioned {
+                    stack: UnprovisionedStack::new(self.storage.capabilities()),
+                    uuid: content.uuid(),
+                }
+            }
+            Configuration::Provisioned(content) => {
+                self.stack = Stack::Provisioned {
+                    sequence: Sequence::new(Seq::new(content.sequence())),
+                    stack: content.into(),
+                }
+            }
+        }
 
         loop {
-            let receive_fut = self.network.receive(&device_state);
-            let beacon_fut = self.next_beacon();
+            let device_state = self.stack.device_state();
 
-            match select(receive_fut, beacon_fut).await {
-                Either::First(Ok(pdu)) => {
-                    self.receive_pdu(&pdu).await?;
+            if let Some(device_state) = device_state {
+                let receive_fut = self.network.receive(&device_state);
+                let beacon_fut = self.next_beacon();
+
+                match select(receive_fut, beacon_fut).await {
+                    Either::First(Ok(pdu)) => {
+                        self.receive_pdu(&pdu).await?;
+                    }
+                    Either::First(Err(err)) => return Err(err.into()),
+                    Either::Second(_) => {
+                        self.send_beacon().await?;
+                    }
                 }
-                Either::First(Err(err)) => return Err(err.into()),
-                Either::Second(_) => {
-                    self.send_beacon().await?;
+
+                let config: Option<Configuration> = (&self.stack).try_into().ok();
+                if let Some(config) = config {
+                    // will conditionally put depending on hash/dirty/sequence changes.
+                    self.storage.put(&config).await?;
                 }
             }
         }
     }
 
-    fn next_beacon(&self) -> BeaconFuture<'_, N, R> {
+    fn next_beacon(&self) -> BeaconFuture<'_, N, R, B> {
         async move {
             if let Some(next_beacon_deadline) = self.stack.next_beacon_deadline() {
                 Timer::at(next_beacon_deadline).await
@@ -175,10 +180,11 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng> Driver<N, R> {
     }
 }
 
-type BeaconFuture<'f, N, R>
+type BeaconFuture<'f, N, R, B>
 where
     N: NetworkInterfaces + 'f,
     R: CryptoRng + RngCore + 'f,
+    B: BackingStore + 'f,
 = impl Future<Output = ()> + 'f;
 
 pub enum DeviceState {

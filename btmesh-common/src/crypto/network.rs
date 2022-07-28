@@ -5,10 +5,12 @@ use crate::{crypto, NetworkId, ParseError};
 use ccm::aead::Error;
 use cmac::crypto_mac::InvalidKeyLength;
 use core::ops::Deref;
-use hash32_derive::Hash32;
+
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
 
 /// Network key identifier.
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash32)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Nid(u8);
@@ -83,7 +85,8 @@ impl AsMut<[u8]> for NetMic {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Default, Eq, PartialEq, Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct EncryptionKey([u8; 16]);
 
 impl EncryptionKey {
@@ -100,7 +103,8 @@ impl Deref for EncryptionKey {
     }
 }
 
-#[derive(Default, Eq, PartialEq, Copy, Clone, Debug)]
+#[derive(Default, Eq, PartialEq, Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PrivacyKey([u8; 16]);
 
 impl PrivacyKey {
@@ -117,7 +121,8 @@ impl Deref for PrivacyKey {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NetworkKey {
     privacy_key: PrivacyKey,
     encryption_key: EncryptionKey,

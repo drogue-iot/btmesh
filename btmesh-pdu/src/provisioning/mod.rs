@@ -4,6 +4,9 @@ use core::convert::TryInto;
 use heapless::Vec;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod advertising;
 pub mod generic;
 
@@ -46,8 +49,9 @@ impl Invite {
     }
 }
 
-#[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[derive(Clone, Default, Hash, Debug)]
 pub struct Capabilities {
     pub number_of_elements: u8,
     pub algorithms: Algorithms,
@@ -452,6 +456,7 @@ impl ProvisioningPDU {
 
 #[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum Algorithm {
     #[default]
     P256,
@@ -477,6 +482,7 @@ impl Algorithm {
 
 #[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Algorithms(Vec<Algorithm, 16>);
 
 impl Algorithms {
@@ -532,6 +538,7 @@ impl Default for Algorithms {
 
 #[derive(Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct PublicKeyType {
     pub available: bool,
 }
@@ -586,6 +593,7 @@ impl PublicKeySelected {
 
 #[derive(Copy, Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct StaticOOBType {
     pub available: bool,
 }
@@ -613,6 +621,7 @@ impl StaticOOBType {
 
 #[derive(Copy, Clone, Default, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum OOBSize {
     #[default]
     NotSupported,
@@ -641,6 +650,7 @@ impl OOBSize {
 
 #[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum OutputOOBAction {
     Blink = 0b0000000000000001,
     Beep = 0b0000000000000010,
@@ -674,6 +684,7 @@ impl From<OutputOOBAction> for ParseError {
 
 #[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct OutputOOBActions(Vec<OutputOOBAction, 5>);
 
 impl OutputOOBActions {
@@ -735,6 +746,7 @@ impl Default for OutputOOBActions {
 
 #[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum InputOOBAction {
     Push = 0b0000000000000001,
     Twist = 0b0000000000000010,
@@ -766,6 +778,7 @@ impl From<InputOOBAction> for ParseError {
 
 #[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct InputOOBActions(Vec<InputOOBAction, 4>);
 
 impl InputOOBActions {

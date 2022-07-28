@@ -3,6 +3,9 @@
 use core::array::TryFromSliceError;
 use core::ops::{Add, BitAnd, Deref, Sub};
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod address;
 pub mod crc;
 pub mod crypto;
@@ -52,6 +55,7 @@ impl From<cmac::crypto_mac::InvalidKeyLength> for ParseError {
 }
 
 #[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub enum IvUpdateFlag {
     #[default]
     Normal,
@@ -88,8 +92,9 @@ impl KeyRefreshFlag {
     }
 }
 
-#[derive(Copy, Clone, Default, PartialEq, Eq, Debug)]
+#[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IvIndex(u32);
 
 impl IvIndex {
@@ -297,7 +302,8 @@ impl Ctl {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Uuid([u8; 16]);
 
 impl Uuid {
@@ -314,7 +320,8 @@ impl Deref for Uuid {
     }
 }
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NetworkId([u8; 8]);
 
 impl NetworkId {

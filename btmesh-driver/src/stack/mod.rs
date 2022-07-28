@@ -1,4 +1,7 @@
 use crate::stack::unprovisioned::UnprovisionedStack;
+use crate::storage::provisioned::ProvisionedConfiguration;
+use crate::storage::unprovisioned::UnprovisionedConfiguration;
+use crate::storage::Configuration;
 use crate::{DeviceState, ProvisionedStack, Sequence};
 use btmesh_common::Uuid;
 use embassy::time::Instant;
@@ -9,9 +12,9 @@ pub mod unprovisioned;
 
 #[allow(clippy::large_enum_variant)]
 pub enum Stack {
+    None,
     Unprovisioned {
         stack: UnprovisionedStack,
-        num_elements: u8,
         uuid: Uuid,
     },
     Provisioned {
@@ -21,20 +24,42 @@ pub enum Stack {
 }
 
 impl Stack {
-    pub fn device_state(&self) -> DeviceState {
+    pub fn device_state(&self) -> Option<DeviceState> {
         match self {
-            Stack::Unprovisioned { stack, uuid, .. } => DeviceState::Unprovisioned {
+            Stack::None => None,
+            Stack::Unprovisioned { stack, uuid, .. } => Some(DeviceState::Unprovisioned {
                 uuid: *uuid,
                 in_progress: stack.in_progress(),
-            },
-            Stack::Provisioned { .. } => DeviceState::Provisioned,
+            }),
+            Stack::Provisioned { .. } => Some(DeviceState::Provisioned),
         }
     }
 
     pub fn next_beacon_deadline(&self) -> Option<Instant> {
         match self {
+            Stack::None => None,
             Stack::Unprovisioned { stack, .. } => stack.next_beacon_deadline(),
             Stack::Provisioned { stack, .. } => stack.next_beacon_deadline(),
+        }
+    }
+}
+
+impl TryFrom<&Stack> for Configuration {
+    type Error = ();
+
+    fn try_from(stack: &Stack) -> Result<Self, Self::Error> {
+        match stack {
+            Stack::None => Err(()),
+            Stack::Unprovisioned { uuid, .. } => {
+                Ok(UnprovisionedConfiguration { uuid: *uuid }.into())
+            }
+            Stack::Provisioned { stack, sequence } => Ok(ProvisionedConfiguration {
+                network_state: stack.network_state(),
+                secrets: stack.secrets().clone(),
+                device_info: stack.device_info(),
+                sequence: sequence.current(),
+            }
+            .into()),
         }
     }
 }

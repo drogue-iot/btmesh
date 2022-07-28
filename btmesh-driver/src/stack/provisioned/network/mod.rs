@@ -7,8 +7,13 @@ use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
 
+#[cfg(feature = "serde")]
+use serde::{Deserialize, Serialize};
+
 pub mod replay_protection;
 
+#[derive(Copy, Clone, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DeviceInfo {
     number_of_elements: u8,
     primary_unicast_address: UnicastAddress,
@@ -46,6 +51,10 @@ impl NetworkDriver {
             device_info,
             replay_protection: Default::default(),
         }
+    }
+
+    pub(crate) fn device_info(&self) -> DeviceInfo {
+        self.device_info
     }
 
     #[inline]
