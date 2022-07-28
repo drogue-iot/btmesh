@@ -1,4 +1,4 @@
-use core::hash::Hasher;
+use core::hash::{Hash, Hasher};
 
 const BASIS: u64 = 0xcbf29ce484222325;
 const PRIME: u64 = 0x100000001b3;
@@ -26,4 +26,10 @@ impl Hasher for FnvHasher {
             self.state = self.state.wrapping_mul(PRIME);
         }
     }
+}
+
+pub fn hash_of<T: Hash>(obj: &T) -> u64 {
+    let mut hasher = FnvHasher::default();
+    obj.hash(&mut hasher);
+    hasher.finish()
 }

@@ -12,7 +12,7 @@ use serde::{Deserialize, Serialize};
 
 pub mod replay_protection;
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct DeviceInfo {
     number_of_elements: u8,

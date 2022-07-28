@@ -1,6 +1,6 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
-use crate::util::hash::FnvHasher;
+use crate::util::hash::{hash_of, FnvHasher};
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
 use core::future::Future;
@@ -39,7 +39,7 @@ pub trait BackingStore {
 }
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 pub enum Configuration {
     Unprovisioned(UnprovisionedConfiguration),
     Provisioned(ProvisionedConfiguration),
@@ -48,7 +48,7 @@ pub enum Configuration {
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
     capabilities: Capabilities,
-    config: RefCell<Option<(Configuration, u64)>>,
+    config: RefCell<Option<Configuration>>,
     sequence_threshold: u32,
 }
 
@@ -65,7 +65,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn get(&self) -> Result<Configuration, StorageError> {
         self.load_if_needed().await?;
         if let Some(config) = &*self.config.borrow() {
-            Ok(config.0.clone())
+            Ok(config.clone())
         } else {
             Err(StorageError::Load)
         }
@@ -76,48 +76,16 @@ impl<B: BackingStore> Storage<B> {
             return Ok(());
         }
 
-        match (&*self.config.borrow(), config) {
-            (None, _) => {
-                // we had nothing, so scribble.
-                self.store_internal(config, Self::hash_of(config)).await?;
-            }
-            (Some((Configuration::Unprovisioned(..), _)), Configuration::Provisioned(..)) => {
-                // unprovisioned -> provisioned
-                self.store_internal(config, Self::hash_of(config)).await?;
-            }
-            (Some((Configuration::Provisioned(..), _)), Configuration::Unprovisioned(..)) => {
-                // provisioned -> unprovisioned
-                self.store_internal(config, Self::hash_of(config)).await?;
-            }
-            (
-                Some((Configuration::Provisioned(..), hash)),
-                Configuration::Provisioned(new_provisioned_config),
-            ) => {
-                let new_hash = Self::hash_of(config);
-                if new_hash != *hash
-                    || new_provisioned_config.sequence() % self.sequence_threshold == 0
-                {
-                    self.store_internal(config, new_hash).await?;
-                }
-            }
-            _ => {
-                // shouldn't reach here, I guess.
-            }
+        if should_writeback(
+            self.config.borrow().as_ref().map(|inner| inner),
+            config,
+            self.sequence_threshold,
+        ) {
+            self.backing_store.borrow_mut().store(config).await?;
+            self.config.borrow_mut().replace(config.clone());
         }
 
         Ok(())
-    }
-
-    async fn store_internal(&self, config: &Configuration, hash: u64) -> Result<(), StorageError> {
-        self.backing_store.borrow_mut().store(config).await?;
-        self.config.borrow_mut().replace((config.clone(), hash));
-        Ok(())
-    }
-
-    fn hash_of(config: &Configuration) -> u64 {
-        let mut hasher = FnvHasher::default();
-        config.hash(&mut hasher);
-        hasher.finish()
     }
 
     async fn load_if_needed(&self) -> Result<(), StorageError> {
@@ -125,11 +93,10 @@ impl<B: BackingStore> Storage<B> {
             let config = self.backing_store.borrow_mut().load().await?;
             match &config {
                 Configuration::Unprovisioned(..) => {
-                    self.config.borrow_mut().replace((config, 0));
+                    self.config.borrow_mut().replace(config);
                 }
                 Configuration::Provisioned(..) => {
-                    let hash = Self::hash_of(&config);
-                    self.config.borrow_mut().replace((config, hash));
+                    self.config.borrow_mut().replace(config);
                 }
             }
         }
@@ -141,7 +108,7 @@ impl<B: BackingStore> Storage<B> {
         self.load_if_needed().await?;
         Ok(matches!(
             &*self.config.borrow(),
-            Some((Configuration::Provisioned(..), _))
+            Some(Configuration::Provisioned(..))
         ))
     }
 
@@ -149,11 +116,246 @@ impl<B: BackingStore> Storage<B> {
         self.load_if_needed().await?;
         Ok(matches!(
             &*self.config.borrow(),
-            Some((Configuration::Unprovisioned(..), _))
+            Some(Configuration::Unprovisioned(..))
         ))
     }
 
     pub fn capabilities(&self) -> Capabilities {
         self.capabilities.clone()
+    }
+}
+
+pub fn should_writeback(
+    current: Option<&Configuration>,
+    new: &Configuration,
+    sequence_threshold: u32,
+) -> bool {
+    match (current, new) {
+        (None, _) => {
+            // we had nothing, so scribble.
+            true
+        }
+        (Some(Configuration::Unprovisioned(..)), Configuration::Provisioned(..)) => {
+            // unprovisioned -> provisioned
+            true
+        }
+        (Some(Configuration::Provisioned(..)), Configuration::Unprovisioned(..)) => {
+            // provisioned -> unprovisioned
+            true
+        }
+        (
+            Some(current @ Configuration::Provisioned(current_provisioned_config)),
+            Configuration::Provisioned(new_provisioned_config),
+        ) => {
+            let current_hash = hash_of(current);
+            let new_hash = hash_of(new);
+            if new_hash != current_hash {
+                true
+            } else {
+                if new_provisioned_config.sequence() == current_provisioned_config.sequence() {
+                    false
+                } else if new_provisioned_config.sequence() % sequence_threshold == 0
+                    || (new_provisioned_config.sequence() - current_provisioned_config.sequence())
+                        >= sequence_threshold
+                {
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        _ => false,
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use crate::stack::provisioned::secrets::application::ApplicationKeys;
+    use crate::stack::provisioned::secrets::network::NetworkKeys;
+    use crate::storage::provisioned::ProvisionedConfiguration;
+    use crate::storage::should_writeback;
+    use crate::storage::unprovisioned::UnprovisionedConfiguration;
+    use crate::util::hash::hash_of;
+    use crate::{Configuration, DeviceInfo, NetworkState, Secrets, Storage};
+    use btmesh_common::address::UnicastAddress;
+    use btmesh_common::crypto::device::DeviceKey;
+    use btmesh_common::{IvIndex, IvUpdateFlag, Uuid};
+
+    #[test]
+    pub fn hashing() {
+        let config_a = Configuration::Unprovisioned(UnprovisionedConfiguration {
+            uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+        });
+
+        let config_b = Configuration::Unprovisioned(UnprovisionedConfiguration {
+            uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+        });
+
+        assert_eq!(hash_of(&config_a), hash_of(&config_b));
+    }
+
+    #[test]
+    pub fn should_writeback_from_none() {
+        let unprovisioned_config = Configuration::Unprovisioned(UnprovisionedConfiguration {
+            uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+        });
+
+        assert_eq!(true, should_writeback(None, &unprovisioned_config, 100))
+    }
+
+    #[test]
+    pub fn should_writeback_from_unprovisioned_to_provisioned() {
+        let unprovisioned_config = Configuration::Unprovisioned(UnprovisionedConfiguration {
+            uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
+        });
+
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 0,
+        });
+
+        assert_eq!(
+            true,
+            should_writeback(Some(&unprovisioned_config), &provisioned_config, 100)
+        )
+    }
+
+    #[test]
+    pub fn should_writeback_provisioned_sequence_unchanged() {
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 100,
+        });
+
+        assert_eq!(
+            false,
+            should_writeback(Some(&provisioned_config), &provisioned_config, 100)
+        )
+    }
+
+    #[test]
+    pub fn should_writeback_provisioned_sequence_changed_threshold_not_met() {
+        let provisioned_config_a = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 100,
+        });
+
+        let provisioned_config_b = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 199,
+        });
+
+        assert_eq!(
+            false,
+            should_writeback(Some(&provisioned_config_a), &provisioned_config_b, 100)
+        )
+    }
+
+    #[test]
+    pub fn should_writeback_provisioned_sequence_changed_threshold_is_met() {
+        let provisioned_config_a = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 100,
+        });
+
+        let provisioned_config_b = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 200,
+        });
+
+        assert_eq!(
+            true,
+            should_writeback(Some(&provisioned_config_a), &provisioned_config_b, 100)
+        )
+    }
+
+    #[test]
+    pub fn should_writeback_provisioned_sequence_changed_threshold_is_met_skippingly() {
+        let provisioned_config_a = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 100,
+        });
+
+        let provisioned_config_b = Configuration::Provisioned(ProvisionedConfiguration {
+            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            secrets: Secrets::new(
+                DeviceKey::new([
+                    0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
+                    0xEE, 0xFF, 0x00,
+                ]),
+                NetworkKeys::default(),
+                ApplicationKeys::default(),
+            ),
+            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            sequence: 205,
+        });
+
+        assert_eq!(
+            true,
+            should_writeback(Some(&provisioned_config_a), &provisioned_config_b, 100)
+        )
     }
 }

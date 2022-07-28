@@ -26,7 +26,7 @@ pub mod system;
 pub mod transmit_queue;
 pub mod upper;
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IvIndexState {
     iv_index: IvIndex,
@@ -34,6 +34,13 @@ pub struct IvIndexState {
 }
 
 impl IvIndexState {
+    pub(crate) fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
+        Self {
+            iv_index,
+            iv_update_flag,
+        }
+    }
+
     pub fn accepted_iv_index(&self, ivi: Ivi) -> IvIndex {
         self.iv_index.accepted_iv_index(ivi)
     }
@@ -43,13 +50,19 @@ impl IvIndexState {
     }
 }
 
-#[derive(Copy, Clone, Hash)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
 
 impl NetworkState {
+    pub(crate) fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
+        Self {
+            iv_index_state: IvIndexState::new(iv_index, iv_update_flag),
+        }
+    }
+
     pub fn iv_index(&self) -> &IvIndexState {
         &self.iv_index_state
     }

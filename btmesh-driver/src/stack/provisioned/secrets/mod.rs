@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub mod application;
 pub mod network;
 
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Secrets {
     device_key: DeviceKey,
@@ -32,6 +32,18 @@ impl From<(DeviceKey, ProvisioningData)> for Secrets {
 }
 
 impl Secrets {
+    pub(crate) fn new(
+        device_key: DeviceKey,
+        network_keys: NetworkKeys,
+        application_keys: ApplicationKeys,
+    ) -> Self {
+        Self {
+            device_key,
+            network_keys,
+            application_keys,
+        }
+    }
+
     pub(crate) fn device_key(&self) -> DeviceKey {
         self.device_key
     }

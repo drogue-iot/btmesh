@@ -4,7 +4,7 @@ use core::hash::{Hash, Hasher};
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct ProvisionedConfiguration {
     pub(crate) network_state: NetworkState,
     pub(crate) secrets: Secrets,

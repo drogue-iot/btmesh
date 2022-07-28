@@ -5,7 +5,7 @@ use rand_core::RngCore;
 use serde::{Deserialize, Serialize};
 
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[derive(Clone, Hash)]
+#[derive(Clone, Hash, Debug)]
 pub struct UnprovisionedConfiguration {
     pub(crate) uuid: Uuid,
 }
