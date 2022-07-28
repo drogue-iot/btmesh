@@ -1,5 +1,5 @@
 use crate::storage::{BackingStore, Configuration, StorageError};
-use core::future::{pending, ready, Future};
+use core::future::{ready, Future};
 
 pub struct MemoryBackingStore {
     content: Configuration,
