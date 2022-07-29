@@ -130,7 +130,7 @@ mod test {
     use crate::storage::provisioned::ProvisionedConfiguration;
     use crate::storage::unprovisioned::UnprovisionedConfiguration;
     use crate::util::hash::hash_of;
-    use crate::{Configuration, DeviceInfo, NetworkState, Secrets, Storage};
+    use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::crypto::device::DeviceKey;
     use btmesh_common::{IvIndex, IvUpdateFlag, Uuid};
