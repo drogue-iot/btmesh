@@ -40,6 +40,7 @@ impl SoftdeviceGattBearer {
         }
     }
 
+    #[allow(clippy::await_holding_refcell_ref)]
     async fn run(&self) -> Result<(), BearerError> {
         loop {
             let connection = self.connection.wait().await;
@@ -78,8 +79,8 @@ impl SoftdeviceGattBearer {
                     },
                 },
             )
-            .await
-            .ok();
+                .await
+                .ok();
 
             self.connection_channel.borrow_mut().take();
             self.current_connection.borrow_mut().take();
@@ -95,7 +96,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     where
     Self: 'm;
 
-    fn run<'m>(&'m self) -> Self::RunFuture<'m> {
+    fn run(&self) -> Self::RunFuture<'_> {
         SoftdeviceGattBearer::run(self)
     }
 
@@ -103,15 +104,13 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     where
     Self: 'm;
 
-    fn receive<'m>(&'m self) -> Self::ReceiveFuture<'m> {
+    fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
-            loop {
-                return Ok(self.inbound.recv().await);
-            }
+            Ok(self.inbound.recv().await)
         }
     }
 
-    type TransmitFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;
+    type TransmitFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm;
 
     fn transmit<'m>(&'m self, pdu: &'m Vec<u8, 66>) -> Self::TransmitFuture<'m> {
         //async move { Ok(()) }
@@ -138,7 +137,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
         }
     }
 
-    type AdvertiseFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;
+    type AdvertiseFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm;
 
     fn advertise<'m>(&'m self, adv_data: &'m Vec<u8, 64>) -> Self::AdvertiseFuture<'m> {
         async move {
@@ -161,7 +160,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                     ..Default::default()
                 },
             )
-            .await;
+                .await;
             match result {
                 Ok(connection) => {
                     self.connected.store(true, Ordering::Relaxed);

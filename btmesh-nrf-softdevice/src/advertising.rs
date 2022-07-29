@@ -52,7 +52,7 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
     where
     Self: 'm;
 
-    fn receive<'m>(&'m self) -> Self::ReceiveFuture<'m> {
+    fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
             let config = ScanConfig {
                 active: false,

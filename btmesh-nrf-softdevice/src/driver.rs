@@ -1,14 +1,13 @@
 use crate::advertising::SoftdeviceAdvertisingBearer;
 use crate::gatt::SoftdeviceGattBearer;
 use crate::rng::SoftdeviceRng;
-use btmesh_common::Uuid;
-use btmesh_driver::stack::interface::NetworkInterfaces;
-use btmesh_driver::stack::provisioned::network::DeviceInfo;
-use btmesh_driver::stack::provisioned::secrets::Secrets;
-use btmesh_driver::stack::provisioned::sequence::Sequence;
-use btmesh_driver::stack::provisioned::NetworkState;
-use btmesh_driver::{Driver, DriverError};
+use btmesh_driver::stack::interface::{
+    AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
+};
+use btmesh_driver::storage::flash::FlashBackingStore;
+use btmesh_driver::{BluetoothMeshDriver, Driver, DriverError};
 use btmesh_pdu::provisioning::Capabilities;
+use core::future::Future;
 use core::mem;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
@@ -58,8 +57,7 @@ impl NrfSoftdeviceDriverBuilder {
 
             ..Default::default()
         };
-        let sd = Softdevice::enable(&config);
-        sd
+        Softdevice::enable(&config)
     }
 
     fn sd(&self) -> &'static Softdevice {
@@ -83,45 +81,110 @@ impl NrfSoftdeviceDriverBuilder {
     }
 }
 
-struct NrfSoftdeviceDriver<N: NetworkInterfaces> {
-    driver: Driver<N, SoftdeviceRng>,
+pub struct NrfSoftdeviceDriver<N: NetworkInterfaces> {
+    driver: Driver<N, SoftdeviceRng, FlashBackingStore<Flash>>,
 }
 
 impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
-    pub fn new_unprovisioned(
+    pub fn new(
         network: N,
         rng: SoftdeviceRng,
-        capabilities: Capabilities,
-        uuid: Uuid,
-    ) -> Self {
-        Self {
-            driver: Driver::new_unprovisioned(network, rng, capabilities, uuid),
-        }
-    }
-
-    pub fn new_provisioned(
-        network: N,
-        rng: SoftdeviceRng,
-        device_info: DeviceInfo,
-        secrets: Secrets,
-        network_state: NetworkState,
-        sequence: Sequence,
+        backing_store: FlashBackingStore<Flash>,
         capabilities: Capabilities,
     ) -> Self {
         Self {
-            driver: Driver::new_provisioned(
-                network,
-                rng,
-                device_info,
-                secrets,
-                network_state,
-                sequence,
-                capabilities,
-            ),
+            driver: Driver::new(network, rng, backing_store, capabilities),
         }
     }
 
     pub async fn run(&mut self) -> Result<(), DriverError> {
         self.driver.run().await
+    }
+}
+
+pub struct NrfSoftdeviceAdvertisingOnlyDriver(
+    NrfSoftdeviceDriver<AdvertisingOnlyNetworkInterfaces<SoftdeviceAdvertisingBearer>>,
+);
+
+impl NrfSoftdeviceAdvertisingOnlyDriver {
+    pub fn new(
+        name: &'static str,
+        capabilities: Capabilities,
+        base_address: u32,
+        sequence_threshold: u32,
+    ) -> Self {
+        let builder = NrfSoftdeviceDriverBuilder::new(name);
+        let rng = builder.rng();
+        let backing_store =
+            FlashBackingStore::new(builder.flash(), base_address, sequence_threshold);
+        let adv_bearer = builder.advertising_bearer();
+
+        let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
+
+        Self(NrfSoftdeviceDriver::new(
+            network,
+            rng,
+            backing_store,
+            capabilities,
+        ))
+    }
+
+    pub async fn run(&mut self) -> Result<(), DriverError> {
+        self.0.run().await
+    }
+}
+
+impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
+    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+    where
+    Self: 'f;
+
+    fn run(&mut self) -> Self::RunFuture<'_> {
+        self.0.run()
+    }
+}
+
+pub struct NrfSoftdeviceAdvertisingAndGattDriver(
+    NrfSoftdeviceDriver<
+        AdvertisingAndGattNetworkInterfaces<SoftdeviceAdvertisingBearer, SoftdeviceGattBearer, 66>,
+    >,
+);
+
+impl NrfSoftdeviceAdvertisingAndGattDriver {
+    pub fn new(
+        name: &'static str,
+        capabilities: Capabilities,
+        base_address: u32,
+        sequence_threshold: u32,
+    ) -> Self {
+        let builder = NrfSoftdeviceDriverBuilder::new(name);
+        let rng = builder.rng();
+        let backing_store =
+            FlashBackingStore::new(builder.flash(), base_address, sequence_threshold);
+        let adv_bearer = builder.advertising_bearer();
+        let gatt_bearer = builder.gatt_bearer();
+
+        let network = AdvertisingAndGattNetworkInterfaces::new(adv_bearer, gatt_bearer);
+
+        Self(NrfSoftdeviceDriver::new(
+            network,
+            rng,
+            backing_store,
+            capabilities,
+        ))
+    }
+
+    pub async fn run(&mut self) -> Result<(), DriverError> {
+        self.0.run().await
+    }
+}
+
+impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
+    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+    where
+    Self: 'f;
+
+    fn run(&mut self) -> Self::RunFuture<'_> {
+        self.0.run()
     }
 }

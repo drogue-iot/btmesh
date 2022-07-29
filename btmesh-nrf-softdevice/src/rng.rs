@@ -28,11 +28,8 @@ impl RngCore for SoftdeviceRng {
 
     fn fill_bytes(&mut self, dest: &mut [u8]) {
         loop {
-            match self.try_fill_bytes(dest) {
-                Ok(_) => return,
-                Err(_) => {
-                    // loop again
-                }
+            if self.try_fill_bytes(dest).is_ok() {
+                return
             }
         }
     }

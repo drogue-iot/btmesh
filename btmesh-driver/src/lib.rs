@@ -16,7 +16,7 @@ use rand_core::{CryptoRng, RngCore};
 mod error;
 pub mod stack;
 
-mod storage;
+pub mod storage;
 mod util;
 
 use crate::stack::interface::NetworkInterfaces;
@@ -29,6 +29,14 @@ use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
 use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
+
+pub trait BluetoothMeshDriver {
+    type RunFuture<'f>: Future<Output = Result<(), DriverError>> + 'f
+    where
+        Self: 'f;
+
+    fn run(&mut self) -> Self::RunFuture<'_>;
+}
 
 pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
     stack: Stack,
@@ -119,56 +127,66 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         Ok(())
     }
 
-    pub async fn run(&mut self) -> Result<(), DriverError> {
-        let content = self.storage.get().await?;
-
-        match content {
-            Configuration::Unprovisioned(content) => {
-                self.stack = Stack::Unprovisioned {
-                    stack: UnprovisionedStack::new(self.storage.capabilities()),
-                    uuid: content.uuid(),
-                }
-            }
-            Configuration::Provisioned(content) => {
-                self.stack = Stack::Provisioned {
-                    sequence: Sequence::new(Seq::new(content.sequence())),
-                    stack: content.into(),
-                }
-            }
-        }
-
-        loop {
-            let device_state = self.stack.device_state();
-
-            if let Some(device_state) = device_state {
-                let receive_fut = self.network.receive(&device_state);
-                let beacon_fut = self.next_beacon();
-
-                match select(receive_fut, beacon_fut).await {
-                    Either::First(Ok(pdu)) => {
-                        self.receive_pdu(&pdu).await?;
-                    }
-                    Either::First(Err(err)) => return Err(err.into()),
-                    Either::Second(_) => {
-                        self.send_beacon().await?;
-                    }
-                }
-
-                let config: Option<Configuration> = (&self.stack).try_into().ok();
-                if let Some(config) = config {
-                    // will conditionally put depending on hash/dirty/sequence changes.
-                    self.storage.put(&config).await?;
-                }
-            }
-        }
-    }
-
     fn next_beacon(&self) -> BeaconFuture<'_, N, R, B> {
         async move {
             if let Some(next_beacon_deadline) = self.stack.next_beacon_deadline() {
                 Timer::at(next_beacon_deadline).await
             } else {
                 pending().await
+            }
+        }
+    }
+}
+
+impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMeshDriver
+    for Driver<N, R, B>
+{
+    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+        where
+            Self: 'f;
+
+    fn run(&mut self) -> Self::RunFuture<'_> {
+        async move {
+            let content = self.storage.get().await?;
+
+            match content {
+                Configuration::Unprovisioned(content) => {
+                    self.stack = Stack::Unprovisioned {
+                        stack: UnprovisionedStack::new(self.storage.capabilities()),
+                        uuid: content.uuid(),
+                    }
+                }
+                Configuration::Provisioned(content) => {
+                    self.stack = Stack::Provisioned {
+                        sequence: Sequence::new(Seq::new(content.sequence())),
+                        stack: content.into(),
+                    }
+                }
+            }
+
+            loop {
+                let device_state = self.stack.device_state();
+
+                if let Some(device_state) = device_state {
+                    let receive_fut = self.network.receive(&device_state);
+                    let beacon_fut = self.next_beacon();
+
+                    match select(receive_fut, beacon_fut).await {
+                        Either::First(Ok(pdu)) => {
+                            self.receive_pdu(&pdu).await?;
+                        }
+                        Either::First(Err(err)) => return Err(err.into()),
+                        Either::Second(_) => {
+                            self.send_beacon().await?;
+                        }
+                    }
+
+                    let config: Option<Configuration> = (&self.stack).try_into().ok();
+                    if let Some(config) = config {
+                        // will conditionally put depending on hash/dirty/sequence changes.
+                        self.storage.put(&config).await?;
+                    }
+                }
             }
         }
     }
