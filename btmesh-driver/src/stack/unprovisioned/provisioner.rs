@@ -353,27 +353,25 @@ mod tests {
 
         loop {
             for pdu in provisioner.response().into_iter() {
-                match device.next(pdu, rng) {
-                    Ok((d, response)) => {
-                        device = d;
-                        match response {
-                            Some(pdu) => match provisioner.next(&pdu, rng) {
-                                Ok(p) => provisioner = p,
+                device = match device.next(pdu, rng) {
+                    Ok((provisionee, response)) => {
+                        if let Some(pdu) = response {
+                            provisioner = match provisioner.next(&pdu, rng) {
+                                Ok(p) => p,
                                 Err(e) => panic!("provisoner error: {:?}", e),
-                            },
-                            None => continue,
+                            }
                         }
+                        provisionee
                     }
                     Err(e) => {
                         panic!("device error: {:?}", e);
                     }
-                }
+                };
             }
             if !device.in_progress() {
                 break;
             }
         }
-
         match device {
             Provisionee::Complete(key, result) => {
                 assert_ne!(&[0; 16], key.deref());
