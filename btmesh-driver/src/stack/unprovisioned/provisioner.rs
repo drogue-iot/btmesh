@@ -26,28 +26,6 @@ pub enum Provisioner {
     Failure(ResponsePDU),
 }
 
-#[derive(Default, Clone)]
-pub enum ResponsePDU {
-    Two([ProvisioningPDU; 2]),
-    One(ProvisioningPDU),
-    #[default]
-    None,
-}
-
-impl<'a> IntoIterator for &'a ResponsePDU {
-    type Item = &'a ProvisioningPDU;
-    type IntoIter = core::slice::Iter<'a, ProvisioningPDU>;
-
-    fn into_iter(self) -> core::slice::Iter<'a, ProvisioningPDU> {
-        let slice = match self {
-            ResponsePDU::None => &[],
-            ResponsePDU::One(single) => core::slice::from_ref(single),
-            ResponsePDU::Two(array) => array.as_slice(),
-        };
-        slice.iter()
-    }
-}
-
 impl Provisioner {
     pub fn new(data: ProvisioningData, attention_duration: u8) -> Result<Self, DriverError> {
         Ok(Self::Invitation(Phase::<Invitation>::new(
@@ -102,10 +80,9 @@ impl Provisioner {
             }
             // RANDOM
             (Provisioner::Authentication(mut phase), ProvisioningPDU::Random(value)) => {
-                if phase.check(value).is_ok() {
-                    Ok(Provisioner::DataDistribution(phase.try_into()?))
-                } else {
-                    Provisioner::fail(ErrorCode::ConfirmationFailed)
+                match phase.check(value) {
+                    Ok(_) => Ok(Provisioner::DataDistribution(phase.try_into()?)),
+                    Err(_) => Provisioner::fail(ErrorCode::ConfirmationFailed),
                 }
             }
             // COMPLETE
@@ -122,6 +99,28 @@ impl Provisioner {
         Ok(Provisioner::Failure(ResponsePDU::One(
             ProvisioningPDU::Failed(Failed { error_code }),
         )))
+    }
+}
+
+#[derive(Default, Clone)]
+pub enum ResponsePDU {
+    Two([ProvisioningPDU; 2]),
+    One(ProvisioningPDU),
+    #[default]
+    None,
+}
+
+impl<'a> IntoIterator for &'a ResponsePDU {
+    type Item = &'a ProvisioningPDU;
+    type IntoIter = core::slice::Iter<'a, ProvisioningPDU>;
+
+    fn into_iter(self) -> core::slice::Iter<'a, ProvisioningPDU> {
+        let slice = match self {
+            ResponsePDU::None => &[],
+            ResponsePDU::One(single) => core::slice::from_ref(single),
+            ResponsePDU::Two(array) => array.as_slice(),
+        };
+        slice.iter()
     }
 }
 
