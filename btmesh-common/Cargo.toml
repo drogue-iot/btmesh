@@ -12,6 +12,7 @@ cmac = { version = "0.6.0", default-features = false }
 heapless = { version = "=0.7.13", features = ["defmt-impl"] }
 hash32 = {version = "0.2.1" }
 hash32-derive = "0.1.1"
+rand_core = { version = "0.6.2", default-features = false }
 #logging
 log = { version = "0.4", optional = true }
 defmt = { version = "0.3", optional = true }

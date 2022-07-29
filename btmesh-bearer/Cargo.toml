@@ -9,3 +9,9 @@ edition = "2021"
 btmesh-common = { path = "../btmesh-common" }
 btmesh-pdu = { path = "../btmesh-pdu" }
 heapless = { version = "=0.7.13" }
+defmt = {version = "0.3.0", optional = true }
+
+[features]
+defmt = [
+    "dep:defmt",
+]

@@ -4,6 +4,9 @@ use core::future::Future;
 use embedded_storage_async::nor_flash::AsyncNorFlash;
 use postcard::{from_bytes, to_slice};
 
+#[repr(align(4))]
+struct AlignedBytePage([u8;4096]);
+
 #[derive(Copy, Clone)]
 pub enum LatestLoad {
     None,
@@ -66,10 +69,10 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
     fn store<'f>(&'f mut self, config: &'f Configuration) -> Self::StoreFuture<'f> {
         async move {
             if should_writeback(self.latest_load, config, self.sequence_threshold) {
-                let mut bytes = [0; 4096];
-                to_slice(config, &mut bytes).map_err(|_| StorageError::Serialization)?;
+                let mut bytes = AlignedBytePage([0;4096]);
+                to_slice(config, &mut bytes.0).map_err(|_| StorageError::Serialization)?;
                 self.flash
-                    .write(self.base_address, &bytes)
+                    .write(self.base_address, &bytes.0)
                     .await
                     .map_err(|_| StorageError::Store)?;
 

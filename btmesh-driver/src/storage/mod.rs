@@ -71,8 +71,11 @@ impl<B: BackingStore> Storage<B> {
 
     #[allow(clippy::await_holding_refcell_ref)]
     pub async fn put(&self, config: &Configuration) -> Result<(), StorageError> {
+        info!("put A");
         self.backing_store.borrow_mut().store(config).await?;
+        info!("put B");
         self.config.borrow_mut().replace(config.clone());
+        info!("put C");
 
         Ok(())
     }

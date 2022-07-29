@@ -2,6 +2,7 @@
 
 use core::array::TryFromSliceError;
 use core::ops::{Add, BitAnd, Deref, Sub};
+use rand_core::RngCore;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -309,6 +310,12 @@ pub struct Uuid([u8; 16]);
 impl Uuid {
     pub fn new(uuid: [u8; 16]) -> Self {
         Self(uuid)
+    }
+
+    pub fn new_random<R: RngCore>(rng: &mut R) -> Self {
+        let mut bytes = [0; 16];
+        rng.fill_bytes(&mut bytes);
+        Self(bytes)
     }
 }
 

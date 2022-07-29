@@ -40,10 +40,11 @@ async fn main(_spawner: Spawner, _p: Peripherals) {
         input_oob_action: InputOOBActions::default(),
     };
 
+
     let mut driver = NrfSoftdeviceAdvertisingOnlyDriver::new(
         "drogue",
         capabilities,
-        unsafe { __storage as u32 },
+        unsafe { &__storage as *const u8 as u32 },
         100,
     );
     driver.run().await.unwrap();

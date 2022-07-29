@@ -13,6 +13,7 @@ use embassy::time::Timer;
 use embassy::util::{select, Either};
 use rand_core::{CryptoRng, RngCore};
 
+pub mod fmt;
 mod error;
 pub mod stack;
 
@@ -27,6 +28,7 @@ use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
+use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
 
@@ -146,11 +148,24 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
             Self: 'f;
 
     fn run(&mut self) -> Self::RunFuture<'_> {
+        info!("staring up");
         async move {
             loop {
-                let content = self.storage.get().await?;
+                let config = match self.storage.get().await {
+                    Ok(config) => config,
+                    Err(_) => {
+                        info!("failed to load config");
+                        let config = Configuration::Unprovisioned(UnprovisionedConfiguration {
+                            uuid: Uuid::new_random(&mut self.rng),
+                        });
+                        info!("storing provisioning config");
+                        self.storage.put(&config).await?;
+                        info!("stored provisioning config");
+                        config
+                    }
+                };
 
-                match (&self.stack, content) {
+                match (&self.stack, config) {
                     (Stack::None, Configuration::Unprovisioned(content))
                     | (Stack::Provisioned { .. }, Configuration::Unprovisioned(content)) => {
                         self.stack = Stack::Unprovisioned {
