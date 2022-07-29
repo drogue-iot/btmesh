@@ -12,4 +12,4 @@ mod gatt;
 
 mod rng;
 
-mod driver;
+pub mod driver;
