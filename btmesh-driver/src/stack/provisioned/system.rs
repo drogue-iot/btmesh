@@ -14,6 +14,7 @@ use btmesh_pdu::provisioned::System;
 use heapless::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum KeyHandle {
     Device,
     Network(NetworkKeyHandle),
@@ -21,6 +22,7 @@ pub enum KeyHandle {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetworkKeyHandle(pub(crate) u8, pub(crate) Nid);
 
 impl NetworkKeyHandle {
@@ -30,6 +32,7 @@ impl NetworkKeyHandle {
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ApplicationKeyHandle(pub(crate) u8, pub(crate) Aid);
 
 impl ApplicationKeyHandle {
@@ -39,6 +42,7 @@ impl ApplicationKeyHandle {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetworkMetadata {
     iv_index: IvIndex,
     replay_protected: bool,
@@ -94,6 +98,7 @@ impl NetworkMetadata {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LowerMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
@@ -172,6 +177,7 @@ impl LowerMetadata {
 }
 
 #[derive(Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UpperMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
@@ -282,6 +288,7 @@ impl UpperMetadata {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AccessMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
@@ -339,6 +346,7 @@ impl AccessMetadata {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ControlMetadata {}
 
 impl ControlMetadata {

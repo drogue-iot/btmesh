@@ -46,4 +46,5 @@ defmt = [
     "dep:defmt",
     "btmesh-common/defmt",
     "btmesh-bearer/defmt",
+    "btmesh-pdu/defmt",
 ]

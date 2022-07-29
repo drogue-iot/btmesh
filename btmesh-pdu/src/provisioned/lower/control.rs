@@ -3,6 +3,7 @@ use crate::provisioned::System;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UnsegmentedLowerControlPDU<S: System> {
     opcode: ControlOpcode,
     parameters: Vec<u8, 88>,
@@ -37,6 +38,7 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
     }
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SegmentedLowerControlPDU<S: System> {
     opcode: ControlOpcode,
     seq_zero: SeqZero,

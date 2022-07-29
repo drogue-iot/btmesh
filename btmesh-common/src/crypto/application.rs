@@ -14,6 +14,7 @@ use heapless::Vec;
 /// Application key identifier.
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Aid(u8);
 
 impl Aid {

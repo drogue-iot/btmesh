@@ -87,6 +87,7 @@ impl AsMut<[u8]> for NetMic {
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct EncryptionKey([u8; 16]);
 
 impl EncryptionKey {
@@ -105,6 +106,7 @@ impl Deref for EncryptionKey {
 
 #[derive(Default, Eq, PartialEq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct PrivacyKey([u8; 16]);
 
 impl PrivacyKey {

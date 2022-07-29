@@ -356,9 +356,9 @@ impl ProvisioningData {
 #[cfg(feature = "defmt")]
 impl defmt::Format for ProvisioningData {
     fn format(&self, fmt: defmt::Formatter) {
-        defmt::write!(fmt, "ProvisioningData( network_key={:x}, key_index: {}, flags={}:{}, iv_index={}, unicast_address={:x}",
+        defmt::write!(fmt, "ProvisioningData( network_key={:x}, flags={}:{}, iv_index={}, unicast_address={:x}",
             self.network_key,
-            self.key_index,
+            //self.key_index,
             self.key_refresh_flag,
             self.iv_update_flag,
             self.iv_index,

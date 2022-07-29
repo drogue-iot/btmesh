@@ -8,9 +8,15 @@ edition = "2021"
 [dependencies]
 
 heapless = "=0.7.13"
-defmt = { version = "0.3.1", optional = false }
+defmt = { version = "0.3.1", optional = true }
 btmesh-common = { path = "../btmesh-common", features = ["defmt" ]}
 p256 = { version = "0.10.0", default-features = false, features = [ "arithmetic" ] }
 serde = { version = "1.0", default-features = false, features = [ "derive"], optional = true}
+
+[features]
+defmt = [
+    "dep:defmt",
+]
+
 
 

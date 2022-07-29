@@ -4,6 +4,7 @@ use btmesh_common::mic::SzMic;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UnsegmentedLowerAccessPDU<S: System> {
     akf_aid: Option<Aid>,
     upper_pdu: Vec<u8, 120>,
@@ -41,6 +42,7 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
     }
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SegmentedLowerAccessPDU<S: System = ()> {
     akf_aid: Option<Aid>,
     szmic: SzMic,

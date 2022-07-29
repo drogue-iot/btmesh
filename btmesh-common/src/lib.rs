@@ -57,6 +57,7 @@ impl From<cmac::crypto_mac::InvalidKeyLength> for ParseError {
 
 #[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum IvUpdateFlag {
     #[default]
     Normal,
@@ -305,6 +306,7 @@ impl Ctl {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Uuid([u8; 16]);
 
 impl Uuid {
