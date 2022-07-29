@@ -11,6 +11,7 @@ use btmesh_pdu::provisioned::lower::InvalidBlock;
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DriverError {
     InvalidState,
+    InvalidFormat,
     InvalidKeyLength,
     CryptoError,
     InvalidAddress,
