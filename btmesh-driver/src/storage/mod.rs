@@ -80,15 +80,9 @@ impl<B: BackingStore> Storage<B> {
     #[allow(clippy::await_holding_refcell_ref)]
     async fn load_if_needed(&self) -> Result<(), StorageError> {
         if self.config.borrow().is_none() {
-            let config = self.backing_store.borrow_mut().load().await?;
-            match &config {
-                Configuration::Unprovisioned(..) => {
-                    self.config.borrow_mut().replace(config);
-                }
-                Configuration::Provisioned(..) => {
-                    self.config.borrow_mut().replace(config);
-                }
-            }
+            self.config
+                .borrow_mut()
+                .replace(self.backing_store.borrow_mut().load().await?);
         }
 
         Ok(())

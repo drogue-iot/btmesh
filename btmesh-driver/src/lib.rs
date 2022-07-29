@@ -147,24 +147,29 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
 
     fn run(&mut self) -> Self::RunFuture<'_> {
         async move {
-            let content = self.storage.get().await?;
-
-            match content {
-                Configuration::Unprovisioned(content) => {
-                    self.stack = Stack::Unprovisioned {
-                        stack: UnprovisionedStack::new(self.storage.capabilities()),
-                        uuid: content.uuid(),
-                    }
-                }
-                Configuration::Provisioned(content) => {
-                    self.stack = Stack::Provisioned {
-                        sequence: Sequence::new(Seq::new(content.sequence())),
-                        stack: content.into(),
-                    }
-                }
-            }
-
             loop {
+                let content = self.storage.get().await?;
+
+                match (&self.stack, content) {
+                    (Stack::None, Configuration::Unprovisioned(content))
+                    | (Stack::Provisioned { .. }, Configuration::Unprovisioned(content)) => {
+                        self.stack = Stack::Unprovisioned {
+                            stack: UnprovisionedStack::new(self.storage.capabilities()),
+                            uuid: content.uuid(),
+                        }
+                    }
+                    (Stack::None, Configuration::Provisioned(content))
+                    | (Stack::Unprovisioned { .. }, Configuration::Provisioned(content)) => {
+                        self.stack = Stack::Provisioned {
+                            sequence: Sequence::new(Seq::new(content.sequence())),
+                            stack: content.into(),
+                        }
+                    }
+                    _ => {
+                        // unchanged, don't reconfigure the stack.
+                    }
+                }
+
                 let device_state = self.stack.device_state();
 
                 if let Some(device_state) = device_state {
