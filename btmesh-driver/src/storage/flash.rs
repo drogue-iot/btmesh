@@ -154,10 +154,11 @@ mod test {
             uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
         });
 
-        assert_eq!(
-            true,
-            should_writeback(LatestLoad::None, &unprovisioned_config, 100)
-        )
+        assert!(should_writeback(
+            LatestLoad::None,
+            &unprovisioned_config,
+            100
+        ))
     }
 
     #[test]
@@ -176,10 +177,11 @@ mod test {
             sequence: 0,
         });
 
-        assert_eq!(
-            true,
-            should_writeback(LatestLoad::Unprovisioned, &provisioned_config, 100)
-        )
+        assert!(should_writeback(
+            LatestLoad::Unprovisioned,
+            &provisioned_config,
+            100
+        ))
     }
 
     #[test]
@@ -200,17 +202,14 @@ mod test {
 
         let hash = hash_of(&provisioned_config);
 
-        assert_eq!(
-            false,
-            should_writeback(
-                LatestLoad::Provisioned {
-                    hash,
-                    sequence: 100
-                },
-                &provisioned_config,
-                100
-            )
-        )
+        assert!(!should_writeback(
+            LatestLoad::Provisioned {
+                hash,
+                sequence: 100
+            },
+            &provisioned_config,
+            100
+        ))
     }
 
     #[test]
@@ -229,17 +228,14 @@ mod test {
             sequence: 199,
         });
 
-        assert_eq!(
-            false,
-            should_writeback(
-                LatestLoad::Provisioned {
-                    hash: hash_of(&provisioned_config),
-                    sequence: 100
-                },
-                &provisioned_config,
-                100
-            )
-        )
+        assert!(!should_writeback(
+            LatestLoad::Provisioned {
+                hash: hash_of(&provisioned_config),
+                sequence: 100
+            },
+            &provisioned_config,
+            100
+        ))
     }
 
     #[test]
@@ -258,17 +254,14 @@ mod test {
             sequence: 200,
         });
 
-        assert_eq!(
-            true,
-            should_writeback(
-                LatestLoad::Provisioned {
-                    hash: hash_of(&provisioned_config),
-                    sequence: 100,
-                },
-                &provisioned_config,
-                100
-            )
-        )
+        assert!(should_writeback(
+            LatestLoad::Provisioned {
+                hash: hash_of(&provisioned_config),
+                sequence: 100,
+            },
+            &provisioned_config,
+            100
+        ))
     }
 
     #[test]
@@ -287,16 +280,13 @@ mod test {
             sequence: 205,
         });
 
-        assert_eq!(
-            true,
-            should_writeback(
-                LatestLoad::Provisioned {
-                    hash: hash_of(&provisioned_config),
-                    sequence: 100,
-                },
-                &provisioned_config,
-                100
-            )
-        )
+        assert!(should_writeback(
+            LatestLoad::Provisioned {
+                hash: hash_of(&provisioned_config),
+                sequence: 100,
+            },
+            &provisioned_config,
+            100
+        ))
     }
 }
