@@ -26,7 +26,7 @@ pub enum Provisioner {
     Failure(ResponsePDU),
 }
 
-#[derive(Default)]
+#[derive(Default, Clone)]
 pub enum ResponsePDU {
     Two([ProvisioningPDU; 2]),
     One(ProvisioningPDU),
@@ -34,19 +34,36 @@ pub enum ResponsePDU {
     None,
 }
 
+impl<'a> IntoIterator for &'a ResponsePDU {
+    type Item = &'a ProvisioningPDU;
+    type IntoIter = core::slice::Iter<'a, ProvisioningPDU>;
+
+    fn into_iter(self) -> core::slice::Iter<'a, ProvisioningPDU> {
+        let slice = match self {
+            ResponsePDU::None => &[],
+            ResponsePDU::One(single) => core::slice::from_ref(single),
+            ResponsePDU::Two(array) => array.as_slice(),
+        };
+        slice.iter()
+    }
+}
+
 impl Provisioner {
-    pub fn new(invite: &Invite, data: ProvisioningData) -> Result<Self, DriverError> {
-        Ok(Self::Invitation(Phase::<Invitation>::new(invite, data)?))
+    pub fn new(data: ProvisioningData, attention_duration: u8) -> Result<Self, DriverError> {
+        Ok(Self::Invitation(Phase::<Invitation>::new(
+            data,
+            attention_duration,
+        )?))
     }
 
-    pub fn response(&self) -> &ResponsePDU {
+    pub fn response(&self) -> ResponsePDU {
         match self {
-            Self::Invitation(phase) => &phase.response,
-            Self::KeyExchange(phase) => &phase.response,
-            Self::Authentication(phase) => &phase.response,
-            Self::DataDistribution(phase) => &phase.response,
-            Self::Failure(response) => response,
-            Self::Success => &ResponsePDU::None,
+            Self::Invitation(phase) => phase.response.clone(),
+            Self::KeyExchange(phase) => phase.response.clone(),
+            Self::Authentication(phase) => phase.response.clone(),
+            Self::DataDistribution(phase) => phase.response.clone(),
+            Self::Failure(response) => response.clone(),
+            Self::Success => ResponsePDU::None,
         }
     }
 
@@ -142,12 +159,14 @@ pub struct DataDistribution {
 }
 
 impl Phase<Invitation> {
-    pub fn new(invitation: &Invite, data: ProvisioningData) -> Result<Self, DriverError> {
+    pub fn new(data: ProvisioningData, attention_duration: u8) -> Result<Self, DriverError> {
         let mut result = Self {
             data: Some(data),
             ..Default::default()
         };
-        result.transcript.add_invite(invitation)?;
+        let invitation = Invite { attention_duration };
+        result.transcript.add_invite(&invitation)?;
+        result.response = ResponsePDU::One(ProvisioningPDU::Invite(invitation));
         Ok(result)
     }
     pub fn capabilities<RNG: RngCore + CryptoRng>(
@@ -325,39 +344,34 @@ mod tests {
             key_refresh_flag: KeyRefreshFlag(true),
             ..Default::default()
         };
-        let invite = Invite::default();
+        let mut provisioner = Provisioner::new(data, 60).unwrap();
+
         let caps = Capabilities {
             number_of_elements: 1,
             ..Default::default()
         };
-
-        let mut provisioner = Provisioner::new(&invite, data).unwrap();
         let mut device = Provisionee::new(caps);
 
-        let mut pdu = ProvisioningPDU::Invite(invite);
-        let mut result: Option<ProvisioningPDU>;
-
         loop {
-            (device, result) = device.next(&pdu, rng).unwrap();
-            match result {
-                Some(p) => {
-                    pdu = p;
-                    match provisioner.next(&pdu, rng) {
-                        Ok(x) => provisioner = x,
-                        Err(e) => panic!("unexpected: {:?}, PDU: {:?}", e, pdu),
-                    }
-                    match provisioner.response() {
-                        ResponsePDU::Two(pdus) => {
-                            // We don't expect the device to respond to the 1st PDU
-                            (device, result) = device.next(&pdus[0], rng).unwrap();
-                            assert!(matches!(result, None));
-                            pdu = pdus[1].clone();
+            for pdu in provisioner.response().into_iter() {
+                match device.next(pdu, rng) {
+                    Ok((d, response)) => {
+                        device = d;
+                        match response {
+                            Some(pdu) => match provisioner.next(&pdu, rng) {
+                                Ok(p) => provisioner = p,
+                                Err(e) => panic!("provisoner error: {:?}", e),
+                            },
+                            None => continue,
                         }
-                        ResponsePDU::One(p) => pdu = p.clone(),
-                        ResponsePDU::None => assert!(matches!(pdu, ProvisioningPDU::Complete)),
+                    }
+                    Err(e) => {
+                        panic!("device error: {:?}", e);
                     }
                 }
-                None => break,
+            }
+            if !device.in_progress() {
+                break;
             }
         }
 
