@@ -34,7 +34,7 @@ impl Message for GenericOnOffMessage {
 
     fn emit_parameters<const N: usize>(
         &self,
-        xmit: &mut heapless::Vec<u8, N>,
+        xmit: &mut Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         match self {
             GenericOnOffMessage::Get => Ok(()),

@@ -5,6 +5,7 @@ members = [
     "btmesh-driver",
     "btmesh-models",
     "btmesh-pdu",
+    "btmesh-macro",
 ]
 
 resolver = "2"

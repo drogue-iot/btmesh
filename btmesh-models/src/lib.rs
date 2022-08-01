@@ -16,6 +16,7 @@ use crate::{
     sensor::{SENSOR_CLIENT, SENSOR_SERVER, SENSOR_SETUP_SERVER},
 };
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
+use core::future::Future;
 use heapless::Vec;
 
 pub mod opcode;
@@ -49,6 +50,14 @@ pub trait Model {
     type Message<'m>: Message;
 
     fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError>;
+}
+
+pub trait ElementModelHandler<M: Model> {
+    type HandleFuture<'f>: Future<Output = Result<(), ()>> + 'f
+    where
+        Self: 'f;
+
+    fn handle<'f>(&'f mut self, message: M::Message<'f>) -> Self::HandleFuture<'f>;
 }
 
 #[derive(Copy, Clone, Debug)]
