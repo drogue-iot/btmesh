@@ -1,17 +1,15 @@
-use crate::drivers::ble::mesh::model::Message;
-use crate::drivers::ble::mesh::pdu::access::Opcode;
-use crate::drivers::ble::mesh::pdu::ParseError;
-use crate::drivers::ble::mesh::InsufficientBuffer;
-use crate::opcode;
+use crate::opcode::Opcode;
+use crate::{opcode, Message};
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
-use serde::{Deserialize, Serialize};
 
 opcode!( CONFIG_RELAY_GET 0x80, 0x26);
 opcode!( CONFIG_RELAY_SET 0x80, 0x27);
 opcode!( CONFIG_RELAY_STATUS 0x80, 0x28);
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Relay {
     SupportedDisabled = 0x00,
     SupportedEnabled = 0x01,
@@ -34,8 +32,9 @@ impl Relay {
     }
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize)]
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RelayConfig {
     pub relay: Relay,
     pub relay_retransmit_count: u8,

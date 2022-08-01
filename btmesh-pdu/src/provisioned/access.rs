@@ -119,16 +119,16 @@ impl Opcode {
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
             Opcode::OneOctet(a) => {
-                xmit.push(*a).map_err(|_| InsufficientBuffer)?;
+                xmit.push(*a)?;
             }
             Opcode::TwoOctet(a, b) => {
-                xmit.push(*a).map_err(|_| InsufficientBuffer)?;
-                xmit.push(*b).map_err(|_| InsufficientBuffer)?;
+                xmit.push(*a)?;
+                xmit.push(*b)?;
             }
             Opcode::ThreeOctet(a, b, c) => {
-                xmit.push(*a).map_err(|_| InsufficientBuffer)?;
-                xmit.push(*b).map_err(|_| InsufficientBuffer)?;
-                xmit.push(*c).map_err(|_| InsufficientBuffer)?;
+                xmit.push(*a)?;
+                xmit.push(*b)?;
+                xmit.push(*c)?;
             }
         }
         Ok(())

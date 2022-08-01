@@ -42,11 +42,6 @@ pub trait Message {
     ) -> Result<(), InsufficientBuffer>;
 }
 
-pub enum HandlerError {
-    Unhandled,
-    NotConnected,
-}
-
 pub trait Model {
     const IDENTIFIER: ModelIdentifier;
     const SUPPORTS_SUBSCRIPTION: bool = true;

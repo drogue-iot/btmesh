@@ -22,18 +22,18 @@ use crate::foundation::configuration::model_subscription::{
     ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD,
 };
+
 use crate::foundation::configuration::node_reset::{NodeResetMessage, CONFIG_NODE_RESET};
+
+#[cfg(feature = "relay")]
+use crate::foundation::configuration::relay::{RelayMessage, CONFIG_RELAY_GET, CONFIG_RELAY_SET};
+
+use crate::{Message, Model};
 
 use crate::opcode::Opcode;
 
-#[cfg(feature = "ble-mesh-relay")]
-use crate::drivers::ble::mesh::model::foundation::configuration::relay::{
-    RelayMessage, CONFIG_RELAY_GET, CONFIG_RELAY_SET,
-};
-use crate::{Message, Model};
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
-//use serde::{Deserialize, Serialize};
 
 pub mod app_key;
 pub mod beacon;
@@ -45,7 +45,7 @@ pub mod model_subscription;
 pub mod network_transmit;
 pub mod node_reset;
 
-#[cfg(feature = "ble-mesh-relay")]
+#[cfg(feature = "relay")]
 pub mod relay;
 
 pub const CONFIGURATION_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x0000);
@@ -61,7 +61,7 @@ pub enum ConfigurationMessage {
     ModelApp(ModelAppMessage),
     ModelPublication(ModelPublicationMessage),
     ModelSubscription(ModelSubscriptionMessage),
-    #[cfg(feature = "ble-mesh-relay")]
+    #[cfg(feature = "relay")]
     Relay(RelayMessage),
 }
 
@@ -76,7 +76,7 @@ impl Message for ConfigurationMessage {
             ConfigurationMessage::ModelApp(inner) => inner.opcode(),
             ConfigurationMessage::ModelPublication(inner) => inner.opcode(),
             ConfigurationMessage::ModelSubscription(inner) => inner.opcode(),
-            #[cfg(feature = "ble-mesh-relay")]
+            #[cfg(feature = "relay")]
             ConfigurationMessage::Relay(inner) => inner.opcode(),
         }
     }
@@ -94,7 +94,7 @@ impl Message for ConfigurationMessage {
             ConfigurationMessage::ModelApp(inner) => inner.emit_parameters(xmit),
             ConfigurationMessage::ModelPublication(inner) => inner.emit_parameters(xmit),
             ConfigurationMessage::ModelSubscription(inner) => inner.emit_parameters(xmit),
-            #[cfg(feature = "ble-mesh-relay")]
+            #[cfg(feature = "relay")]
             ConfigurationMessage::Relay(inner) => inner.emit_parameters(xmit),
         }
     }
@@ -167,11 +167,11 @@ impl Model for ConfigurationServer {
                 )))
             }
             // Relay
-            #[cfg(feature = "ble-mesh-relay")]
+            #[cfg(feature = "relay")]
             CONFIG_RELAY_GET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_get(
                 parameters,
             )?))),
-            #[cfg(feature = "ble-mesh-relay")]
+            #[cfg(feature = "relay")]
             CONFIG_RELAY_SET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_set(
                 parameters,
             )?))),

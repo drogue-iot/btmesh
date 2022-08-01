@@ -5,12 +5,14 @@ use core::ops::{Add, BitAnd, Deref, Sub};
 use heapless::Vec;
 use rand_core::RngCore;
 
+use crate::location::Location;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
 pub mod address;
 pub mod crc;
 pub mod crypto;
+pub mod location;
 pub mod mic;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -420,18 +422,15 @@ impl ModelIdentifier {
 impl defmt::Format for ModelIdentifier {
     fn format(&self, fmt: defmt::Formatter) {
         match *self {
-            ModelIdentifier::SIG(id) => match id {
-                _ => {
-                    defmt::write!(fmt, "SIG(0x{=u16:04x})", id);
-                }
-            },
+            ModelIdentifier::SIG(id) => {
+                defmt::write!(fmt, "SIG(0x{=u16:04x})", id);
+            }
             ModelIdentifier::Vendor(company_id, model_id) => {
                 defmt::write!(fmt, "Vendor({}, 0x{=u16:04x})", company_id, model_id);
             }
         }
     }
 }
-
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -487,16 +486,6 @@ impl Composition {
 
     pub fn elements_iter(&self) -> impl Iterator<Item = &ElementDescriptor> + '_ {
         self.elements.iter()
-    }
-}
-
-#[derive(Copy, Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Location(pub u16);
-
-impl Location {
-    pub fn to_le_bytes(&self) -> [u8; 2] {
-        self.0.to_le_bytes()
     }
 }
 

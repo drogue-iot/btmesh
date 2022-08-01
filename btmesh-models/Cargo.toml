@@ -14,3 +14,10 @@ micromath = { version = "2.0" }
 heapless = "=0.7.13"
 
 
+[features]
+default = [
+    "relay"
+]
+relay = []
+
+
