@@ -374,7 +374,6 @@ pub struct ProductIdentifier(pub u16);
 pub struct VersionIdentifier(pub u16);
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum ModelIdentifier {
     SIG(u16),
@@ -416,6 +415,23 @@ impl ModelIdentifier {
         Ok(())
     }
 }
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for ModelIdentifier {
+    fn format(&self, fmt: defmt::Formatter) {
+        match *self {
+            ModelIdentifier::SIG(id) => match id {
+                _ => {
+                    defmt::write!(fmt, "SIG(0x{=u16:04x})", id);
+                }
+            },
+            ModelIdentifier::Vendor(company_id, model_id) => {
+                defmt::write!(fmt, "Vendor({}, 0x{=u16:04x})", company_id, model_id);
+            }
+        }
+    }
+}
+
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

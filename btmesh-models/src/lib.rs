@@ -25,49 +25,6 @@ pub mod generic;
 pub mod sensor;
 
 #[cfg(feature = "defmt")]
-impl defmt::Format for ModelIdentifier {
-    fn format(&self, fmt: defmt::Formatter) {
-        match *self {
-            CONFIGURATION_SERVER => {
-                defmt::write!(fmt, "Configuration Server (0x0000)");
-            }
-            CONFIGURATION_CLIENT => {
-                defmt::write!(fmt, "Configuration Client (0x0001)");
-            }
-            GENERIC_ONOFF_SERVER => {
-                defmt::write!(fmt, "Generic OnOff Server (0x1000)");
-            }
-            GENERIC_ONOFF_CLIENT => {
-                defmt::write!(fmt, "Generic OnOff Client (0x1001)");
-            }
-            GENERIC_BATTERY_SERVER => {
-                defmt::write!(fmt, "Generic Battery Server (0x100C)");
-            }
-            SENSOR_SERVER => {
-                defmt::write!(fmt, "Sensor Server (0x1100)");
-            }
-            SENSOR_SETUP_SERVER => {
-                defmt::write!(fmt, "Sensor Setup Server (0x1101)");
-            }
-            SENSOR_CLIENT => {
-                defmt::write!(fmt, "Sensor Client (0x1102)");
-            }
-            GENERIC_BATTERY_CLIENT => {
-                defmt::write!(fmt, "Generic Battery Client (0x100D)");
-            }
-            ModelIdentifier::SIG(id) => match id {
-                _ => {
-                    defmt::write!(fmt, "SIG(0x{=u16:04x})", id);
-                }
-            },
-            ModelIdentifier::Vendor(company_id, model_id) => {
-                defmt::write!(fmt, "Vendor({}, 0x{=u16:04x})", company_id, model_id);
-            }
-        }
-    }
-}
-
-#[cfg(feature = "defmt")]
 pub trait Message: defmt::Format {
     fn opcode(&self) -> Opcode;
     fn emit_parameters<const N: usize>(
