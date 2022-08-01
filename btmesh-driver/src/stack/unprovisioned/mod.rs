@@ -8,7 +8,6 @@ use embassy::time::Instant;
 use rand_core::{CryptoRng, RngCore};
 
 mod auth_value;
-mod phases;
 mod provisionee;
 mod provisioner;
 mod transcript;
@@ -68,7 +67,8 @@ impl UnprovisionedStack {
         }
 
         if let Some(current_state) = self.provisionee.take() {
-            let (next_state, response) = current_state.next(pdu, rng)?;
+            let next_state = current_state.next(pdu, rng)?;
+            let response = next_state.response();
 
             self.provisionee.replace(next_state);
 
@@ -77,7 +77,7 @@ impl UnprovisionedStack {
                     *device_key,
                     *provisioning_data,
                 )))
-            } else if let Some(Provisionee::Failure) = &self.provisionee {
+            } else if let Some(Provisionee::Failure(..)) = &self.provisionee {
                 Ok(Some(ProvisioningState::Failed))
             } else if let Some(response) = response {
                 // stash our response in case we need to retransmit

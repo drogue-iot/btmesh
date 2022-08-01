@@ -338,24 +338,21 @@ mod tests {
     fn provision_device() {
         let rng = &mut OsRng;
 
-        let data = ProvisioningData {
+        let fixture = ProvisioningData {
             unicast_address: UnicastAddress::new(0x00_0A).unwrap(),
             key_refresh_flag: KeyRefreshFlag(true),
             ..Default::default()
         };
-        let mut provisioner = Provisioner::new(data, 60).unwrap();
-
-        let caps = Capabilities {
+        let mut provisioner = Provisioner::new(fixture, 60).unwrap();
+        let mut device = Provisionee::new(Capabilities {
             number_of_elements: 1,
             ..Default::default()
-        };
-        let mut device = Provisionee::new(caps);
-
+        });
         loop {
             for pdu in provisioner.response().into_iter() {
                 device = match device.next(pdu, rng) {
-                    Ok((provisionee, response)) => {
-                        if let Some(pdu) = response {
+                    Ok(provisionee) => {
+                        if let Some(pdu) = provisionee.response() {
                             provisioner = match provisioner.next(&pdu, rng) {
                                 Ok(p) => p,
                                 Err(e) => panic!("provisoner error: {:?}", e),
@@ -375,7 +372,7 @@ mod tests {
         match device {
             Provisionee::Complete(key, result) => {
                 assert_ne!(&[0; 16], key.deref());
-                assert_eq!(data, result);
+                assert_eq!(fixture, result);
             }
             _ => panic!("wrong ending state"),
         }
