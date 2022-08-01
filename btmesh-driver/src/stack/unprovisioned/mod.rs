@@ -18,21 +18,16 @@ pub enum ProvisioningState {
     Failed,
 }
 
-struct LastTransmit {
-    pdu: ProvisioningPDU,
-    in_response_to_hash: u64,
-}
-
 pub struct UnprovisionedStack {
     provisionee: Option<Provisionee>,
-    last_transmit: Option<LastTransmit>,
+    last_transmit_hash: Option<u64>,
 }
 
 impl UnprovisionedStack {
     pub fn new(capabilities: Capabilities) -> Self {
         Self {
             provisionee: Some(Provisionee::new(capabilities)),
-            last_transmit: None,
+            last_transmit_hash: None,
         }
     }
 
@@ -57,37 +52,42 @@ impl UnprovisionedStack {
         pdu.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if let Some(last_transmit) = self.last_transmit.as_ref() {
+        if let Some(last_transmit_hash) = self.last_transmit_hash {
             // if the inbound matches the last inbound we responded to,
             // just send off the previous response without mucking with
             // state machine or calculating a new response.
-            if last_transmit.in_response_to_hash == hash {
-                return Ok(Some(ProvisioningState::Response(last_transmit.pdu.clone())));
+            if last_transmit_hash == hash {
+                return match &self.provisionee {
+                    Some(p) => match p.response() {
+                        Some(pdu) => Ok(Some(ProvisioningState::Response(pdu))),
+                        None => Err(DriverError::InvalidState),
+                    },
+                    None => Err(DriverError::InvalidState),
+                };
             }
         }
 
         if let Some(current_state) = self.provisionee.take() {
             let next_state = current_state.next(pdu, rng)?;
-            let response = next_state.response();
 
             self.provisionee.replace(next_state);
 
-            if let Some(Provisionee::Complete(device_key, provisioning_data)) = &self.provisionee {
-                Ok(Some(ProvisioningState::Data(
-                    *device_key,
-                    *provisioning_data,
-                )))
-            } else if let Some(Provisionee::Failure(..)) = &self.provisionee {
-                Ok(Some(ProvisioningState::Failed))
-            } else if let Some(response) = response {
-                // stash our response in case we need to retransmit
-                self.last_transmit.replace(LastTransmit {
-                    pdu: response.clone(),
-                    in_response_to_hash: hash,
-                });
-                Ok(Some(ProvisioningState::Response(response)))
-            } else {
-                Ok(None)
+            match &self.provisionee {
+                Some(Provisionee::Complete(device_key, provisioning_data)) => Ok(Some(
+                    ProvisioningState::Data(*device_key, *provisioning_data),
+                )),
+                Some(Provisionee::Failure(..)) => Ok(Some(ProvisioningState::Failed)),
+                Some(p) => match p.response() {
+                    Some(response) => {
+                        self.last_transmit_hash.replace(hash);
+                        Ok(Some(ProvisioningState::Response(response)))
+                    }
+                    None => {
+                        self.last_transmit_hash.take();
+                        Ok(None)
+                    }
+                },
+                None => unreachable!(),
             }
         } else {
             Err(DriverError::InvalidState)
