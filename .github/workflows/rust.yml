@@ -17,6 +17,6 @@ jobs:
     steps:
     - uses: actions/checkout@v3
     - name: Build
-      run: cargo build --features embassy/time-tick-1000hz,flash,memory
+      run: cargo build 
     - name: Run tests
-      run: cargo test --verbose --features flash,memory
+      run: cargo test --verbose
