@@ -25,6 +25,8 @@ embassy-nrf = { version = "0.1.0", default-features = false, features = ["nrf528
 cortex-m        = { version = "0.7.2" }
 cortex-m-rt = "0.7"
 btmesh-pdu = { path = "../../../btmesh-pdu" }
+btmesh-models = { path = "../../../btmesh-models"}
+btmesh-macro = { path = "../../../btmesh-macro"}
 btmesh-nrf-softdevice = { path = "../../", features = ["defmt", "nrf52840"] }
 #heapless = "0.7"
 #futures     = { version = "0.3.17", default-features = false, features = ["async-await"] }

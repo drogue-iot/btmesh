@@ -4,6 +4,7 @@ use crate::{Message, Model};
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use embassy::time::Duration;
 use heapless::Vec;
+use micromath::F32Ext;
 
 #[derive(Clone, Debug)]
 pub struct SensorClient<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>

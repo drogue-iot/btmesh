@@ -27,14 +27,14 @@ defmt = { version = "0.3", optional = true }
 
 [dev-dependencies]
 rand_core = { version = "0.6.2", default-features = false, features = ["getrandom"] }
-embassy = { version = "0.1.0", default-features = false, features = ["time" ] }
+embassy = { version = "0.1.0", default-features = false, features = ["time", "time-tick-1000hz" ] }
 
 
 [features]
 default = [
     "flash",
     "memory",
-    "embassy/time-tick-1mhz",
+    "embassy/time-tick-1000hz",
 ]
 flash = [
     "embedded-storage",

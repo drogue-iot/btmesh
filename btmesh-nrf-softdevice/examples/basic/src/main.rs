@@ -23,6 +23,8 @@ use btmesh_pdu::provisioning::StaticOOBType;
 use defmt_rtt as _;
 use panic_probe as _;
 
+mod device;
+
 extern "C" {
     static __storage: u8;
 }
