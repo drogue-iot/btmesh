@@ -13,8 +13,8 @@ use embassy::time::Timer;
 use embassy::util::{select, Either};
 use rand_core::{CryptoRng, RngCore};
 
-pub mod fmt;
 mod error;
+pub mod fmt;
 pub mod stack;
 
 pub mod storage;

@@ -25,11 +25,11 @@ pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 
-    type NetworkMetadata : ::defmt::Format;
-    type LowerMetadata : ::defmt::Format;
-    type UpperMetadata : ::defmt::Format;
-    type AccessMetadata : ::defmt::Format;
-    type ControlMetadata : ::defmt::Format;
+    type NetworkMetadata: ::defmt::Format;
+    type LowerMetadata: ::defmt::Format;
+    type UpperMetadata: ::defmt::Format;
+    type AccessMetadata: ::defmt::Format;
+    type ControlMetadata: ::defmt::Format;
 }
 
 impl System for () {

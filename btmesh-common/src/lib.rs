@@ -2,6 +2,7 @@
 
 use core::array::TryFromSliceError;
 use core::ops::{Add, BitAnd, Deref, Sub};
+use heapless::Vec;
 use rand_core::RngCore;
 
 #[cfg(feature = "serde")]
@@ -344,6 +345,202 @@ impl Deref for NetworkId {
 
     fn deref(&self) -> &Self::Target {
         &self.0
+    }
+}
+
+#[derive(Eq, PartialEq, Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct CompanyIdentifier(pub u16);
+
+impl CompanyIdentifier {
+    pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() >= 2 {
+            Ok(Self(u16::from_le_bytes([parameters[0], parameters[1]])))
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+}
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ProductIdentifier(pub u16);
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct VersionIdentifier(pub u16);
+
+#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum ModelIdentifier {
+    SIG(u16),
+    Vendor(CompanyIdentifier, u16),
+}
+
+impl ModelIdentifier {
+    pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() == 2 {
+            Ok(ModelIdentifier::SIG(u16::from_le_bytes([
+                parameters[0],
+                parameters[1],
+            ])))
+        } else if parameters.len() == 4 {
+            Ok(ModelIdentifier::Vendor(
+                CompanyIdentifier::parse(&parameters[0..=1])?,
+                u16::from_le_bytes([parameters[2], parameters[3]]),
+            ))
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        // NOTE: While so many things are big-endian... this is little-endian.
+        // WHY OH WHY?
+        match self {
+            ModelIdentifier::SIG(model_id) => {
+                xmit.extend_from_slice(&model_id.to_le_bytes())
+                    .map_err(|_| InsufficientBuffer)?;
+            }
+            ModelIdentifier::Vendor(company_id, model_id) => {
+                xmit.extend_from_slice(&company_id.0.to_le_bytes())
+                    .map_err(|_| InsufficientBuffer)?;
+                xmit.extend_from_slice(&model_id.to_le_bytes())
+                    .map_err(|_| InsufficientBuffer)?;
+            }
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Composition {
+    pub(crate) cid: CompanyIdentifier,
+    pub(crate) pid: ProductIdentifier,
+    pub(crate) vid: VersionIdentifier,
+    pub(crate) crpl: u16,
+    pub(crate) features: Features,
+    pub(crate) elements: Vec<ElementDescriptor, 4>,
+}
+
+impl Composition {
+    pub fn new(
+        cid: CompanyIdentifier,
+        pid: ProductIdentifier,
+        vid: VersionIdentifier,
+        features: Features,
+    ) -> Self {
+        Self {
+            cid,
+            pid,
+            vid,
+            crpl: 0,
+            features,
+            elements: Default::default(),
+        }
+    }
+
+    pub fn add_element(&mut self, element: ElementDescriptor) -> Result<(), ElementDescriptor> {
+        self.elements.push(element)
+    }
+
+    pub fn cid(&self) -> CompanyIdentifier {
+        self.cid
+    }
+
+    pub fn pid(&self) -> ProductIdentifier {
+        self.pid
+    }
+
+    pub fn vid(&self) -> VersionIdentifier {
+        self.vid
+    }
+
+    pub fn crpl(&self) -> u16 {
+        self.crpl
+    }
+
+    pub fn features(&self) -> Features {
+        self.features
+    }
+
+    pub fn elements_iter(&self) -> impl Iterator<Item = &ElementDescriptor> + '_ {
+        self.elements.iter()
+    }
+}
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Location(pub u16);
+
+impl Location {
+    pub fn to_le_bytes(&self) -> [u8; 2] {
+        self.0.to_le_bytes()
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ElementDescriptor {
+    pub(crate) loc: Location,
+    pub(crate) models: Vec<ModelIdentifier, 4>,
+}
+
+impl ElementDescriptor {
+    pub fn new(loc: Location) -> Self {
+        Self {
+            loc,
+            models: Default::default(),
+        }
+    }
+
+    pub fn add_model(mut self, model: ModelIdentifier) -> Self {
+        self.models.push(model).ok();
+        self
+    }
+
+    pub fn loc(&self) -> Location {
+        self.loc
+    }
+
+    pub fn models_iter(&self) -> impl Iterator<Item = &ModelIdentifier> + '_ {
+        self.models.iter()
+    }
+}
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct Features {
+    pub relay: bool,
+    pub proxy: bool,
+    pub friend: bool,
+    pub low_power: bool,
+}
+
+impl Features {
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        // bits 15-8 RFU
+        let mut val = 0;
+        if self.relay {
+            val |= 0b0001;
+        }
+        if self.proxy {
+            val |= 0b0010;
+        }
+        if self.friend {
+            val |= 0b0100;
+        }
+        if self.low_power {
+            val |= 0b1000;
+        }
+        xmit.push(val).map_err(|_| InsufficientBuffer)?;
+        xmit.push(0).map_err(|_| InsufficientBuffer)?;
+        Ok(())
     }
 }
 
