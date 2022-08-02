@@ -6,8 +6,7 @@ use btmesh_driver::stack::interface::{
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
 use btmesh_driver::{BluetoothMeshDriver, DriverError, Driver as BaseDriver};
-use btmesh_pdu::provisioning::Capabilities;
-use core::future::Future;
+use core::future::{Future, join};
 use core::mem;
 use btmesh_device::BluetoothMeshDevice;
 use nrf_softdevice::{raw, Flash, Softdevice};
@@ -83,22 +82,27 @@ impl NrfSoftdeviceDriverBuilder {
 }
 
 pub struct NrfSoftdeviceDriver<N: NetworkInterfaces> {
+    sd: &'static Softdevice,
     driver: BaseDriver<N, SoftdeviceRng, FlashBackingStore<Flash>>,
 }
 
 impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
     pub fn new(
+        sd: &'static Softdevice,
         network: N,
         rng: SoftdeviceRng,
         backing_store: FlashBackingStore<Flash>,
     ) -> Self {
         Self {
+            sd,
             driver: BaseDriver::new(network, rng, backing_store),
         }
     }
 
+    #[allow(unreachable_code)]
     pub async fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Result<(), DriverError> {
-        self.driver.run(device).await
+        // todo: turn it into a select?
+        join!( self.sd.run(), self.driver.run(device)).await.1
     }
 }
 
@@ -121,6 +125,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
         let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
 
         Self(NrfSoftdeviceDriver::new(
+            builder.sd,
             network,
             rng,
             backing_store,
@@ -135,7 +140,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-        Self: 'f, D: 'f;
+    Self: 'f, D: 'f;
 
     fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
         self.0.run(device)
@@ -164,6 +169,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
         let network = AdvertisingAndGattNetworkInterfaces::new(adv_bearer, gatt_bearer);
 
         Self(NrfSoftdeviceDriver::new(
+            builder.sd,
             network,
             rng,
             backing_store,
@@ -174,9 +180,9 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-    Self: 'f,  D: 'f;
+    Self: 'f, D: 'f;
 
-    fn run<D:BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
         self.0.run(device)
     }
 }

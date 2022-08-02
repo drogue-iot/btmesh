@@ -50,7 +50,7 @@ impl ElementModelHandler<GenericOnOffServer> for MyOnOffServerHandler {
         where
     Self: 'f;
 
-    fn handle<'f>(&'f mut self, message: GenericOnOffMessage) -> Self::HandleFuture<'f> {
+    fn handle(&mut self, _message: GenericOnOffMessage) -> Self::HandleFuture<'_> {
         async move { Ok(()) }
     }
 }
@@ -72,7 +72,7 @@ impl ElementModelHandler<GenericOnOffClient> for MyOnOffClientHandler {
     where
     Self: 'f;
 
-    fn handle<'f>(&'f mut self, message: GenericOnOffMessage) -> Self::HandleFuture<'f> {
+    fn handle(&mut self, _message: GenericOnOffMessage) -> Self::HandleFuture<'_> {
         async move { Ok(()) }
     }
 }

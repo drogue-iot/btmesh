@@ -4,8 +4,9 @@ use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
 use core::hash::{Hash, Hasher};
-use embassy::time::Instant;
+use embassy::time::{Duration, Instant};
 use rand_core::{CryptoRng, RngCore};
+use crate::util::deadline::Deadline;
 
 mod auth_value;
 mod provisionee;
@@ -21,6 +22,7 @@ pub enum ProvisioningState {
 pub struct UnprovisionedStack {
     provisionee: Option<Provisionee>,
     last_transmit_hash: Option<u64>,
+    beacon: Deadline,
 }
 
 impl UnprovisionedStack {
@@ -28,6 +30,7 @@ impl UnprovisionedStack {
         Self {
             provisionee: Some(Provisionee::new(capabilities)),
             last_transmit_hash: None,
+            beacon: Deadline::new(Duration::from_secs(3)),
         }
     }
 
@@ -40,7 +43,7 @@ impl UnprovisionedStack {
     }
 
     pub fn next_beacon_deadline(&self) -> Option<Instant> {
-        None
+        Some(self.beacon.next())
     }
 
     pub fn process<RNG: RngCore + CryptoRng>(

@@ -113,7 +113,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         #device_impl
     )
     .into();
-    println!("{}", result);
+    //println!("{}", result);
 
     result
 }
@@ -211,7 +211,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
     )
     .into();
 
-    println!("{}", result);
+    //println!("{}", result);
 
     result
 }

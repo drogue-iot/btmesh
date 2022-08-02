@@ -179,7 +179,6 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
                         });
                         info!("storing provisioning config");
                         self.storage.put(&config).await?;
-                        info!("stored provisioning config");
                         config
                     }
                 };
@@ -216,7 +215,6 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
                         }
                         Either::First(Err(err)) => return Err(err.into()),
                         Either::Second(_) => {
-                            info!("send beacon");
                             self.send_beacon().await?;
                         }
                     }
