@@ -5,10 +5,11 @@ use btmesh_driver::stack::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
-use btmesh_driver::{BluetoothMeshDriver, Driver, DriverError};
+use btmesh_driver::{BluetoothMeshDriver, DriverError, Driver as BaseDriver};
 use btmesh_pdu::provisioning::Capabilities;
 use core::future::Future;
 use core::mem;
+use btmesh_device::BluetoothMeshDevice;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
 pub struct NrfSoftdeviceDriverBuilder {
@@ -82,7 +83,7 @@ impl NrfSoftdeviceDriverBuilder {
 }
 
 pub struct NrfSoftdeviceDriver<N: NetworkInterfaces> {
-    driver: Driver<N, SoftdeviceRng, FlashBackingStore<Flash>>,
+    driver: BaseDriver<N, SoftdeviceRng, FlashBackingStore<Flash>>,
 }
 
 impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
@@ -90,15 +91,14 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
         network: N,
         rng: SoftdeviceRng,
         backing_store: FlashBackingStore<Flash>,
-        capabilities: Capabilities,
     ) -> Self {
         Self {
-            driver: Driver::new(network, rng, backing_store, capabilities),
+            driver: BaseDriver::new(network, rng, backing_store),
         }
     }
 
-    pub async fn run(&mut self) -> Result<(), DriverError> {
-        self.driver.run().await
+    pub async fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Result<(), DriverError> {
+        self.driver.run(device).await
     }
 }
 
@@ -109,7 +109,6 @@ pub struct NrfSoftdeviceAdvertisingOnlyDriver(
 impl NrfSoftdeviceAdvertisingOnlyDriver {
     pub fn new(
         name: &'static str,
-        capabilities: Capabilities,
         base_address: u32,
         sequence_threshold: u32,
     ) -> Self {
@@ -125,22 +124,21 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
             network,
             rng,
             backing_store,
-            capabilities,
         ))
     }
 
-    pub async fn run(&mut self) -> Result<(), DriverError> {
-        self.0.run().await
+    pub async fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Result<(), DriverError> {
+        self.0.run(device).await
     }
 }
 
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
-    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-    Self: 'f;
+        Self: 'f, D: 'f;
 
-    fn run(&mut self) -> Self::RunFuture<'_> {
-        self.0.run()
+    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+        self.0.run(device)
     }
 }
 
@@ -153,7 +151,6 @@ pub struct NrfSoftdeviceAdvertisingAndGattDriver(
 impl NrfSoftdeviceAdvertisingAndGattDriver {
     pub fn new(
         name: &'static str,
-        capabilities: Capabilities,
         base_address: u32,
         sequence_threshold: u32,
     ) -> Self {
@@ -170,21 +167,18 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
             network,
             rng,
             backing_store,
-            capabilities,
         ))
-    }
-
-    pub async fn run(&mut self) -> Result<(), DriverError> {
-        self.0.run().await
     }
 }
 
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
-    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-    Self: 'f;
+    Self: 'f,  D: 'f;
 
-    fn run(&mut self) -> Self::RunFuture<'_> {
-        self.0.run()
+    fn run<D:BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+        self.0.run(device)
     }
 }
+
+

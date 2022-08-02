@@ -3,8 +3,45 @@ use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, Gen
 use btmesh_models::ElementModelHandler;
 use core::future::Future;
 
+
+#[device(cid=0x0003, pid=0x0001, vid=0x0001)]
+pub struct Device {
+    zero: ElementZero,
+}
+
+impl Device {
+    pub fn new() -> Self {
+        Self {
+            zero: ElementZero::new()
+        }
+    }
+}
+
+#[element(location="unknown")]
+struct ElementZero {
+    led: MyOnOffServerHandler,
+    button: MyOnOffClientHandler,
+}
+
+impl ElementZero {
+    fn new() -> Self {
+        Self {
+            led: MyOnOffServerHandler::new(),
+            button: MyOnOffClientHandler::new(),
+        }
+    }
+}
+
 struct MyOnOffServerHandler {
     led: (),
+}
+
+impl MyOnOffServerHandler {
+    fn new() -> Self {
+        Self {
+            led: ()
+        }
+    }
 }
 
 
@@ -22,6 +59,14 @@ struct MyOnOffClientHandler {
     button: (),
 }
 
+impl MyOnOffClientHandler {
+    fn new() -> Self {
+        Self {
+            button: ()
+        }
+    }
+}
+
 impl ElementModelHandler<GenericOnOffClient> for MyOnOffClientHandler {
     type HandleFuture<'f> = impl Future<Output=Result<(), ()>> + 'f
     where
@@ -30,19 +75,4 @@ impl ElementModelHandler<GenericOnOffClient> for MyOnOffClientHandler {
     fn handle<'f>(&'f mut self, message: GenericOnOffMessage) -> Self::HandleFuture<'f> {
         async move { Ok(()) }
     }
-}
-
-/*
-#[device]
-struct Device {
-    zero: ElementZero,
-}
- */
-
-#[element]
-struct ElementZero {
-    #[model = GenericOnOffServer]
-    led: MyOnOffServerHandler,
-    #[model = GenericOnOffClient]
-    button: MyOnOffClientHandler,
 }

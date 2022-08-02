@@ -10,20 +10,14 @@ use embassy_nrf::Peripherals;
 use embassy_nrf::config::Config;
 use embassy_nrf::interrupt::Priority;
 
-use btmesh_nrf_softdevice::driver::NrfSoftdeviceAdvertisingOnlyDriver;
-
-use btmesh_pdu::provisioning::Algorithms;
-use btmesh_pdu::provisioning::Capabilities;
-use btmesh_pdu::provisioning::InputOOBActions;
-use btmesh_pdu::provisioning::OOBSize;
-use btmesh_pdu::provisioning::OutputOOBActions;
-use btmesh_pdu::provisioning::PublicKeyType;
-use btmesh_pdu::provisioning::StaticOOBType;
+use btmesh_nrf_softdevice::*;
 
 use defmt_rtt as _;
 use panic_probe as _;
 
 mod device;
+
+use device::Device;
 
 extern "C" {
     static __storage: u8;
@@ -31,25 +25,14 @@ extern "C" {
 
 #[embassy::main(config = "config()")]
 async fn main(_spawner: Spawner, _p: Peripherals) {
-    let capabilities = Capabilities {
-        number_of_elements: 1,
-        algorithms: Algorithms::default(),
-        public_key_type: PublicKeyType::default(),
-        static_oob_type: StaticOOBType::default(),
-        output_oob_size: OOBSize::MaximumSize(4),
-        output_oob_action: OutputOOBActions::default(),
-        input_oob_size: OOBSize::MaximumSize(4),
-        input_oob_action: InputOOBActions::default(),
-    };
-
-
-    let mut driver = NrfSoftdeviceAdvertisingOnlyDriver::new(
+    let mut driver = Driver::new(
         "drogue",
-        capabilities,
         unsafe { &__storage as *const u8 as u32 },
         100,
     );
-    driver.run().await.unwrap();
+
+    let device = Device::new();
+    driver.run(device).await.unwrap();
 }
 
 // Application must run at a lower priority than softdevice

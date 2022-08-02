@@ -6,7 +6,7 @@
 
 #[allow(unused_imports)]
 use crate::foundation::configuration::{CONFIGURATION_CLIENT, CONFIGURATION_SERVER};
-use crate::opcode::Opcode;
+pub use crate::opcode::Opcode;
 #[allow(unused_imports)]
 use crate::{
     generic::{
@@ -58,6 +58,18 @@ pub trait ElementModelHandler<M: Model> {
         Self: 'f;
 
     fn handle<'f>(&'f mut self, message: M::Message<'f>) -> Self::HandleFuture<'f>;
+
+    fn model_identifier(&self) -> ModelIdentifier {
+        M::IDENTIFIER
+    }
+
+    fn parse<'p>(
+        &self,
+        opcode: Opcode,
+        parameters: &'p [u8],
+    ) -> Result<Option<M::Message<'p>>, ParseError> {
+        M::parse(opcode, parameters)
+    }
 }
 
 #[derive(Copy, Clone, Debug)]

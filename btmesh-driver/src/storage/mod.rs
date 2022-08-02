@@ -47,15 +47,15 @@ pub enum Configuration {
 
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
-    capabilities: Capabilities,
+    capabilities: Option<Capabilities>,
     config: RefCell<Option<Configuration>>,
 }
 
 impl<B: BackingStore> Storage<B> {
-    pub fn new(backing_store: B, capabilities: Capabilities) -> Self {
+    pub fn new(backing_store: B) -> Self {
         Self {
             backing_store: RefCell::new(backing_store),
-            capabilities,
+            capabilities: None,
             config: RefCell::new(None),
         }
     }
@@ -108,6 +108,10 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub fn capabilities(&self) -> Capabilities {
-        self.capabilities.clone()
+        unwrap!(self.capabilities.clone())
+    }
+
+    pub fn set_capabilities(&mut self, capabilities: Capabilities) {
+        self.capabilities.replace(capabilities);
     }
 }

@@ -353,6 +353,7 @@ impl Deref for NetworkId {
 #[derive(Eq, PartialEq, Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "darling", derive(darling::FromMeta))]
 pub struct CompanyIdentifier(pub u16);
 
 impl CompanyIdentifier {
@@ -368,11 +369,13 @@ impl CompanyIdentifier {
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "darling", derive(darling::FromMeta))]
 pub struct ProductIdentifier(pub u16);
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "darling", derive(darling::FromMeta))]
 pub struct VersionIdentifier(pub u16);
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
@@ -448,20 +451,24 @@ impl Composition {
         cid: CompanyIdentifier,
         pid: ProductIdentifier,
         vid: VersionIdentifier,
-        features: Features,
+        //features: Features,
     ) -> Self {
         Self {
             cid,
             pid,
             vid,
             crpl: 0,
-            features,
+            features: Features::default(),
             elements: Default::default(),
         }
     }
 
     pub fn add_element(&mut self, element: ElementDescriptor) -> Result<(), ElementDescriptor> {
         self.elements.push(element)
+    }
+
+    pub fn number_of_elements(&self) -> u8 {
+        self.elements.len() as u8
     }
 
     pub fn cid(&self) -> CompanyIdentifier {
@@ -504,9 +511,8 @@ impl ElementDescriptor {
         }
     }
 
-    pub fn add_model(mut self, model: ModelIdentifier) -> Self {
+    pub fn add_model(&mut self, model: ModelIdentifier) {
         self.models.push(model).ok();
-        self
     }
 
     pub fn loc(&self) -> Location {
@@ -546,6 +552,30 @@ impl Features {
         xmit.push(val).map_err(|_| InsufficientBuffer)?;
         xmit.push(0).map_err(|_| InsufficientBuffer)?;
         Ok(())
+    }
+}
+
+#[allow(clippy::derivable_impls)]
+impl Default for Features {
+    fn default() -> Self {
+        Self {
+            #[cfg(feature = "relay")]
+            relay: true,
+            #[cfg(not(feature = "relay"))]
+            relay: false,
+            #[cfg(feature = "proxy")]
+            proxy: true,
+            #[cfg(not(feature = "proxy"))]
+            proxy: false,
+            #[cfg(feature = "friend")]
+            friend: true,
+            #[cfg(not(feature = "friend"))]
+            friend: false,
+            #[cfg(feature = "low_power")]
+            low_power: true,
+            #[cfg(not(feature = "low_power"))]
+            low_power: false,
+        }
     }
 }
 

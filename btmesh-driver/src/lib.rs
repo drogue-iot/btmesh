@@ -6,6 +6,7 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Seq, Uuid};
+use btmesh_device::BluetoothMeshDevice;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use core::future::{pending, Future};
@@ -33,11 +34,12 @@ use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
 
 pub trait BluetoothMeshDriver {
-    type RunFuture<'f>: Future<Output = Result<(), DriverError>> + 'f
+    type RunFuture<'f, D>: Future<Output = Result<(), DriverError>> + 'f
     where
-        Self: 'f;
+        Self: 'f,
+        D: 'f;
 
-    fn run(&mut self) -> Self::RunFuture<'_>;
+    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D>;
 }
 
 pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
@@ -48,12 +50,12 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(network: N, rng: R, backing_store: B, capabilities: Capabilities) -> Self {
+    pub fn new(network: N, rng: R, backing_store: B) -> Self {
         Self {
             stack: Stack::None,
             network,
             rng,
-            storage: Storage::new(backing_store, capabilities),
+            storage: Storage::new(backing_store),
         }
     }
 
@@ -143,12 +145,29 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMeshDriver
     for Driver<N, R, B>
 {
-    type RunFuture<'f> = impl Future<Output=Result<(), DriverError>> + 'f
+    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
         where
-            Self: 'f;
+            Self: 'f, D: 'f;
 
-    fn run(&mut self) -> Self::RunFuture<'_> {
-        info!("staring up");
+    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+        info!("btmesh: starting up");
+
+        let composition = device.composition();
+        info!("composition {}", composition);
+
+        let capabilities = Capabilities {
+            number_of_elements: composition.number_of_elements(),
+            algorithms: Default::default(),
+            public_key_type: Default::default(),
+            static_oob_type: Default::default(),
+            output_oob_size: Default::default(),
+            output_oob_action: Default::default(),
+            input_oob_size: Default::default(),
+            input_oob_action: Default::default(),
+        };
+
+        self.storage.set_capabilities(capabilities);
+
         async move {
             loop {
                 let config = match self.storage.get().await {
@@ -197,6 +216,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
                         }
                         Either::First(Err(err)) => return Err(err.into()),
                         Either::Second(_) => {
+                            info!("send beacon");
                             self.send_beacon().await?;
                         }
                     }

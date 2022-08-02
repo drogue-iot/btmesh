@@ -4,6 +4,7 @@ use crate::{Message, Model};
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use embassy::time::Duration;
 use heapless::Vec;
+#[allow(unused_imports)]
 use micromath::F32Ext;
 
 #[derive(Clone, Debug)]

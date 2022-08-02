@@ -2,10 +2,11 @@
 members = [
     "btmesh-bearer",
     "btmesh-common",
+    "btmesh-device",
     "btmesh-driver",
+    "btmesh-macro",
     "btmesh-models",
     "btmesh-pdu",
-    "btmesh-macro",
 ]
 
 resolver = "2"
