@@ -11,13 +11,12 @@ use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
-use embassy::time::Instant;
 use heapless::Vec;
 use secrets::Secrets;
 
+use crate::util::deadline::DeadlineFuture;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use crate::util::deadline::DeadlineFuture;
 
 pub mod lower;
 pub mod network;

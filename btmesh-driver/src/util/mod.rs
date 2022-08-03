@@ -1,2 +1,2 @@
-pub mod hash;
 pub mod deadline;
+pub mod hash;

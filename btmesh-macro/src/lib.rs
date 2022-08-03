@@ -5,9 +5,10 @@ extern crate proc_macro2;
 use btmesh_common::{CompanyIdentifier, ProductIdentifier, VersionIdentifier};
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use proc_macro2::{TokenStream as TokenStream2};
+use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use regex::Regex;
+use syn::{Field, File};
 
 #[derive(FromMeta)]
 struct DeviceArgs {
@@ -37,6 +38,9 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut device_struct = syn::parse_macro_input!(item as syn::ItemStruct);
 
+    let generics = device_struct.generics.clone();
+    let generic_params = device_struct.generics.clone();
+
     let struct_fields = match &mut device_struct.fields {
         syn::Fields::Named(n) => n,
         _ => {
@@ -44,7 +48,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 .ident
                 .span()
                 .unwrap()
-                .error("element structs must have named fields, not tuples.")
+                .error("device structs must have named fields, not tuples.")
                 .emit();
             return TokenStream::new();
         }
@@ -57,6 +61,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut populate = TokenStream2::new();
     let mut dispatch = TokenStream2::new();
+    let mut ctor_params = TokenStream2::new();
 
     for (i, field) in fields.iter().enumerate() {
         let field_name = field.ident.as_ref().unwrap();
@@ -67,6 +72,10 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
             #i => {
                 self.#field_name.dispatch(opcode, parameters).await?;
             }
+        });
+        ctor_params.extend(quote! {
+            //self.#field_name.run(),
+            ::btmesh_device::BluetoothMeshElement::run(&self.#field_name)
         })
     }
 
@@ -74,8 +83,11 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut device_impl = TokenStream2::new();
 
+    let future_struct_name = future_struct_name(struct_name.clone());
+    let device_future = fields_future(struct_name.clone(), fields);
+
     device_impl.extend(quote!(
-        impl ::btmesh_device::BluetoothMeshDevice for #struct_name {
+        impl #generics ::btmesh_device::BluetoothMeshDevice for #struct_name #generic_params {
 
             fn composition(&self) -> ::btmesh_device::Composition {
                 use ::btmesh_device::BluetoothMeshElement;
@@ -89,10 +101,19 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 composition
             }
 
+            type RunFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
+                where Self: 'f;
+
+            fn run(&self) -> Self::RunFuture<'_> {
+                #future_struct_name::new(
+                    #ctor_params
+                )
+            }
+
             type DispatchFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
                 where Self: 'f;
 
-            fn dispatch<'f>(&'f mut self, index: usize, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
+            fn dispatch<'f>(&'f self, index: usize, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
                 use ::btmesh_device::BluetoothMeshElement;
                 async move {
                     match index {
@@ -105,22 +126,30 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 }
             }
         }
-    ));
+
+        #device_future
+    ) );
 
     let result = quote!(
         #device_struct
 
         #device_impl
-    )
-    .into();
-    //println!("{}", result);
+    );
 
-    result
+    let pretty = result.clone();
+    let file: File = syn::parse(pretty.into()).unwrap();
+    let pretty = prettyplease::unparse(&file);
+    println!("{}", pretty);
+
+    result.into()
 }
 
 #[proc_macro_attribute]
 pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
-    let mut element_struct = syn::parse_macro_input!(item as syn::ItemStruct);
+    let element_struct = syn::parse_macro_input!(item as syn::ItemStruct);
+
+    let generics = element_struct.generics.clone();
+    let generic_params = element_struct.generics.clone();
 
     let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let args = match ElementArgs::from_list(&args) {
@@ -145,7 +174,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         ));
     };
 
-    let struct_fields = match &mut element_struct.fields {
+    let struct_fields = match element_struct.fields.clone() {
         syn::Fields::Named(n) => n,
         _ => {
             element_struct
@@ -166,12 +195,13 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut populate = TokenStream2::new();
     let mut dispatch = TokenStream2::new();
+    let mut ctor_params = TokenStream2::new();
 
     populate.extend(quote! {
         let mut descriptor = ::btmesh_device::ElementDescriptor::new( #location_arg );
     });
 
-    for field in fields {
+    for field in fields.clone() {
         let field_name = field.ident.as_ref().unwrap();
         populate.extend(quote! {
             descriptor.add_model( self.#field_name.model_identifier() );
@@ -181,21 +211,35 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                 self.#field_name.handle(message).await?;
             }
         });
+        ctor_params.extend(quote! {
+            self.#field_name.run(),
+        })
     }
 
     let mut element_impl = TokenStream2::new();
 
+    let future_struct_name = future_struct_name(struct_name.clone());
+
     element_impl.extend(quote!(
-        impl ::btmesh_device::BluetoothMeshElement for #struct_name {
+        impl #generics ::btmesh_device::BluetoothMeshElement for #struct_name #generic_params {
             fn populate(&self, composition: &mut ::btmesh_device::Composition) {
                 #populate
                 composition.add_element(descriptor);
             }
 
+            type RunFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
+                where Self: 'f;
+
+            fn run(&self) -> Self::RunFuture<'_> {
+                #future_struct_name::new(
+                    #ctor_params
+                )
+            }
+
             type DispatchFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
                 where Self: 'f;
 
-            fn dispatch<'f>(&'f mut self, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
+            fn dispatch<'f>(&'f self, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
                 async move {
                     #dispatch
                     Ok(())
@@ -204,14 +248,98 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         }
     ));
 
+    let element_future = fields_future(struct_name, fields);
+
     let result = quote!(
         #element_struct
 
         #element_impl
-    )
-    .into();
 
-    //println!("{}", result);
+        #element_future
+    );
 
-    result
+    let pretty = result.clone();
+    let file: File = syn::parse(pretty.into()).unwrap();
+    let pretty = prettyplease::unparse(&file);
+    println!("{}", pretty);
+
+    result.into()
+}
+
+fn future_struct_name(struct_name: Ident) -> Ident {
+    format_ident!("{}MultiFuture", struct_name)
+}
+
+fn fields_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
+    let mut future = TokenStream2::new();
+
+    let mut generics = TokenStream2::new();
+    let mut generic_params = TokenStream2::new();
+    let mut future_fields = TokenStream2::new();
+    let mut field_poll = TokenStream2::new();
+    let mut ctor = TokenStream2::new();
+    let mut singleton_params = TokenStream2::new();
+
+    if !fields.is_empty() {
+        generics.extend(quote!( < ));
+        generic_params.extend(quote!( < ));
+        for field in fields {
+            let field_type = field.ty.clone();
+            singleton_params.extend(quote! {
+                <#field_type as ElementModelPublisher>::RunFuture,
+            });
+            let field_future_type = field.ident.clone().unwrap().to_string().to_uppercase();
+            let field_future_type = format_ident!("{}", field_future_type);
+            generics.extend(
+                quote!( #field_future_type: ::core::future::Future<Output=Result<(),()>>, ),
+            );
+            generic_params.extend(quote!( #field_future_type, ));
+
+            let field_future_name = field.ident.clone().unwrap();
+            future_fields.extend(quote!( #field_future_name: #field_future_type, ));
+
+            ctor.extend(quote! {
+                #field_future_name,
+            });
+
+            field_poll.extend( quote! {
+                let result = unsafe { ::core::pin::Pin::new_unchecked(&mut self_mut.#field_future_name)  }.poll(cx);
+                if let::core::task::Poll::Ready(_) = result {
+                    return result
+                }
+            })
+        }
+        generics.extend(quote!( > ));
+        generic_params.extend(quote!( > ));
+    }
+
+    let future_struct_name = future_struct_name(struct_name);
+
+    future.extend(quote! {
+        struct #future_struct_name #generics {
+            #future_fields
+        }
+
+        impl #generics #future_struct_name #generic_params {
+            const fn new(#future_fields) -> Self {
+                Self {
+                    #ctor
+                }
+            }
+        }
+
+        impl #generics ::core::future::Future for #future_struct_name #generic_params {
+            type Output = Result<(), ()>;
+
+            fn poll(self: ::core::pin::Pin<&mut Self>, cx: &mut ::core::task::Context<'_>) -> ::core::task::Poll<Self::Output> {
+                //use ::core::future::Future;
+                let mut self_mut = unsafe{ self.get_unchecked_mut() };
+                #field_poll
+
+                ::core::task::Poll::Pending
+            }
+        }
+    });
+
+    future
 }

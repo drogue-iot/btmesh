@@ -16,12 +16,18 @@ use core::future::Future;
 pub trait BluetoothMeshDevice {
     fn composition(&self) -> Composition;
 
+    type RunFuture<'f>: Future<Output = Result<(), ()>> + 'f
+    where
+        Self: 'f;
+
+    fn run(&self) -> Self::RunFuture<'_>;
+
     type DispatchFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where
         Self: 'f;
 
     fn dispatch<'f>(
-        &'f mut self,
+        &'f self,
         index: usize,
         opcode: Opcode,
         parameters: &'f [u8],
@@ -31,12 +37,17 @@ pub trait BluetoothMeshDevice {
 pub trait BluetoothMeshElement {
     fn populate(&self, composition: &mut Composition);
 
+    type RunFuture<'f>: Future<Output = Result<(), ()>> + 'f
+    where
+        Self: 'f;
+
+    fn run(&self) -> Self::RunFuture<'_>;
+
     type DispatchFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where
         Self: 'f;
 
-    fn dispatch<'f>(&'f mut self, opcode: Opcode, parameters: &'f [u8])
-        -> Self::DispatchFuture<'f>;
+    fn dispatch<'f>(&'f self, opcode: Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f>;
 }
 
 pub fn features() -> Features {

@@ -10,8 +10,7 @@ use btmesh_device::BluetoothMeshDevice;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use core::future::{pending, Future};
-use embassy::time::Timer;
-use embassy::util::{select, Either};
+use embassy::util::{select3, Either3};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -37,7 +36,7 @@ pub trait BluetoothMeshDriver {
     type RunFuture<'f, D>: Future<Output = Result<(), DriverError>> + 'f
     where
         Self: 'f,
-        D: 'f;
+        D: BluetoothMeshDevice + 'f;
 
     fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D>;
 }
@@ -147,7 +146,8 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
 {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
         where
-            Self: 'f, D: 'f;
+            Self: 'f,
+            D: BluetoothMeshDevice + 'f;
 
     fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
         info!("btmesh: starting up");
@@ -208,14 +208,18 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
                 if let Some(device_state) = device_state {
                     let receive_fut = self.network.receive(&device_state);
                     let beacon_fut = self.next_beacon();
+                    let device_fut = device.run();
 
-                    match select(receive_fut, beacon_fut).await {
-                        Either::First(Ok(pdu)) => {
+                    match select3(receive_fut, beacon_fut, device_fut).await {
+                        Either3::First(Ok(pdu)) => {
                             self.receive_pdu(&pdu).await?;
                         }
-                        Either::First(Err(err)) => return Err(err.into()),
-                        Either::Second(_) => {
+                        Either3::First(Err(err)) => return Err(err.into()),
+                        Either3::Second(_) => {
                             self.send_beacon().await?;
+                        }
+                        Either3::Third(_) => {
+                            info!("device ready");
                         }
                     }
 

@@ -140,7 +140,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-    Self: 'f, D: 'f;
+    Self: 'f, D: BluetoothMeshDevice + 'f;
 
     fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
         self.0.run(device)
@@ -180,7 +180,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
     where
-    Self: 'f, D: 'f;
+    Self: 'f, D: BluetoothMeshDevice + 'f;
 
     fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
         self.0.run(device)

@@ -2,10 +2,9 @@ use crate::stack::unprovisioned::UnprovisionedStack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::Configuration;
+use crate::util::deadline::DeadlineFuture;
 use crate::{DeviceState, ProvisionedStack, Sequence};
 use btmesh_common::Uuid;
-use embassy::time::Instant;
-use crate::util::deadline::DeadlineFuture;
 
 pub mod interface;
 pub mod provisioned;

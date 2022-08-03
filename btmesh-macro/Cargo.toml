@@ -11,8 +11,9 @@ proc-macro = true
 
 [dependencies]
 btmesh-common = { path = "../btmesh-common", default-features = false, features = ["darling"]}
-syn = { version = "1.0.89", features = ["full", "extra-traits"] }
+syn = { version = "1.0.89", features = ["derive", "full", "extra-traits"] }
 quote = "1.0.7"
 darling = "0.14.1"
 proc-macro2 = "1.0.24"
 regex = "1.6.0"
+prettyplease = "0.1.18"

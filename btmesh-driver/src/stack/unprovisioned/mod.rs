@@ -1,12 +1,12 @@
 use crate::stack::unprovisioned::provisionee::Provisionee;
+use crate::util::deadline::{Deadline, DeadlineFuture};
 use crate::util::hash::FnvHasher;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
 use core::hash::{Hash, Hasher};
-use embassy::time::{Duration, Instant};
+use embassy::time::Duration;
 use rand_core::{CryptoRng, RngCore};
-use crate::util::deadline::{Deadline, DeadlineFuture};
 
 mod auth_value;
 mod provisionee;

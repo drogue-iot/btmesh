@@ -53,11 +53,17 @@ pub trait Model {
 }
 
 pub trait ElementModelHandler<M: Model> {
+    type RunFuture<'f>: Future<Output = Result<(), ()>> + 'f
+    where
+        Self: 'f;
+
+    fn run(&self) -> Self::RunFuture<'_>;
+
     type HandleFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where
         Self: 'f;
 
-    fn handle<'f>(&'f mut self, message: M::Message<'f>) -> Self::HandleFuture<'f>;
+    fn handle<'f>(&'f self, message: M::Message<'f>) -> Self::HandleFuture<'f>;
 
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER

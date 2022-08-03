@@ -13,14 +13,21 @@ impl Deadline {
     pub fn new(every: Duration, immediate: bool) -> Self {
         Self {
             every,
-            next: Cell::new(Instant::now() + if immediate { Duration::default() } else { every }),
+            next: Cell::new(
+                Instant::now()
+                    + if immediate {
+                        Duration::default()
+                    } else {
+                        every
+                    },
+            ),
         }
     }
 
     pub fn next(&self) -> DeadlineFuture<'_> {
         let now = Instant::now();
         if self.next.get() <= now {
-            DeadlineFuture::new(self, now )
+            DeadlineFuture::new(self, now)
         } else {
             DeadlineFuture::new(self, self.next.get())
         }
@@ -51,9 +58,8 @@ impl<'d> Future for DeadlineFuture<'d> {
     fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
         let result = Pin::new(&mut self.timer).poll(cx);
 
-        match result {
-            Poll::Ready(_) => self.deadline.advance(),
-            _ => { /* nothing */ }
+        if result.is_ready() {
+            self.deadline.advance();
         }
 
         result

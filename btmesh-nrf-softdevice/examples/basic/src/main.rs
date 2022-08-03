@@ -13,6 +13,7 @@ use embassy_nrf::interrupt::Priority;
 use btmesh_nrf_softdevice::*;
 
 use defmt_rtt as _;
+use embassy_nrf::gpio::Pin;
 use panic_probe as _;
 
 mod device;
@@ -24,14 +25,17 @@ extern "C" {
 }
 
 #[embassy::main(config = "config()")]
-async fn main(_spawner: Spawner, _p: Peripherals) {
+async fn main(_spawner: Spawner, p: Peripherals) {
     let mut driver = Driver::new(
         "drogue",
         unsafe { &__storage as *const u8 as u32 },
         100,
     );
 
-    let device = Device::new();
+    let device = Device::new(
+        p.P0_13.degrade(),
+        p.P0_11.degrade(),
+    );
     driver.run(device).await.unwrap();
 }
 
