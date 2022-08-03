@@ -5,6 +5,7 @@ use crate::storage::Configuration;
 use crate::{DeviceState, ProvisionedStack, Sequence};
 use btmesh_common::Uuid;
 use embassy::time::Instant;
+use crate::util::deadline::DeadlineFuture;
 
 pub mod interface;
 pub mod provisioned;
@@ -35,7 +36,7 @@ impl Stack {
         }
     }
 
-    pub fn next_beacon_deadline(&self) -> Option<Instant> {
+    pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
         match self {
             Stack::None => None,
             Stack::Unprovisioned { stack, .. } => stack.next_beacon_deadline(),

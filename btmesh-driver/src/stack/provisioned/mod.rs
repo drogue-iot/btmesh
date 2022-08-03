@@ -17,6 +17,7 @@ use secrets::Secrets;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use crate::util::deadline::DeadlineFuture;
 
 pub mod lower;
 pub mod network;
@@ -157,7 +158,7 @@ impl ProvisionedStack {
         self.network.device_info()
     }
 
-    pub fn next_beacon_deadline(&self) -> Option<Instant> {
+    pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
         None
     }
 

@@ -1,5 +1,8 @@
 use core::cell::Cell;
-use embassy::time::{Duration, Instant};
+use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
+use embassy::time::{Duration, Instant, Timer};
 
 pub struct Deadline {
     every: Duration,
@@ -7,22 +10,52 @@ pub struct Deadline {
 }
 
 impl Deadline {
-
-    pub fn new(every: Duration) -> Self {
+    pub fn new(every: Duration, immediate: bool) -> Self {
         Self {
             every,
-            next: Cell::new(Instant::now() + every),
+            next: Cell::new(Instant::now() + if immediate { Duration::default() } else { every }),
         }
     }
 
-    pub fn next(&self) -> Instant {
+    pub fn next(&self) -> DeadlineFuture<'_> {
         let now = Instant::now();
-
         if self.next.get() <= now {
-            self.next.replace(now + self.every);
+            DeadlineFuture::new(self, now )
+        } else {
+            DeadlineFuture::new(self, self.next.get())
         }
-
-        self.next.get()
     }
 
+    fn advance(&self) {
+        self.next.replace(Instant::now() + self.every);
+    }
+}
+
+pub struct DeadlineFuture<'d> {
+    deadline: &'d Deadline,
+    timer: Timer,
+}
+
+impl<'d> DeadlineFuture<'d> {
+    fn new(deadline: &'d Deadline, instant: Instant) -> Self {
+        Self {
+            deadline,
+            timer: Timer::at(instant),
+        }
+    }
+}
+
+impl<'d> Future for DeadlineFuture<'d> {
+    type Output = ();
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        let result = Pin::new(&mut self.timer).poll(cx);
+
+        match result {
+            Poll::Ready(_) => self.deadline.advance(),
+            _ => { /* nothing */ }
+        }
+
+        result
+    }
 }

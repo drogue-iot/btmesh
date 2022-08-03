@@ -134,7 +134,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
     fn next_beacon(&self) -> BeaconFuture<'_, N, R, B> {
         async move {
             if let Some(next_beacon_deadline) = self.stack.next_beacon_deadline() {
-                Timer::at(next_beacon_deadline).await
+                next_beacon_deadline.await
             } else {
                 pending().await
             }

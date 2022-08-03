@@ -6,7 +6,7 @@ use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
 use core::hash::{Hash, Hasher};
 use embassy::time::{Duration, Instant};
 use rand_core::{CryptoRng, RngCore};
-use crate::util::deadline::Deadline;
+use crate::util::deadline::{Deadline, DeadlineFuture};
 
 mod auth_value;
 mod provisionee;
@@ -30,7 +30,7 @@ impl UnprovisionedStack {
         Self {
             provisionee: Some(Provisionee::new(capabilities)),
             last_transmit_hash: None,
-            beacon: Deadline::new(Duration::from_secs(3)),
+            beacon: Deadline::new(Duration::from_secs(3), true),
         }
     }
 
@@ -42,7 +42,7 @@ impl UnprovisionedStack {
         }
     }
 
-    pub fn next_beacon_deadline(&self) -> Option<Instant> {
+    pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
         Some(self.beacon.next())
     }
 
