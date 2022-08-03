@@ -320,7 +320,11 @@ impl Uuid {
     pub fn new_random<R: RngCore>(rng: &mut R) -> Self {
         let mut bytes = [0; 16];
         rng.fill_bytes(&mut bytes);
-        Self(bytes)
+        Self(
+            *uuid::Builder::from_random_bytes(bytes)
+                .into_uuid()
+                .as_bytes(),
+        )
     }
 }
 
