@@ -16,7 +16,7 @@ use crate::{
     sensor::{SENSOR_CLIENT, SENSOR_SERVER, SENSOR_SETUP_SERVER},
 };
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
-use core::future::Future;
+use core::future::{Future, pending};
 use heapless::Vec;
 
 pub mod opcode;

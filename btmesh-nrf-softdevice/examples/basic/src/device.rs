@@ -1,3 +1,4 @@
+use core::cell::RefCell;
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
 use btmesh_models::ElementModelHandler;
@@ -20,7 +21,7 @@ impl Device<'_> {
     }
 }
 
-#[element(location = "unknown")]
+#[element(location = "left")]
 struct ElementZero<'d> {
     led: MyOnOffServerHandler<'d>,
     button: MyOnOffClientHandler<'d>,
@@ -71,13 +72,13 @@ impl ElementModelHandler<GenericOnOffServer> for MyOnOffServerHandler<'_> {
 }
 
 struct MyOnOffClientHandler<'d> {
-    button: Input<'d, AnyPin>,
+    button: RefCell<Input<'d, AnyPin>>,
 }
 
 impl MyOnOffClientHandler<'_> {
     fn new(button: AnyPin) -> Self {
         Self {
-            button: Input::new(button, Pull::Up),
+            button: RefCell::new(Input::new(button, Pull::Up)),
         }
     }
 }
@@ -90,8 +91,8 @@ impl ElementModelHandler<GenericOnOffClient> for MyOnOffClientHandler<'_> {
     fn run(&self) -> Self::RunFuture<'_> {
         async move {
             loop {
-                Timer::after(Duration::from_secs(2)).await;
-                defmt::info!("client run loop");
+                self.button.borrow_mut().wait_for_falling_edge().await;
+                defmt::info!("** button pushed");
             }
         }
     }
