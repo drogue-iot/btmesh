@@ -21,7 +21,7 @@ use heapless::Vec;
 pub type ChannelImpl = Channel<CriticalSectionRawMutex, ReceivePayload, 1>;
 pub type SenderImpl = Sender<'static, CriticalSectionRawMutex, ReceivePayload, 1>;
 pub type ReceiverImpl = Receiver<'static, CriticalSectionRawMutex, ReceivePayload, 1>;
-pub type ReceivePayload = (Opcode, Vec<u8, 380>);
+pub type ReceivePayload = (Option<usize>, Opcode, Vec<u8, 380>);
 
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
@@ -87,14 +87,6 @@ pub trait BluetoothMeshModel<M: Model> {
 
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER
-    }
-
-    fn parse(
-        &self,
-        opcode: Opcode,
-        parameters: &[u8],
-    ) -> Result<Option<M::Message>, ParseError> {
-        M::parse(opcode, parameters)
     }
 }
 

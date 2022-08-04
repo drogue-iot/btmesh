@@ -67,7 +67,7 @@ impl<M:Model> BluetoothMeshModelContext<M> for ModelContext {
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
             loop {
-                let (opcode, parameters) = self.inbound.recv().await;
+                let (_index, opcode, parameters) = self.inbound.recv().await;
 
                 if let Ok(Some(message)) = M::parse(opcode, &*parameters) {
                     return message

@@ -83,7 +83,9 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
             let #ctx_name = ctx.element_context(#i, #element_channel_name );
         });
         fanout.extend(quote! {
-            #element_channel_name.send(message.clone()).await;
+            if matches!(target_element_index, Some(#i)) || matches!(target_element_index, None) {
+                #element_channel_name.send(message.clone()).await;
+            }
         });
         ctor_params.extend(quote! {
             ::btmesh_device::BluetoothMeshElement::run(&mut self.#field_name, #ctx_name),
@@ -125,6 +127,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                         async move {
                             loop {
                                 let message = ctx.receive().await;
+                                let target_element_index = message.0;
                                 #fanout
                             }
                         },
