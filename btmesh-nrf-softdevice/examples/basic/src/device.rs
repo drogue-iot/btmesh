@@ -1,7 +1,7 @@
-use core::cell::RefCell;
+use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
-use btmesh_models::ElementModelHandler;
+use core::cell::RefCell;
 use core::future::{pending, Future};
 use core::pin::Pin;
 use core::task::{Context, Poll};
@@ -13,18 +13,18 @@ pub struct Device<'d> {
     zero: ElementZero<'d>,
 }
 
+#[element(location = "left")]
+struct ElementZero<'d> {
+    led: MyOnOffServerHandler<'d>,
+    button: MyOnOffClientHandler<'d>,
+}
+
 impl Device<'_> {
     pub fn new(led: AnyPin, button: AnyPin) -> Self {
         Self {
             zero: ElementZero::new(led, button),
         }
     }
-}
-
-#[element(location = "left")]
-struct ElementZero<'d> {
-    led: MyOnOffServerHandler<'d>,
-    button: MyOnOffClientHandler<'d>,
 }
 
 impl<'d> ElementZero<'d> {
@@ -48,26 +48,22 @@ impl<'d> MyOnOffServerHandler<'d> {
     }
 }
 
-impl ElementModelHandler<GenericOnOffServer> for MyOnOffServerHandler<'_> {
-    type RunFuture<'f> = impl Future<Output=Result<(), ()>> + 'f
+impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
+    type RunFuture<'f, C> = impl Future<Output=Result<(), ()>> + 'f
     where
-    Self: 'f;
+        Self: 'f,
+        C: BluetoothMeshModelContext<GenericOnOffServer> + 'f;
 
-    fn run(&self) -> Self::RunFuture<'_> {
+    fn run<'run, C: BluetoothMeshModelContext<GenericOnOffServer> + 'run>(
+        &'run self,
+        ctx: C,
+    ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
                 Timer::after(Duration::from_secs(1)).await;
                 defmt::info!("server run loop");
             }
         }
-    }
-
-    type HandleFuture<'f> = impl Future<Output=Result<(), ()>> + 'f
-        where
-    Self: 'f;
-
-    fn handle(&self, _message: GenericOnOffMessage) -> Self::HandleFuture<'_> {
-        async move { Ok(()) }
     }
 }
 
@@ -83,25 +79,21 @@ impl MyOnOffClientHandler<'_> {
     }
 }
 
-impl ElementModelHandler<GenericOnOffClient> for MyOnOffClientHandler<'_> {
-    type RunFuture<'f> = impl Future<Output=Result<(), ()>> + 'f
+impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
+    type RunFuture<'f, C> = impl Future<Output=Result<(), ()>> + 'f
     where
-    Self: 'f;
+        Self: 'f,
+        C: BluetoothMeshModelContext<GenericOnOffClient> + 'f;
 
-    fn run(&self) -> Self::RunFuture<'_> {
+    fn run<'run, C: BluetoothMeshModelContext<GenericOnOffClient> + 'run>(
+        &'run self,
+        ctx: C,
+    ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
                 self.button.borrow_mut().wait_for_falling_edge().await;
                 defmt::info!("** button pushed");
             }
         }
-    }
-
-    type HandleFuture<'f> = impl Future<Output=Result<(), ()>> + 'f
-    where
-    Self: 'f;
-
-    fn handle(&self, _message: GenericOnOffMessage) -> Self::HandleFuture<'_> {
-        async move { Ok(()) }
     }
 }

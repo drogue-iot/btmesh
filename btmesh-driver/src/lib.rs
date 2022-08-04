@@ -5,21 +5,25 @@
 #![allow(dead_code)]
 
 use btmesh_bearer::beacon::Beacon;
-use btmesh_common::{Seq, Uuid};
-use btmesh_device::BluetoothMeshDevice;
+use btmesh_common::{Composition, Seq, Uuid};
+use btmesh_device::{BluetoothMeshDevice, ChannelImpl, SenderImpl};
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use core::future::{pending, Future};
-use embassy::util::{select3, Either3};
+use core::pin::Pin;
+use embassy::channel::Channel;
+use embassy::util::{select, Either};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
 pub mod fmt;
 pub mod stack;
 
+mod device;
 pub mod storage;
 mod util;
 
+use crate::device::DeviceContext;
 use crate::stack::interface::NetworkInterfaces;
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
@@ -38,7 +42,7 @@ pub trait BluetoothMeshDriver {
         Self: 'f,
         D: BluetoothMeshDevice + 'f;
 
-    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D>;
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D>;
 }
 
 pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
@@ -139,20 +143,14 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
             }
         }
     }
-}
 
-impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMeshDriver
-    for Driver<N, R, B>
-{
-    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
-        where
-            Self: 'f,
-            D: BluetoothMeshDevice + 'f;
+    fn run_device<'ch, D: BluetoothMeshDevice>(device: &'ch mut D, channel: &'ch ChannelImpl) -> impl Future<Output=Result<(),()>> + 'ch {
+        let receiver = INBOUND.receiver();
+        device.run(DeviceContext::new(receiver) )
+    }
 
-    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+    async fn run_driver(&mut self, composition: Composition) -> Result<(), DriverError> {
         info!("btmesh: starting up");
-
-        let composition = device.composition();
         info!("composition {}", composition);
 
         let capabilities = Capabilities {
@@ -168,68 +166,98 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
 
         self.storage.set_capabilities(capabilities);
 
-        async move {
-            loop {
-                let config = match self.storage.get().await {
-                    Ok(config) => config,
-                    Err(_) => {
-                        info!("failed to load config");
-                        let config = Configuration::Unprovisioned(UnprovisionedConfiguration {
-                            uuid: Uuid::new_random(&mut self.rng),
-                        });
-                        info!("storing provisioning config");
-                        self.storage.put(&config).await?;
-                        config
-                    }
-                };
+        loop {
+            info!("driver loop");
+            let config = match self.storage.get().await {
+                Ok(config) => config,
+                Err(_) => {
+                    info!("failed to load config");
+                    let config = Configuration::Unprovisioned(UnprovisionedConfiguration {
+                        uuid: Uuid::new_random(&mut self.rng),
+                    });
+                    info!("storing provisioning config");
+                    self.storage.put(&config).await?;
+                    config
+                }
+            };
 
-                match (&self.stack, config) {
-                    (Stack::None, Configuration::Unprovisioned(content))
-                    | (Stack::Provisioned { .. }, Configuration::Unprovisioned(content)) => {
-                        self.stack = Stack::Unprovisioned {
-                            stack: UnprovisionedStack::new(self.storage.capabilities()),
-                            uuid: content.uuid(),
-                        }
-                    }
-                    (Stack::None, Configuration::Provisioned(content))
-                    | (Stack::Unprovisioned { .. }, Configuration::Provisioned(content)) => {
-                        self.stack = Stack::Provisioned {
-                            sequence: Sequence::new(Seq::new(content.sequence())),
-                            stack: content.into(),
-                        }
-                    }
-                    _ => {
-                        // unchanged, don't reconfigure the stack.
+            match (&self.stack, config) {
+                (Stack::None, Configuration::Unprovisioned(content))
+                | (Stack::Provisioned { .. }, Configuration::Unprovisioned(content)) => {
+                    self.stack = Stack::Unprovisioned {
+                        stack: UnprovisionedStack::new(self.storage.capabilities()),
+                        uuid: content.uuid(),
                     }
                 }
-
-                let device_state = self.stack.device_state();
-
-                if let Some(device_state) = device_state {
-                    let receive_fut = self.network.receive(&device_state);
-                    let beacon_fut = self.next_beacon();
-                    let device_fut = device.run();
-
-                    match select3(receive_fut, beacon_fut, device_fut).await {
-                        Either3::First(Ok(pdu)) => {
-                            self.receive_pdu(&pdu).await?;
-                        }
-                        Either3::First(Err(err)) => return Err(err.into()),
-                        Either3::Second(_) => {
-                            self.send_beacon().await?;
-                        }
-                        Either3::Third(_) => {
-                            info!("device ready");
-                        }
+                (Stack::None, Configuration::Provisioned(content))
+                | (Stack::Unprovisioned { .. }, Configuration::Provisioned(content)) => {
+                    self.stack = Stack::Provisioned {
+                        sequence: Sequence::new(Seq::new(content.sequence())),
+                        stack: content.into(),
                     }
-
-                    let config: Option<Configuration> = (&self.stack).try_into().ok();
-                    if let Some(config) = config {
-                        // will conditionally put depending on hash/dirty/sequence changes.
-                        self.storage.put(&config).await?;
-                    }
+                }
+                _ => {
+                    // unchanged, don't reconfigure the stack.
                 }
             }
+
+            let device_state = self.stack.device_state();
+
+            if let Some(device_state) = device_state {
+                let receive_fut = self.network.receive(&device_state);
+                let beacon_fut = self.next_beacon();
+
+                match select(receive_fut, beacon_fut).await {
+                    Either::First(Ok(pdu)) => {
+                        self.receive_pdu(&pdu).await?;
+                    }
+                    Either::First(Err(err)) => return Err(err.into()),
+                    Either::Second(_) => {
+                        self.send_beacon().await?;
+                    }
+                }
+
+                let config: Option<Configuration> = (&self.stack).try_into().ok();
+                if let Some(config) = config {
+                    // will conditionally put depending on hash/dirty/sequence changes.
+                    self.storage.put(&config).await?;
+                }
+            }
+        }
+        info!("driver loop done");
+    }
+}
+
+impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMeshDriver
+    for Driver<N, R, B>
+{
+    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
+        where
+            Self: 'f,
+            D: BluetoothMeshDevice + 'f;
+
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D> {
+        let composition = device.composition();
+
+        info!("run!");
+
+        async move {
+            let channel = Channel::new();
+            let mut device_fut = Self::run_device(device, &channel);
+            let mut driver_fut = self.run_driver(composition);
+
+            // if the device or the driver is `Ready` then stuff is just done, stop.
+            match select(driver_fut, device_fut).await {
+                Either::First(_) => {
+                    info!("driver done");
+                }
+                Either::Second(val) => {
+                    info!("device done");
+                }
+            }
+
+            info!("run ended!");
+            Ok(())
         }
     }
 }
@@ -245,3 +273,5 @@ pub enum DeviceState {
     Unprovisioned { uuid: Uuid, in_progress: bool },
     Provisioned,
 }
+
+static INBOUND: ChannelImpl = ChannelImpl::new();

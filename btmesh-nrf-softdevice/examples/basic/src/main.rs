@@ -32,11 +32,11 @@ async fn main(_spawner: Spawner, p: Peripherals) {
         100,
     );
 
-    let device = Device::new(
+    let mut device = Device::new(
         p.P0_13.degrade(),
         p.P0_11.degrade(),
     );
-    driver.run(device).await.unwrap();
+    driver.run(&mut device).await.unwrap();
 }
 
 // Application must run at a lower priority than softdevice

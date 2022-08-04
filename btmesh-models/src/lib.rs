@@ -52,31 +52,7 @@ pub trait Model {
     fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError>;
 }
 
-pub trait ElementModelHandler<M: Model> {
-    type RunFuture<'f>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f;
 
-    fn run(&self) -> Self::RunFuture<'_>;
-
-    type HandleFuture<'f>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f;
-
-    fn handle<'f>(&'f self, message: M::Message<'f>) -> Self::HandleFuture<'f>;
-
-    fn model_identifier(&self) -> ModelIdentifier {
-        M::IDENTIFIER
-    }
-
-    fn parse<'p>(
-        &self,
-        opcode: Opcode,
-        parameters: &'p [u8],
-    ) -> Result<Option<M::Message<'p>>, ParseError> {
-        M::parse(opcode, parameters)
-    }
-}
 
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

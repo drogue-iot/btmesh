@@ -100,7 +100,7 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
     }
 
     #[allow(unreachable_code)]
-    pub async fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Result<(), DriverError> {
+    pub async fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Result<(), DriverError> {
         // todo: turn it into a select?
         join!( self.sd.run(), self.driver.run(device)).await.1
     }
@@ -132,7 +132,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
         ))
     }
 
-    pub async fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Result<(), DriverError> {
+    pub async fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Result<(), DriverError> {
         self.0.run(device).await
     }
 }
@@ -142,7 +142,7 @@ impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
     where
     Self: 'f, D: BluetoothMeshDevice + 'f;
 
-    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
         self.0.run(device)
     }
 }
@@ -182,7 +182,7 @@ impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
     where
     Self: 'f, D: BluetoothMeshDevice + 'f;
 
-    fn run<D: BluetoothMeshDevice>(&mut self, device: D) -> Self::RunFuture<'_, D> {
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
         self.0.run(device)
     }
 }

@@ -5,8 +5,9 @@ extern crate proc_macro2;
 use btmesh_common::{CompanyIdentifier, ProductIdentifier, VersionIdentifier};
 use darling::FromMeta;
 use proc_macro::TokenStream;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{format_ident, quote};
+use quote::{format_ident, quote, ToTokens};
 use regex::Regex;
 use syn::{Field, File};
 
@@ -60,22 +61,32 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         .collect::<Vec<syn::Field>>();
 
     let mut populate = TokenStream2::new();
-    let mut dispatch = TokenStream2::new();
     let mut ctor_params = TokenStream2::new();
+    let mut run_prolog = TokenStream2::new();
+    let mut static_channels = TokenStream2::new();
+    let mut fanout = TokenStream2::new();
 
     for (i, field) in fields.iter().enumerate() {
         let field_name = field.ident.as_ref().unwrap();
         populate.extend(quote! {
             self.#field_name.populate(&mut composition);
         });
-        dispatch.extend(quote! {
-            #i => {
-                self.#field_name.dispatch(opcode, parameters).await?;
-            }
+
+        let element_channel_name = format_ident!( "{}", field.ident.as_ref().unwrap().to_string().to_uppercase() );
+
+        static_channels.extend( quote!{
+            const #element_channel_name: ::btmesh_device::ChannelImpl = ::btmesh_device::ChannelImpl::new();
+        });
+
+        let ctx_name = format_ident!("{}_ctx", field_name);
+        run_prolog.extend(quote! {
+            let #ctx_name = ctx.element_context(#i, #element_channel_name );
+        });
+        fanout.extend(quote! {
+            #element_channel_name.send(message.clone()).await;
         });
         ctor_params.extend(quote! {
-            //self.#field_name.run(),
-            ::btmesh_device::BluetoothMeshElement::run(&self.#field_name)
+            ::btmesh_device::BluetoothMeshElement::run(&mut self.#field_name, #ctx_name),
         })
     }
 
@@ -83,10 +94,11 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut device_impl = TokenStream2::new();
 
-    let future_struct_name = future_struct_name(struct_name.clone());
-    let device_future = fields_future(struct_name.clone(), fields);
+    let future_struct_name = join_future_name(struct_name.clone());
+    let device_future = fields_join_future(struct_name.clone(), fields);
 
     device_impl.extend(quote!(
+
         impl #generics ::btmesh_device::BluetoothMeshDevice for #struct_name #generic_params {
 
             fn composition(&self) -> ::btmesh_device::Composition {
@@ -101,33 +113,34 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 composition
             }
 
-            type RunFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f;
+            type RunFuture<'f, C> = impl Future<Output = Result<(), ()>> + 'f
+                where Self: 'f,
+                C: ::btmesh_device::BluetoothMeshDeviceContext + 'f;
 
-            fn run(&self) -> Self::RunFuture<'_> {
-                #future_struct_name::new(
-                    #ctor_params
-                )
-            }
-
-            type DispatchFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f;
-
-            fn dispatch<'f>(&'f self, index: usize, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
-                use ::btmesh_device::BluetoothMeshElement;
+            fn run<'run, C: ::btmesh_device::BluetoothMeshDeviceContext + 'run>(&'run mut self, ctx: C) -> Self::RunFuture<'run, C> {
+                use btmesh_device::BluetoothMeshElementContext;
                 async move {
-                    match index {
-                        #dispatch
-                        _ => {
-                            return Err(())
-                        }
-                    }
+                    #run_prolog
+                    ::btmesh_device::join(
+                        async move {
+                            loop {
+                                let message = ctx.receive().await;
+                                #fanout
+                            }
+                        },
+                        #future_struct_name::new(
+                            #ctor_params
+                        ),
+                    ).await;
+
                     Ok(())
                 }
             }
         }
 
         #device_future
+
+        #static_channels
     ) );
 
     let result = quote!(
@@ -143,6 +156,8 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     result.into()
 }
+
+static MODEL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[proc_macro_attribute]
 pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
@@ -194,8 +209,10 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
     let struct_name = element_struct.ident.clone();
 
     let mut populate = TokenStream2::new();
-    let mut dispatch = TokenStream2::new();
     let mut ctor_params = TokenStream2::new();
+    let mut static_channels = TokenStream2::new();
+    let mut run_prolog = TokenStream2::new();
+    let mut fanout = TokenStream2::new();
 
     populate.extend(quote! {
         let mut descriptor = ::btmesh_device::ElementDescriptor::new( #location_arg );
@@ -206,19 +223,31 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         populate.extend(quote! {
             descriptor.add_model( self.#field_name.model_identifier() );
         });
-        dispatch.extend(quote! {
-            if let Ok(Some(message)) = self.#field_name.parse(opcode, parameters) {
-                self.#field_name.handle(message).await?;
-            }
+
+        let i = MODEL_COUNTER.fetch_add(1, Ordering::Relaxed);
+
+        let model_channel_name = format_ident!("MODEL_CHANNEL_{}", i);
+        static_channels.extend( quote!{
+            const #model_channel_name: ::btmesh_device::ChannelImpl = ::btmesh_device::ChannelImpl::new();
         });
+
+        let ctx_name = format_ident!("{}_ctx", field_name);
+        run_prolog.extend(quote! {
+            let #ctx_name = ctx.model_context(#i, #model_channel_name );
+        });
+        fanout.extend(quote! {
+            #model_channel_name.send(message.clone()).await;
+        });
+
         ctor_params.extend(quote! {
-            self.#field_name.run(),
-        })
+            ::btmesh_device::BluetoothMeshModel::run(&mut self.#field_name, #ctx_name),
+        });
+
     }
 
     let mut element_impl = TokenStream2::new();
 
-    let future_struct_name = future_struct_name(struct_name.clone());
+    let future_struct_name = select_future_name(struct_name.clone());
 
     element_impl.extend(quote!(
         impl #generics ::btmesh_device::BluetoothMeshElement for #struct_name #generic_params {
@@ -227,28 +256,33 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                 composition.add_element(descriptor);
             }
 
-            type RunFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f;
+            type RunFuture<'f,C> = impl Future<Output = Result<(), ()>> + 'f
+                where Self: 'f,
+                C: ::btmesh_device::BluetoothMeshElementContext + 'f;
 
-            fn run(&self) -> Self::RunFuture<'_> {
-                #future_struct_name::new(
-                    #ctor_params
-                )
-            }
-
-            type DispatchFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f;
-
-            fn dispatch<'f>(&'f self, opcode: ::btmesh_device::Opcode, parameters: &'f [u8]) -> Self::DispatchFuture<'f> {
+            fn run<'run, C: ::btmesh_device::BluetoothMeshElementContext + 'run>(&mut self, ctx: C) -> Self::RunFuture<'_, C> {
+                                use btmesh_device::BluetoothMeshElementContext;
                 async move {
-                    #dispatch
+                    #run_prolog
+                    ::btmesh_device::join(
+                        async move {
+                            loop {
+                                let message = ctx.receive().await;
+                                #fanout
+                            }
+                        },
+                        #future_struct_name::new(
+                            #ctor_params
+                        ),
+                    ).await;
+
                     Ok(())
                 }
             }
         }
     ));
 
-    let element_future = fields_future(struct_name, fields);
+    let element_future = fields_select_future(struct_name, fields);
 
     let result = quote!(
         #element_struct
@@ -256,6 +290,8 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         #element_impl
 
         #element_future
+
+        #static_channels
     );
 
     let pretty = result.clone();
@@ -266,11 +302,11 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
     result.into()
 }
 
-fn future_struct_name(struct_name: Ident) -> Ident {
-    format_ident!("{}MultiFuture", struct_name)
+fn select_future_name(struct_name: Ident) -> Ident {
+    format_ident!("{}SelectFuture", struct_name)
 }
 
-fn fields_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
+fn fields_select_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
     let mut future = TokenStream2::new();
 
     let mut generics = TokenStream2::new();
@@ -278,16 +314,12 @@ fn fields_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
     let mut future_fields = TokenStream2::new();
     let mut field_poll = TokenStream2::new();
     let mut ctor = TokenStream2::new();
-    let mut singleton_params = TokenStream2::new();
 
     if !fields.is_empty() {
         generics.extend(quote!( < ));
         generic_params.extend(quote!( < ));
         for field in fields {
             let field_type = field.ty.clone();
-            singleton_params.extend(quote! {
-                <#field_type as ElementModelPublisher>::RunFuture,
-            });
             let field_future_type = field.ident.clone().unwrap().to_string().to_uppercase();
             let field_future_type = format_ident!("{}", field_future_type);
             generics.extend(
@@ -313,7 +345,7 @@ fn fields_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
         generic_params.extend(quote!( > ));
     }
 
-    let future_struct_name = future_struct_name(struct_name);
+    let future_struct_name = select_future_name(struct_name);
 
     future.extend(quote! {
         struct #future_struct_name #generics {
@@ -337,6 +369,97 @@ fn fields_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
                 #field_poll
 
                 ::core::task::Poll::Pending
+            }
+        }
+    });
+
+    future
+}
+
+fn join_future_name(struct_name: Ident) -> Ident {
+    format_ident!("{}JoinFuture", struct_name)
+}
+
+fn fields_join_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
+    let mut future = TokenStream2::new();
+
+    let mut generics = TokenStream2::new();
+    let mut generic_params = TokenStream2::new();
+    let mut future_fields = TokenStream2::new();
+    let mut future_complete_fields = TokenStream2::new();
+    let mut field_poll = TokenStream2::new();
+    let mut field_complete = TokenStream2::new();
+    let mut ctor = TokenStream2::new();
+
+    field_complete.extend(quote!(true));
+
+    if !fields.is_empty() {
+        generics.extend(quote!( < ));
+        generic_params.extend(quote!( < ));
+        for field in fields {
+            let field_type = field.ty.clone();
+            let field_future_type = field.ident.clone().unwrap().to_string().to_uppercase();
+            let field_future_type = format_ident!("{}", field_future_type);
+            generics.extend(
+                quote!( #field_future_type: ::core::future::Future<Output=Result<(),()>>, ),
+            );
+            generic_params.extend(quote!( #field_future_type, ));
+
+            let field_future_name = field.ident.clone().unwrap();
+            future_fields.extend(quote!( #field_future_name: #field_future_type, ));
+
+            let field_future_complete_name =
+                format_ident!("{}_complete", field.ident.clone().unwrap());
+            future_complete_fields.extend(quote!( #field_future_complete_name: bool, ));
+
+            ctor.extend(quote! {
+                #field_future_name,
+                #field_future_complete_name: false,
+            });
+
+            field_poll.extend( quote! {
+                if ! self_mut.#field_future_complete_name {
+                    let result = unsafe { ::core::pin::Pin::new_unchecked(&mut self_mut.#field_future_name)  }.poll(cx);
+                    if let::core::task::Poll::Ready(_) = result {
+                        self_mut.#field_future_complete_name = true;
+                    }
+                }
+            });
+
+            field_complete.extend(quote!( && self_mut.#field_future_complete_name))
+        }
+        generics.extend(quote!( > ));
+        generic_params.extend(quote!( > ));
+    }
+
+    let future_struct_name = join_future_name(struct_name);
+
+    future.extend(quote! {
+        struct #future_struct_name #generics {
+            #future_fields
+            #future_complete_fields
+        }
+
+        impl #generics #future_struct_name #generic_params {
+            const fn new(#future_fields) -> Self {
+                Self {
+                    #ctor
+                }
+            }
+        }
+
+        impl #generics ::core::future::Future for #future_struct_name #generic_params {
+            type Output = Result<(), ()>;
+
+            fn poll(self: ::core::pin::Pin<&mut Self>, cx: &mut ::core::task::Context<'_>) -> ::core::task::Poll<Self::Output> {
+                let mut self_mut = unsafe{ self.get_unchecked_mut() };
+                #field_poll
+
+                if #field_complete {
+                    Poll::Ready(Ok(()))
+                } else {
+                    Poll::Pending
+                }
             }
         }
     });

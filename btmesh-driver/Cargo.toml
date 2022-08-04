@@ -10,7 +10,7 @@ btmesh-common = { path = "../btmesh-common" }
 btmesh-pdu = { path = "../btmesh-pdu" }
 btmesh-bearer = { path = "../btmesh-bearer" }
 btmesh-device = { path = "../btmesh-device" }
-embassy = { version = "0.1.0", default-features = false, features = ["time"] }
+embassy = { version = "0.1.0", default-features = false, features = ["nightly", "time"] }
 heapless = "=0.7.13"
 hash32 = "0.2.1"
 hash32-derive = "0.1.1"
