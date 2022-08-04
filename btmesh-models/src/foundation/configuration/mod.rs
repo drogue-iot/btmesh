@@ -112,9 +112,9 @@ impl Model for ConfigurationServer {
     const IDENTIFIER: ModelIdentifier = CONFIGURATION_SERVER;
     const SUPPORTS_SUBSCRIPTION: bool = false;
     const SUPPORTS_PUBLICATION: bool = false;
-    type Message<'m> = ConfigurationMessage;
+    type Message = ConfigurationMessage;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError> {
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
             CONFIG_BEACON_GET => Ok(Some(ConfigurationMessage::Beacon(
                 BeaconMessage::parse_get(parameters)?,

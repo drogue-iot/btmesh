@@ -47,9 +47,9 @@ pub trait Model {
     const IDENTIFIER: ModelIdentifier;
     const SUPPORTS_SUBSCRIPTION: bool = true;
     const SUPPORTS_PUBLICATION: bool = true;
-    type Message<'m>: Message;
+    type Message: Message;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError>;
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError>;
 }
 
 

@@ -89,17 +89,17 @@ pub trait BluetoothMeshModel<M: Model> {
         M::IDENTIFIER
     }
 
-    fn parse<'p>(
+    fn parse(
         &self,
         opcode: Opcode,
-        parameters: &'p [u8],
-    ) -> Result<Option<M::Message<'p>>, ParseError> {
+        parameters: &[u8],
+    ) -> Result<Option<M::Message>, ParseError> {
         M::parse(opcode, parameters)
     }
 }
 
 pub trait BluetoothMeshModelContext<M: Model> {
-    type ReceiveFuture<'f>: Future<Output = M::Message<'f>> + 'f
+    type ReceiveFuture<'f>: Future<Output = M::Message> + 'f
     where
         Self: 'f,
         M: 'f;

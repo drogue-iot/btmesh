@@ -64,20 +64,20 @@ pub const SENSOR_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1102);
 pub struct PropertyId(pub u16);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct RawValue<'m>(pub &'m [u8]);
+pub struct RawValue(pub Vec<u8, 128>);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Tolerance(pub u16);
 
 #[cfg(feature = "defmt")]
 pub trait SensorConfig: defmt::Format + Clone {
-    type Data<'m>: SensorData + defmt::Format;
+    type Data: SensorData + defmt::Format;
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
 #[cfg(not(feature = "defmt"))]
 pub trait SensorConfig: Clone {
-    type Data<'m>: SensorData;
+    type Data: SensorData;
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
@@ -96,18 +96,18 @@ pub trait SensorSetupConfig: SensorConfig {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SensorMessage<'m, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
+pub enum SensorMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
 {
     DescriptorGet(DescriptorGet),
     DescriptorStatus(DescriptorStatus<NUM_SENSORS>),
     Get(SensorGet),
-    Status(SensorStatus<'m, C>),
-    ColumnGet(ColumnGet<'m>),
-    ColumnStatus(ColumnStatus<'m>),
-    SeriesGet(SeriesGet<'m>),
-    SeriesStatus(SeriesStatus<'m, NUM_COLUMNS>),
+    Status(SensorStatus<C>),
+    ColumnGet(ColumnGet),
+    ColumnStatus(ColumnStatus),
+    SeriesGet(SeriesGet),
+    SeriesStatus(SeriesStatus<NUM_COLUMNS>),
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -164,54 +164,54 @@ pub struct SensorGet {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SensorStatus<'a, C>
+pub struct SensorStatus<C>
 where
     C: SensorConfig,
 {
-    data: C::Data<'a>,
+    data: C::Data,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ColumnGet<'m> {
+pub struct ColumnGet {
     id: PropertyId,
-    x: RawValue<'m>,
+    x: RawValue,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ColumnStatus<'m> {
+pub struct ColumnStatus {
     id: PropertyId,
-    x: RawValue<'m>,
-    values: Option<(RawValue<'m>, RawValue<'m>)>,
+    x: RawValue,
+    values: Option<(RawValue, RawValue)>,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SeriesGet<'m> {
+pub struct SeriesGet {
     id: PropertyId,
-    x: Option<(RawValue<'m>, RawValue<'m>)>,
+    x: Option<(RawValue, RawValue)>,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SeriesStatus<'m, const NUM_COLUMNS: usize> {
+pub struct SeriesStatus<const NUM_COLUMNS: usize> {
     id: PropertyId,
-    values: Vec<(RawValue<'m>, RawValue<'m>, RawValue<'m>), NUM_COLUMNS>,
+    values: Vec<(RawValue, RawValue, RawValue), NUM_COLUMNS>,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SensorSetupMessage<'m, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
+pub enum SensorSetupMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorSetupConfig,
 {
-    Sensor(SensorMessage<'m, C, NUM_SENSORS, NUM_COLUMNS>),
+    Sensor(SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>),
     CadenceGet(CadenceGet),
-    CadenceSet(CadenceSet<'m>),
-    CadenceSetUnacknowledged(CadenceSet<'m>),
-    CadenceStatus(CadenceStatus<'m>),
+    CadenceSet(CadenceSet),
+    CadenceSetUnacknowledged(CadenceSet),
+    CadenceStatus(CadenceStatus),
     SettingsGet(SettingsGet),
     SettingsStatus(SettingsStatus<NUM_SENSORS>),
     SettingGet(SettingGet),
-    SettingSet(SettingSet<'m>),
-    SettingSetUnacknowledged(SettingSet<'m>),
-    SettingStatus(SettingStatus<'m>),
+    SettingSet(SettingSet),
+    SettingSetUnacknowledged(SettingSet),
+    SettingStatus(SettingStatus),
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -220,15 +220,15 @@ pub struct CadenceGet {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct CadenceSet<'m> {
+pub struct CadenceSet {
     id: PropertyId,
     fast_cadence_divisor: u8,
     status_trigger_type: StatusTriggerType,
-    status_trigger_delta_down: RawValue<'m>,
-    status_trigger_delta_up: RawValue<'m>,
+    status_trigger_delta_down: RawValue,
+    status_trigger_delta_up: RawValue,
     status_min_interval: u8,
-    fast_cadence_low: RawValue<'m>,
-    fast_cadence_high: RawValue<'m>,
+    fast_cadence_low: RawValue,
+    fast_cadence_high: RawValue,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -237,7 +237,7 @@ pub enum StatusTriggerType {
     Unitless,
 }
 
-pub type CadenceStatus<'m> = CadenceSet<'m>;
+pub type CadenceStatus = CadenceSet;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingsGet {
@@ -257,18 +257,18 @@ pub struct SettingGet {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SettingSet<'m> {
+pub struct SettingSet {
     id: PropertyId,
     setting: PropertyId,
-    raw: RawValue<'m>,
+    raw: RawValue,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct SettingStatus<'m> {
+pub struct SettingStatus {
     id: PropertyId,
     setting: PropertyId,
     access: SensorSettingAccess,
-    raw: RawValue<'m>,
+    raw: RawValue,
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -298,7 +298,7 @@ opcode!( SENSOR_SETTING_SET_UNACKNOWLEDGED 0x5A );
 opcode!( SENSOR_SETTING_STATUS 0x5B );
 
 impl<'a, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
-    for SensorMessage<'a, C, NUM_SENSORS, NUM_COLUMNS>
+    for SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>
 where
     C: SensorConfig,
 {
@@ -333,7 +333,7 @@ where
 }
 
 impl<'a, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
-    for SensorSetupMessage<'a, C, NUM_SENSORS, NUM_COLUMNS>
+    for SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>
 where
     C: SensorSetupConfig,
 {
@@ -379,9 +379,9 @@ where
     C: SensorConfig,
 {
     const IDENTIFIER: ModelIdentifier = SENSOR_SERVER;
-    type Message<'m> = SensorMessage<'m, C, NUM_SENSORS, NUM_COLUMNS>;
+    type Message = SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError> {
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
             SENSOR_DESCRIPTOR_GET => Ok(Some(SensorMessage::DescriptorGet(DescriptorGet::parse(
                 parameters,
@@ -404,9 +404,9 @@ where
     C: SensorConfig,
 {
     const IDENTIFIER: ModelIdentifier = SENSOR_CLIENT;
-    type Message<'m> = SensorMessage<'m, C, NUM_SENSORS, NUM_COLUMNS>;
+    type Message = SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError> {
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
             SENSOR_DESCRIPTOR_GET => Ok(Some(SensorMessage::DescriptorGet(DescriptorGet::parse(
                 parameters,
@@ -429,9 +429,9 @@ where
     C: SensorSetupConfig,
 {
     const IDENTIFIER: ModelIdentifier = SENSOR_SETUP_SERVER;
-    type Message<'m> = SensorSetupMessage<'m, C, NUM_SENSORS, NUM_COLUMNS>;
+    type Message = SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message<'_>>, ParseError> {
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
             SENSOR_CADENCE_GET => Ok(Some(SensorSetupMessage::CadenceGet(CadenceGet::parse(
                 parameters,
@@ -609,11 +609,11 @@ impl SensorGet {
     }
 }
 
-impl<'a, C> SensorStatus<'a, C>
+impl<C> SensorStatus<C>
 where
     C: SensorConfig,
 {
-    pub fn new(data: C::Data<'a>) -> Self {
+    pub fn new(data: C::Data) -> Self {
         Self { data }
     }
     fn emit_parameters<const N: usize>(
@@ -694,8 +694,8 @@ where
     None
 }
 
-impl<'a> ColumnGet<'a> {
-    fn parse<C>(parameters: &'a [u8]) -> Result<Self, ParseError>
+impl ColumnGet {
+    fn parse<C>(parameters: &[u8]) -> Result<Self, ParseError>
     where
         C: SensorConfig,
     {
@@ -706,7 +706,7 @@ impl<'a> ColumnGet<'a> {
             let parameters = &parameters[2..];
             Ok(Self {
                 id,
-                x: RawValue(&parameters[..x_len]),
+                x: RawValue( Vec::from_slice(&parameters[..x_len])?),
             })
         } else {
             Err(ParseError::InvalidValue)
@@ -723,7 +723,7 @@ impl<'a> ColumnGet<'a> {
     }
 }
 
-impl<'a> ColumnStatus<'a> {
+impl ColumnStatus {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut heapless::Vec<u8, N>,
@@ -738,8 +738,8 @@ impl<'a> ColumnStatus<'a> {
     }
 }
 
-impl<'a> SeriesGet<'a> {
-    fn parse<C>(parameters: &'a [u8]) -> Result<Self, ParseError>
+impl SeriesGet {
+    fn parse<C>(parameters: &[u8]) -> Result<Self, ParseError>
     where
         C: SensorConfig,
     {
@@ -748,9 +748,9 @@ impl<'a> SeriesGet<'a> {
         if !parameters.is_empty() {
             if let Some(d) = lookup_descriptor::<C>(id) {
                 let x_len = d.x_size;
-                let x1 = RawValue(&parameters[..x_len]);
+                let x1 = RawValue(Vec::from_slice(&parameters[..x_len])?);
                 let parameters = &parameters[x_len..];
-                let x2 = RawValue(&parameters[..x_len]);
+                let x2 = RawValue(Vec::from_slice(&parameters[..x_len])?);
                 Ok(Self {
                     id,
                     x: Some((x1, x2)),
@@ -776,7 +776,7 @@ impl<'a> SeriesGet<'a> {
     }
 }
 
-impl<'a, const NUM_COLUMNS: usize> SeriesStatus<'a, NUM_COLUMNS> {
+impl<const NUM_COLUMNS: usize> SeriesStatus<NUM_COLUMNS> {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut heapless::Vec<u8, N>,
@@ -791,12 +791,12 @@ impl<'a, const NUM_COLUMNS: usize> SeriesStatus<'a, NUM_COLUMNS> {
     }
 }
 
-impl<'a> RawValue<'a> {
+impl RawValue {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut heapless::Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(self.0)
+        xmit.extend_from_slice(&*self.0)
             .map_err(|_| InsufficientBuffer)?;
         Ok(())
     }
@@ -817,8 +817,8 @@ impl CadenceGet {
     }
 }
 
-impl<'a> CadenceSet<'a> {
-    fn parse<C>(parameters: &'a [u8]) -> Result<Self, ParseError>
+impl CadenceSet {
+    fn parse<C>(parameters: &[u8]) -> Result<Self, ParseError>
     where
         C: SensorSetupConfig,
     {
@@ -834,17 +834,17 @@ impl<'a> CadenceSet<'a> {
             let c_len = d.size;
 
             let parameters = &parameters[3..];
-            let status_trigger_delta_down = RawValue(&parameters[..c_len]);
+            let status_trigger_delta_down = RawValue(Vec::from_slice(&parameters[..c_len])?);
             let parameters = &parameters[c_len..];
-            let status_trigger_delta_up = RawValue(&parameters[..c_len]);
+            let status_trigger_delta_up = RawValue(Vec::from_slice(&parameters[..c_len])?);
             let parameters = &parameters[c_len..];
 
             let status_min_interval = parameters[0];
             let parameters = &parameters[1..];
 
-            let fast_cadence_low = RawValue(&parameters[..c_len]);
+            let fast_cadence_low = RawValue(Vec::from_slice(&parameters[..c_len])?);
             let parameters = &parameters[c_len..];
-            let fast_cadence_high = RawValue(&parameters[..c_len]);
+            let fast_cadence_high = RawValue(Vec::from_slice(&parameters[..c_len])?);
 
             Ok(Self {
                 id,
@@ -930,8 +930,8 @@ impl SettingGet {
     }
 }
 
-impl<'a> SettingSet<'a> {
-    fn parse<C>(parameters: &'a [u8]) -> Result<Self, ParseError>
+impl SettingSet {
+    fn parse<C>(parameters: &[u8]) -> Result<Self, ParseError>
     where
         C: SensorSetupConfig,
     {
@@ -940,7 +940,7 @@ impl<'a> SettingSet<'a> {
 
         if let Some(d) = lookup_setting_descriptor::<C>(id, setting) {
             let s_len = d.size;
-            let raw = RawValue(&parameters[4..4 + s_len]);
+            let raw = RawValue(Vec::from_slice(&parameters[4..4 + s_len])?);
 
             Ok(Self { id, setting, raw })
         } else {
@@ -959,7 +959,7 @@ impl<'a> SettingSet<'a> {
     }
 }
 
-impl<'a> SettingStatus<'a> {
+impl SettingStatus {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut heapless::Vec<u8, N>,

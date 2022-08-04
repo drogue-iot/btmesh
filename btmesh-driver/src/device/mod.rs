@@ -59,7 +59,7 @@ pub(crate) struct ModelContext {
 
 impl<M:Model> BluetoothMeshModelContext<M> for ModelContext {
 
-    type ReceiveFuture<'f> = impl Future<Output = M::Message<'f>> + 'f
+    type ReceiveFuture<'f> = impl Future<Output = M::Message> + 'f
     where
     Self: 'f,
     M: 'f;
