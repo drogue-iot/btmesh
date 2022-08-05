@@ -100,7 +100,7 @@ impl Opcode {
     }
 
     pub fn split(data: &[u8]) -> Option<(Opcode, &[u8])> {
-        if !data.is_empty() {
+        if data.is_empty() {
             None
         } else if data[0] & 0b10000000 == 0 {
             // one octet

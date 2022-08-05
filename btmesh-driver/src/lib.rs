@@ -6,12 +6,15 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
-use btmesh_device::{BluetoothMeshDevice, ChannelImpl};
-use btmesh_pdu::provisioning::Capabilities;
+use btmesh_device::{join, BluetoothMeshDevice, ChannelImpl, SenderImpl, ReceivePayload, ReceiverImpl};
+use btmesh_pdu::provisioned::Message;
+use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
-use core::cell::RefCell;
+use core::borrow::{Borrow, BorrowMut};
+use core::cell::{Ref, RefCell};
 use core::future::{pending, Future};
-use embassy::channel::Channel;
+use core::pin::Pin;
+use embassy::channel::{Channel, Receiver};
 use embassy::util::{select, select3, Either, Either3};
 use rand_core::{CryptoRng, RngCore};
 
@@ -20,10 +23,12 @@ pub mod fmt;
 pub mod stack;
 
 mod device;
+mod models;
 pub mod storage;
 mod util;
 
 use crate::device::DeviceContext;
+use crate::models::FoundationDevice;
 use crate::stack::interface::{NetworkError, NetworkInterfaces};
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
@@ -127,8 +132,14 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                         }
                     }
 
-                    if let Some(_message) = result.message {
+                    if let Some(message) = result.message {
                         // dispatch to element(s)
+                        match message {
+                            Message::Access(message) => {
+                                info!("access message {}", message);
+                            }
+                            Message::Control(_) => {}
+                        }
                     }
                 }
             }
@@ -167,11 +178,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         }
     }
 
-    fn run_device<'ch, D: BluetoothMeshDevice>(
-        device: &'ch mut D,
-        _channel: &'ch ChannelImpl,
-    ) -> impl Future<Output = Result<(), ()>> + 'ch {
-        let receiver = INBOUND.receiver();
+    fn run_device<'ch, D: BluetoothMeshDevice>(device: &'ch mut D, receiver: ReceiverImpl) -> impl Future<Output = Result<(),()>> + 'ch {
         device.run(DeviceContext::new(receiver))
     }
 
@@ -254,7 +261,9 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                 match select(receive_fut, beacon_fut).await {
                     Either::First(Ok(pdu)) => {
                         info!("receive_pdu!");
-                        self.receive_pdu(&pdu).await?;
+                        if let Err(err) = self.receive_pdu(&pdu).await {
+                            info!("{}", err);
+                        }
                     }
                     Either::First(Err(err)) => {
                         info!("receive_pdu error!");
@@ -290,11 +299,15 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
 
         info!("run!");
 
+        let mut foundation_device = FoundationDevice::new();
+
         async move {
-            let channel = Channel::new();
-            let device_fut = Self::run_device(device, &channel);
-            let driver_fut = self.run_driver(composition);
-            let network_fut = Self::run_network(&self.network);
+            let mut device_fut = select(
+                Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
+                Self::run_device(device, DEVICE_INBOUND.receiver()),
+            );
+            let mut driver_fut = self.run_driver(composition);
+            let mut network_fut = Self::run_network(&self.network);
 
             // if the device or the driver is `Ready` then stuff is just done, stop.
             match select3(driver_fut, device_fut, network_fut).await {
@@ -327,4 +340,5 @@ pub enum DeviceState {
     Provisioned,
 }
 
-static INBOUND: ChannelImpl = ChannelImpl::new();
+static FOUNDATION_INBOUND: ChannelImpl = ChannelImpl::new();
+static DEVICE_INBOUND: ChannelImpl = ChannelImpl::new();

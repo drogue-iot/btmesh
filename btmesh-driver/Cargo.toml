@@ -10,6 +10,8 @@ btmesh-common = { path = "../btmesh-common" }
 btmesh-pdu = { path = "../btmesh-pdu" }
 btmesh-bearer = { path = "../btmesh-bearer" }
 btmesh-device = { path = "../btmesh-device" }
+btmesh-models = { path = "../btmesh-models"}
+btmesh-macro = { path = "../btmesh-macro"}
 embassy = { version = "0.1.0", default-features = false, features = ["nightly", "time"] }
 heapless = "=0.7.13"
 hash32 = "0.2.1"
@@ -53,6 +55,7 @@ defmt = [
     "btmesh-common/defmt",
     "btmesh-bearer/defmt",
     "btmesh-pdu/defmt",
+    "btmesh-models/defmt",
 ]
 
 relay = [

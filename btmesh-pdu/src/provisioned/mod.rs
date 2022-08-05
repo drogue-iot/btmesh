@@ -21,7 +21,7 @@ pub trait System {
 }
 
 #[cfg(feature = "defmt")]
-pub trait System {
+pub trait System : ::defmt::Format {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 

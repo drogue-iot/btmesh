@@ -459,9 +459,9 @@ fn fields_join_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
                 #field_poll
 
                 if #field_complete {
-                    Poll::Ready(Ok(()))
+                    ::core::task::Poll::Ready(Ok(()))
                 } else {
-                    Poll::Pending
+                    ::core::task::Poll::Pending
                 }
             }
         }

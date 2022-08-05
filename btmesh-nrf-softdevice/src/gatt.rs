@@ -166,6 +166,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                 .await;
             match result {
                 Ok(connection) => {
+                    defmt::info!("connected!!");
                     self.connected.store(true, Ordering::Relaxed);
                     self.connection.signal(connection);
                     return Ok(());

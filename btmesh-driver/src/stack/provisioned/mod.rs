@@ -1,3 +1,4 @@
+use embassy::time::Duration;
 use crate::stack::provisioned::lower::LowerDriver;
 use crate::stack::provisioned::network::replay_protection::ReplayProtection;
 use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
@@ -14,7 +15,7 @@ use btmesh_pdu::provisioning::ProvisioningData;
 use heapless::Vec;
 use secrets::Secrets;
 
-use crate::util::deadline::DeadlineFuture;
+use crate::util::deadline::{Deadline, DeadlineFuture};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -93,7 +94,10 @@ pub struct ProvisionedStack {
     network: NetworkDriver,
     //
     transmit_queue: TransmitQueue,
+    beacon: Deadline,
 }
+
+
 
 impl From<ProvisionedConfiguration> for ProvisionedStack {
     fn from(content: ProvisionedConfiguration) -> Self {
@@ -104,6 +108,7 @@ impl From<ProvisionedConfiguration> for ProvisionedStack {
             lower: Default::default(),
             network: NetworkDriver::new(content.device_info()),
             transmit_queue: Default::default(),
+            beacon: Deadline::new(Duration::from_secs(3), true),
         }
     }
 }
@@ -146,6 +151,7 @@ impl ProvisionedStack {
             lower: Default::default(),
             network: NetworkDriver::new(device_info),
             transmit_queue: Default::default(),
+            beacon: Deadline::new(Duration::from_secs(3), true),
         }
     }
 
@@ -158,7 +164,7 @@ impl ProvisionedStack {
     }
 
     pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
-        None
+        Some(self.beacon.next())
     }
 
     pub fn process_inbound_network_pdu(
@@ -169,6 +175,7 @@ impl ProvisionedStack {
             .network_state
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
+
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
             let (block_ack_meta, upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
