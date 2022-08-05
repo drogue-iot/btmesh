@@ -6,13 +6,11 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
-use btmesh_device::{BluetoothMeshDevice, ChannelImpl, SenderImpl};
-use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
+use btmesh_device::{BluetoothMeshDevice, ChannelImpl};
+use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
-use core::borrow::{Borrow, BorrowMut};
-use core::cell::{Ref, RefCell};
+use core::cell::RefCell;
 use core::future::{pending, Future};
-use core::pin::Pin;
 use embassy::channel::Channel;
 use embassy::util::{select, select3, Either, Either3};
 use rand_core::{CryptoRng, RngCore};
@@ -171,7 +169,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
 
     fn run_device<'ch, D: BluetoothMeshDevice>(
         device: &'ch mut D,
-        channel: &'ch ChannelImpl,
+        _channel: &'ch ChannelImpl,
     ) -> impl Future<Output = Result<(), ()>> + 'ch {
         let receiver = INBOUND.receiver();
         device.run(DeviceContext::new(receiver))
@@ -294,19 +292,19 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
 
         async move {
             let channel = Channel::new();
-            let mut device_fut = Self::run_device(device, &channel);
-            let mut driver_fut = self.run_driver(composition);
-            let mut network_fut = Self::run_network(&self.network);
+            let device_fut = Self::run_device(device, &channel);
+            let driver_fut = self.run_driver(composition);
+            let network_fut = Self::run_network(&self.network);
 
             // if the device or the driver is `Ready` then stuff is just done, stop.
             match select3(driver_fut, device_fut, network_fut).await {
                 Either3::First(_) => {
                     info!("driver done");
                 }
-                Either3::Second(val) => {
+                Either3::Second(_val) => {
                     info!("device done");
                 }
-                Either3::Third(val) => {
+                Either3::Third(_val) => {
                     info!("network done");
                 }
             }

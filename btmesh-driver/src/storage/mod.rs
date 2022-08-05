@@ -71,7 +71,7 @@ impl<B: BackingStore> Storage<B> {
 
     #[allow(clippy::await_holding_refcell_ref)]
     pub async fn put(&self, config: &Configuration) -> Result<(), StorageError> {
-        if matches!( config, Configuration::Provisioned(_)) {
+        if matches!(config, Configuration::Provisioned(_)) {
             // only write it back if it's provisioned.
             // unprovisioned config is ephemeral.
             self.backing_store.borrow_mut().store(config).await?;

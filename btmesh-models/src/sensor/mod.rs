@@ -7,7 +7,7 @@ use heapless::Vec;
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SensorClient<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
@@ -15,7 +15,7 @@ where
     _c: core::marker::PhantomData<C>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SensorServer<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
@@ -706,7 +706,7 @@ impl ColumnGet {
             let parameters = &parameters[2..];
             Ok(Self {
                 id,
-                x: RawValue( Vec::from_slice(&parameters[..x_len])?),
+                x: RawValue(Vec::from_slice(&parameters[..x_len])?),
             })
         } else {
             Err(ParseError::InvalidValue)

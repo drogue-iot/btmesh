@@ -6,14 +6,13 @@
 
 pub use btmesh_common::location;
 pub use btmesh_common::ElementDescriptor;
-use btmesh_common::ParseError;
 pub use btmesh_common::{
     CompanyIdentifier, Composition, Features, InsufficientBuffer, ModelIdentifier,
     ProductIdentifier, VersionIdentifier,
 };
 pub use btmesh_models::{Model, Opcode};
 use core::future::Future;
-use embassy::blocking_mutex::raw::{CriticalSectionRawMutex, NoopRawMutex};
+use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy::channel::{Channel, Receiver, Sender};
 pub use futures::future::join;
 use heapless::Vec;

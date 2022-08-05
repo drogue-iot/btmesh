@@ -5,10 +5,10 @@ extern crate proc_macro2;
 use btmesh_common::{CompanyIdentifier, ProductIdentifier, VersionIdentifier};
 use darling::FromMeta;
 use proc_macro::TokenStream;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use proc_macro2::{Ident, TokenStream as TokenStream2};
-use quote::{format_ident, quote, ToTokens};
+use quote::{format_ident, quote};
 use regex::Regex;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::{Field, File};
 
 #[derive(FromMeta)]
@@ -72,7 +72,10 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
             self.#field_name.populate(&mut composition);
         });
 
-        let element_channel_name = format_ident!( "{}", field.ident.as_ref().unwrap().to_string().to_uppercase() );
+        let element_channel_name = format_ident!(
+            "{}",
+            field.ident.as_ref().unwrap().to_string().to_uppercase()
+        );
 
         static_channels.extend( quote!{
             const #element_channel_name: ::btmesh_device::ChannelImpl = ::btmesh_device::ChannelImpl::new();
@@ -245,7 +248,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         ctor_params.extend(quote! {
             ::btmesh_device::BluetoothMeshModel::run(&mut self.#field_name, #ctx_name),
         });
-
     }
 
     let mut element_impl = TokenStream2::new();
@@ -322,7 +324,6 @@ fn fields_select_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 
         generics.extend(quote!( < ));
         generic_params.extend(quote!( < ));
         for field in fields {
-            let field_type = field.ty.clone();
             let field_future_type = field.ident.clone().unwrap().to_string().to_uppercase();
             let field_future_type = format_ident!("{}", field_future_type);
             generics.extend(
@@ -400,7 +401,6 @@ fn fields_join_future(struct_name: Ident, fields: Vec<Field>) -> TokenStream2 {
         generics.extend(quote!( < ));
         generic_params.extend(quote!( < ));
         for field in fields {
-            let field_type = field.ty.clone();
             let field_future_type = field.ident.clone().unwrap().to_string().to_uppercase();
             let field_future_type = format_ident!("{}", field_future_type);
             generics.extend(
