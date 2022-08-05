@@ -1,9 +1,9 @@
+use crate::models::configuration::Configuration;
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::{device, element};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use cmac::crypto_mac::Output;
 use core::future::Future;
-use crate::models::configuration::Configuration;
 
 pub mod configuration;
 
@@ -14,9 +14,7 @@ pub struct FoundationDevice {
 
 impl FoundationDevice {
     pub fn new() -> Self {
-        Self {
-            zero: Zero::new(),
-        }
+        Self { zero: Zero::new() }
     }
 }
 
@@ -26,11 +24,9 @@ pub struct Zero {
 }
 
 impl Zero {
-    pub fn new() ->Self {
+    pub fn new() -> Self {
         Self {
             config: Configuration::new(),
         }
     }
 }
-
-

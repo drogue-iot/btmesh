@@ -6,7 +6,9 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
-use btmesh_device::{join, BluetoothMeshDevice, ChannelImpl, SenderImpl, ReceivePayload, ReceiverImpl};
+use btmesh_device::{
+    join, BluetoothMeshDevice, ChannelImpl, ReceivePayload, ReceiverImpl, SenderImpl,
+};
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
@@ -23,11 +25,13 @@ pub mod fmt;
 pub mod stack;
 
 mod device;
+pub(crate) mod dispatch;
 mod models;
 pub mod storage;
 mod util;
 
 use crate::device::DeviceContext;
+use crate::dispatch::Dispatcher;
 use crate::models::FoundationDevice;
 use crate::stack::interface::{NetworkError, NetworkInterfaces};
 use crate::stack::provisioned::network::DeviceInfo;
@@ -68,6 +72,7 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
     network: N,
     rng: RefCell<R>,
     storage: RefCell<Storage<B>>,
+    dispatcher: Dispatcher,
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
@@ -77,6 +82,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
             network,
             rng: RefCell::new(rng),
             storage: RefCell::new(Storage::new(backing_store)),
+            dispatcher: Dispatcher::new(FOUNDATION_INBOUND.sender(), DEVICE_INBOUND.sender()),
         }
     }
 
@@ -137,6 +143,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                         match message {
                             Message::Access(message) => {
                                 info!("access message {}", message);
+                                self.dispatcher.dispatch(message);
                             }
                             Message::Control(_) => {}
                         }
@@ -178,7 +185,10 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         }
     }
 
-    fn run_device<'ch, D: BluetoothMeshDevice>(device: &'ch mut D, receiver: ReceiverImpl) -> impl Future<Output = Result<(),()>> + 'ch {
+    fn run_device<'ch, D: BluetoothMeshDevice>(
+        device: &'ch mut D,
+        receiver: ReceiverImpl,
+    ) -> impl Future<Output = Result<(), ()>> + 'ch {
         device.run(DeviceContext::new(receiver))
     }
 

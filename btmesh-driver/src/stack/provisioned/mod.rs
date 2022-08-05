@@ -1,4 +1,3 @@
-use embassy::time::Duration;
 use crate::stack::provisioned::lower::LowerDriver;
 use crate::stack::provisioned::network::replay_protection::ReplayProtection;
 use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
@@ -12,6 +11,7 @@ use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
+use embassy::time::Duration;
 use heapless::Vec;
 use secrets::Secrets;
 
@@ -96,8 +96,6 @@ pub struct ProvisionedStack {
     transmit_queue: TransmitQueue,
     beacon: Deadline,
 }
-
-
 
 impl From<ProvisionedConfiguration> for ProvisionedStack {
     fn from(content: ProvisionedConfiguration) -> Self {

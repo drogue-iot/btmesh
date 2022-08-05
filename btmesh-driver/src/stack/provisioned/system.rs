@@ -365,7 +365,7 @@ impl System for ProvisionedStack {
     type ControlMetadata = ControlMetadata;
 }
 
-#[cfg(feature="defmt")]
+#[cfg(feature = "defmt")]
 impl ::defmt::Format for ProvisionedStack {
     fn format(&self, fmt: ::defmt::Formatter) {
         ::defmt::write!(fmt, "[Provisioned]")
