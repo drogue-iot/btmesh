@@ -5,7 +5,7 @@ use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::{AdvertisingBearer, BearerError, GattBearer};
 use btmesh_device::join;
 use btmesh_pdu::PDU;
-use core::future::{Future};
+use core::future::Future;
 use embassy::util::{select, Either};
 
 pub mod advertising;
@@ -109,8 +109,7 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
             let result = select(adv_fut, gatt_fut).await;
 
             match result {
-                Either::First(result) => Ok(result?),
-                Either::Second(result) => Ok(result?),
+                Either::First(result) | Either::Second(result) => Ok(result?),
             }
         }
     }
@@ -120,14 +119,12 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
     Self: 'm;
 
     fn transmit<'m>(&'m self, pdu: &'m PDU) -> Self::TransmitFuture<'m> {
-        //async move { Ok(self.advertising_interface.transmit(pdu).await?) }
         info!("xmit -> {}", pdu);
         async move {
             let gatt_fut = self.gatt_interface.transmit(pdu);
             let adv_fut = self.advertising_interface.transmit(pdu);
 
             let _result = join(gatt_fut, adv_fut).await;
-            //gatt_fut.await?;
             Ok(())
         }
     }
