@@ -51,6 +51,7 @@ impl SoftdeviceGattBearer {
                 |e| match e {
                     MeshGattServerEvent::Proxy(event) => match event {
                         ProxyServiceEvent::DataInWrite(data) => {
+                            defmt::info!("proxy data-in write");
                             self.inbound.try_send(data).ok();
                         }
                         ProxyServiceEvent::DataOutCccdWrite { notifications } => {
@@ -65,6 +66,7 @@ impl SoftdeviceGattBearer {
                     },
                     MeshGattServerEvent::Provisioning(event) => match event {
                         ProvisioningServiceEvent::DataInWrite(data) => {
+                            defmt::info!("provisioning data-in write");
                             self.inbound.try_send(data).ok();
                         }
                         ProvisioningServiceEvent::DataOutCccdWrite { notifications } => {
@@ -106,6 +108,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
+            defmt::info!("waiting on inbound GATT");
             Ok(self.inbound.recv().await)
         }
     }

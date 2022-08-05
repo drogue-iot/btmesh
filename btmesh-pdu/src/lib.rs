@@ -11,6 +11,7 @@ pub const MESH_BEACON: u8 = 0x2B;
 pub mod provisioned;
 pub mod provisioning;
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PDU {
     Provisioning(ProvisioningPDU),
     Network(NetworkPDU),
