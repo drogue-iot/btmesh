@@ -15,7 +15,7 @@ mod transcript;
 
 pub enum ProvisioningState {
     Response(ProvisioningPDU),
-    Data(DeviceKey, ProvisioningData),
+    Data(DeviceKey, ProvisioningData, ProvisioningPDU),
     Failed,
 }
 
@@ -55,16 +55,13 @@ impl UnprovisionedStack {
         pdu.hash(&mut hasher);
         let hash = hasher.finish();
 
-        if let Some(last_transmit_hash) = self.last_transmit_hash {
+        if let (Some(last_hash), Some(fsm)) = (self.last_transmit_hash, &self.provisionee) {
             // if the inbound matches the last inbound we responded to,
             // just send off the previous response without mucking with
             // state machine or calculating a new response.
-            if last_transmit_hash == hash {
-                return match &self.provisionee {
-                    Some(p) => match p.response() {
-                        Some(pdu) => Ok(Some(ProvisioningState::Response(pdu))),
-                        None => Err(DriverError::InvalidState),
-                    },
+            if last_hash == hash {
+                return match fsm.response() {
+                    Some(pdu) => Ok(Some(ProvisioningState::Response(pdu))),
                     None => Err(DriverError::InvalidState),
                 };
             }
@@ -76,9 +73,13 @@ impl UnprovisionedStack {
             self.provisionee.replace(next_state);
 
             match &self.provisionee {
-                Some(Provisionee::Complete(device_key, provisioning_data)) => Ok(Some(
-                    ProvisioningState::Data(*device_key, *provisioning_data),
-                )),
+                Some(p @ Provisionee::Complete(device_key, provisioning_data)) => {
+                    Ok(Some(ProvisioningState::Data(
+                        *device_key,
+                        *provisioning_data,
+                        p.response().ok_or(DriverError::InvalidState)?,
+                    )))
+                }
                 Some(Provisionee::Failure(..)) => Ok(Some(ProvisioningState::Failed)),
                 Some(p) => match p.response() {
                     Some(response) => {

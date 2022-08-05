@@ -4,17 +4,17 @@
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 
-use core::borrow::{Borrow, BorrowMut};
-use core::cell::{Ref, RefCell};
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{BluetoothMeshDevice, ChannelImpl, SenderImpl};
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
+use core::borrow::{Borrow, BorrowMut};
+use core::cell::{Ref, RefCell};
 use core::future::{pending, Future};
 use core::pin::Pin;
 use embassy::channel::Channel;
-use embassy::util::{select, Either, select3, Either3};
+use embassy::util::{select, select3, Either, Either3};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -34,10 +34,10 @@ use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
+use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
-use crate::storage::provisioned::ProvisionedConfiguration;
 
 enum DesiredStack {
     Unchanged,
@@ -87,7 +87,9 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                         ProvisioningState::Failed => {
                             info!("provisioning: state failed");
                             *current_stack = Stack::Unprovisioned {
-                                stack: UnprovisionedStack::new(self.storage.borrow().capabilities()),
+                                stack: UnprovisionedStack::new(
+                                    self.storage.borrow().capabilities(),
+                                ),
                                 uuid: *uuid,
                             };
                         }
@@ -95,7 +97,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                             info!("provisioning: state response");
                             self.network.transmit(&PDU::Provisioning(pdu)).await?;
                         }
-                        ProvisioningState::Data(device_key, provisioning_data) => {
+                        ProvisioningState::Data(device_key, provisioning_data, pdu) => {
                             info!("provisioning: state data");
                             let primary_unicast_addr = provisioning_data.unicast_address;
                             let device_info = DeviceInfo::new(
@@ -106,7 +108,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                             let network_state = provisioning_data.into();
 
                             info!("provisioning: provisioned");
-                            self.network.transmit( &PDU::Provisioning(ProvisioningPDU::Complete)).await?;
+                            self.network.transmit(&PDU::Provisioning(pdu)).await?;
                             *current_stack = Stack::Provisioned {
                                 stack: ProvisionedStack::new(device_info, secrets, network_state),
                                 sequence: Sequence::new(Seq::new(800)),
@@ -167,12 +169,15 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         }
     }
 
-    fn run_device<'ch, D: BluetoothMeshDevice>(device: &'ch mut D, channel: &'ch ChannelImpl) -> impl Future<Output=Result<(),()>> + 'ch {
+    fn run_device<'ch, D: BluetoothMeshDevice>(
+        device: &'ch mut D,
+        channel: &'ch ChannelImpl,
+    ) -> impl Future<Output = Result<(), ()>> + 'ch {
         let receiver = INBOUND.receiver();
-        device.run(DeviceContext::new(receiver) )
+        device.run(DeviceContext::new(receiver))
     }
 
-    fn run_network(network: &N) -> impl Future<Output=Result<(), NetworkError>> +'_ {
+    fn run_network(network: &N) -> impl Future<Output = Result<(), NetworkError>> + '_ {
         network.run()
     }
 
@@ -214,7 +219,6 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                 (Stack::None, Configuration::Unprovisioned(config))
                 | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
                     desired = DesiredStack::Unprovisioned(config);
-
                 }
                 (Stack::None, Configuration::Provisioned(config))
                 | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
@@ -226,14 +230,13 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
             }
 
             match desired {
-                DesiredStack::Unchanged => {/*nothing*/}
+                DesiredStack::Unchanged => { /*nothing*/ }
                 DesiredStack::Unprovisioned(config) => {
                     info!("setting up unprovisioned stack");
                     *self.stack.borrow_mut() = Stack::Unprovisioned {
                         stack: UnprovisionedStack::new(self.storage.borrow().capabilities()),
                         uuid: config.uuid(),
                     }
-
                 }
                 DesiredStack::Provisioned(config) => {
                     info!("setting up provisioned stack");
@@ -257,8 +260,8 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                     }
                     Either::First(Err(err)) => {
                         info!("receive_pdu error!");
-                        return Err(err.into())
-                    },
+                        return Err(err.into());
+                    }
                     Either::Second(_) => {
                         info!("send beacon!");
                         self.send_beacon().await?;
