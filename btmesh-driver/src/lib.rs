@@ -9,7 +9,7 @@ use core::cell::{Ref, RefCell};
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{BluetoothMeshDevice, ChannelImpl, SenderImpl};
-use btmesh_pdu::provisioning::Capabilities;
+use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
 use core::future::{pending, Future};
 use core::pin::Pin;
@@ -106,6 +106,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
                             let network_state = provisioning_data.into();
 
                             info!("provisioning: provisioned");
+                            self.network.transmit( &PDU::Provisioning(ProvisioningPDU::Complete)).await?;
                             *current_stack = Stack::Provisioned {
                                 stack: ProvisionedStack::new(device_info, secrets, network_state),
                                 sequence: Sequence::new(Seq::new(800)),
