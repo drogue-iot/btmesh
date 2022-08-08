@@ -1,10 +1,10 @@
-use crate::stack::provisioned::system::ApplicationKeyHandle;
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::application::{Aid, ApplicationKey};
 use heapless::Vec;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use btmesh_device::ApplicationKeyHandle;
 
 #[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

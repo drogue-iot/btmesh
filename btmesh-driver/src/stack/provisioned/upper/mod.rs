@@ -1,6 +1,6 @@
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{
-    AccessMetadata, ControlMetadata, KeyHandle, UpperMetadata,
+    AccessMetadata, ControlMetadata, UpperMetadata,
 };
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::{Address, LabelUuid};
@@ -14,6 +14,7 @@ use btmesh_pdu::provisioned::upper::UpperPDU;
 use btmesh_pdu::provisioned::Message;
 use core::ops::ControlFlow;
 use heapless::Vec;
+use btmesh_device::KeyHandle;
 
 #[derive(Default)]
 pub struct UpperDriver<const N: usize = 20> {

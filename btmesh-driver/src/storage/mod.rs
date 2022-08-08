@@ -1,5 +1,6 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
+use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
 use core::future::Future;
@@ -50,7 +51,8 @@ pub enum Configuration {
 
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
-    capabilities: Option<Capabilities>,
+    capabilities: RefCell<Option<Capabilities>>,
+    composition: RefCell<Option<Composition>>,
     config: Mutex<CriticalSectionRawMutex, Option<Configuration>>,
 }
 
@@ -58,7 +60,8 @@ impl<B: BackingStore> Storage<B> {
     pub fn new(backing_store: B) -> Self {
         Self {
             backing_store: RefCell::new(backing_store),
-            capabilities: None,
+            capabilities: RefCell::new(None),
+            composition: RefCell::new(None),
             config: Mutex::new(None),
         }
     }
@@ -127,10 +130,18 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub fn capabilities(&self) -> Capabilities {
-        unwrap!(self.capabilities.clone())
+        unwrap!(self.capabilities.borrow().clone())
     }
 
-    pub fn set_capabilities(&mut self, capabilities: Capabilities) {
-        self.capabilities.replace(capabilities);
+    pub(crate) fn set_capabilities(&self, capabilities: Capabilities) {
+        self.capabilities.borrow_mut().replace(capabilities);
+    }
+
+    pub fn composition(&self) -> Composition {
+        unwrap!(self.composition.borrow().clone())
+    }
+
+    pub(crate) fn set_composition(&self, composition: Composition) {
+        self.composition.borrow_mut().replace(composition);
     }
 }

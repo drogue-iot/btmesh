@@ -54,8 +54,9 @@ defmt = [
     "dep:defmt",
     "btmesh-common/defmt",
     "btmesh-bearer/defmt",
-    "btmesh-pdu/defmt",
+    "btmesh-device/defmt",
     "btmesh-models/defmt",
+    "btmesh-pdu/defmt",
 ]
 
 relay = [

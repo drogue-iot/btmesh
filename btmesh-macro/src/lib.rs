@@ -9,7 +9,8 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use regex::Regex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Field, File};
+use syn::{Field, File, GenericParam, Path, PathSegment, TraitBound, TraitBoundModifier, Type, TypeParam, TypeParamBound};
+use syn::punctuated::Punctuated;
 
 #[derive(FromMeta)]
 struct DeviceArgs {
@@ -40,7 +41,34 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut device_struct = syn::parse_macro_input!(item as syn::ItemStruct);
 
     let generics = device_struct.generics.clone();
-    let generic_params = device_struct.generics.clone();
+    let mut generic_params = TokenStream2::new();
+    if !generics.params.is_empty() {
+        generic_params.extend(quote!( < ));
+        for param in generics.params.iter() {
+            match param {
+                GenericParam::Type(t) => {
+                    let t = t.ident.clone();
+                    generic_params.extend(quote! {
+                        #t,
+                    })
+                }
+                GenericParam::Lifetime(l) => {
+                    let l = l.lifetime.clone();
+                    generic_params.extend(quote! {
+                        #l,
+                    })
+                }
+                GenericParam::Const(c) => {
+                    let c = c.ident.clone();
+                    generic_params.extend(quote! {
+                        #c,
+                    })
+                }
+                _ => {}
+            }
+        }
+        generic_params.extend(quote!( > ));
+    }
 
     let struct_fields = match &mut device_struct.fields {
         syn::Fields::Named(n) => n,
@@ -58,6 +86,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         .named
         .iter()
         .cloned()
+        .filter(|e| !matches!(e.ty, Type::Reference(_)))
         .collect::<Vec<syn::Field>>();
 
     let mut populate = TokenStream2::new();
@@ -78,12 +107,12 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         );
 
         static_channels.extend( quote!{
-            const #element_channel_name: ::btmesh_device::ChannelImpl = ::btmesh_device::ChannelImpl::new();
+            static #element_channel_name: ::btmesh_device::InboundChannelImpl = ::btmesh_device::InboundChannelImpl::new();
         });
 
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            let #ctx_name = ctx.element_context(#i, #element_channel_name );
+            let #ctx_name = ctx.element_context(#i, #element_channel_name.receiver() );
         });
         fanout.extend(quote! {
             if matches!(target_element_index, Some(#i)) || matches!(target_element_index, None) {
@@ -169,8 +198,36 @@ static MODEL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
     let element_struct = syn::parse_macro_input!(item as syn::ItemStruct);
 
-    let generics = element_struct.generics.clone();
-    let generic_params = element_struct.generics.clone();
+    let mut generics = element_struct.generics.clone();
+
+    let mut generic_params = TokenStream2::new();
+    if !generics.params.is_empty() {
+        generic_params.extend(quote!( < ));
+        for param in generics.params.iter() {
+            match param {
+                GenericParam::Type(t) => {
+                    let t = t.ident.clone();
+                    generic_params.extend(quote! {
+                        #t,
+                    })
+                }
+                GenericParam::Lifetime(l) => {
+                    let l = l.lifetime.clone();
+                    generic_params.extend(quote! {
+                        #l,
+                    })
+                }
+                GenericParam::Const(c) => {
+                    let c = c.ident.clone();
+                    generic_params.extend(quote! {
+                        #c,
+                    })
+                }
+                _ => {}
+            }
+        }
+        generic_params.extend(quote!( > ));
+    }
 
     let args = syn::parse_macro_input!(args as syn::AttributeArgs);
     let args = match ElementArgs::from_list(&args) {
@@ -211,6 +268,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         .named
         .iter()
         .cloned()
+        .filter(|e| !matches!(e.ty, Type::Reference(_)))
         .collect::<Vec<syn::Field>>();
     let struct_name = element_struct.ident.clone();
 
@@ -234,12 +292,12 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
         let model_channel_name = format_ident!("MODEL_CHANNEL_{}", i);
         static_channels.extend( quote!{
-            const #model_channel_name: ::btmesh_device::ChannelImpl = ::btmesh_device::ChannelImpl::new();
+            static #model_channel_name: ::btmesh_device::InboundChannelImpl = ::btmesh_device::InboundChannelImpl::new();
         });
 
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            let #ctx_name = ctx.model_context(#i, #model_channel_name );
+            let #ctx_name = ctx.model_context(#i, #model_channel_name.receiver() );
         });
         fanout.extend(quote! {
             #model_channel_name.send(message.clone()).await;

@@ -12,34 +12,8 @@ use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use btmesh_pdu::provisioned::System;
 use heapless::Vec;
+use btmesh_device::{ApplicationKeyHandle, InboundMetadata, KeyHandle, NetworkKeyHandle, OutboundMetadata};
 
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum KeyHandle {
-    Device,
-    Network(NetworkKeyHandle),
-    Application(ApplicationKeyHandle),
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct NetworkKeyHandle(pub(crate) u8, pub(crate) Nid);
-
-impl NetworkKeyHandle {
-    pub fn nid(&self) -> Nid {
-        self.1
-    }
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ApplicationKeyHandle(pub(crate) u8, pub(crate) Aid);
-
-impl ApplicationKeyHandle {
-    pub fn aid(&self) -> Aid {
-        self.1
-    }
-}
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -342,6 +316,20 @@ impl AccessMetadata {
 
     pub fn label_uuid(&self) -> Option<LabelUuid> {
         self.label_uuid
+    }
+}
+
+impl From<AccessMetadata> for InboundMetadata {
+    fn from(meta: AccessMetadata) -> Self {
+        Self::new(
+            meta.src,
+            meta.dst,
+            meta.ttl,
+            meta.network_key_handle,
+            meta.iv_index,
+            meta.key_handle,
+            meta.label_uuid
+        )
     }
 }
 

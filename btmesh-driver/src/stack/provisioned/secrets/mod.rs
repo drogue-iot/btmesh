@@ -1,6 +1,5 @@
 use crate::stack::provisioned::secrets::application::ApplicationKeys;
 use crate::stack::provisioned::secrets::network::NetworkKeys;
-use crate::stack::provisioned::system::{ApplicationKeyHandle, NetworkKeyHandle};
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::application::{Aid, ApplicationKey};
 use btmesh_common::crypto::device::DeviceKey;
@@ -9,6 +8,7 @@ use btmesh_pdu::provisioning::ProvisioningData;
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use btmesh_device::{ApplicationKeyHandle, NetworkKeyHandle};
 
 pub mod application;
 pub mod network;

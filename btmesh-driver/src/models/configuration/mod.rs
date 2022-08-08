@@ -1,18 +1,24 @@
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use core::future::Future;
+use core::marker::PhantomData;
+use crate::{BackingStore, Storage};
 
 pub mod composition_data;
 
-pub struct Configuration {}
+pub struct Configuration<'s, B: BackingStore + 's> {
+    storage: &'s Storage<B>,
+}
 
-impl Configuration {
-    pub fn new() -> Self {
-        Self {}
+impl<'s, B: BackingStore + 's> Configuration<'s, B> {
+    pub fn new(storage: &'s Storage<B>) -> Self {
+        Self {
+            storage,
+        }
     }
 }
 
-impl BluetoothMeshModel<ConfigurationServer> for Configuration {
+impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Configuration<'s, B> {
     type RunFuture<'f, C>  = impl Future<Output=Result<(),()>> + 'f
     where Self: 'f,
     C: BluetoothMeshModelContext<ConfigurationServer> + 'f;
@@ -23,11 +29,13 @@ impl BluetoothMeshModel<ConfigurationServer> for Configuration {
     ) -> Self::RunFuture<'_, C> {
         async move {
             info!("running configuration server");
-            match ctx.receive().await {
+            let (message, meta) = ctx.receive().await;
+            match message {
                 ConfigurationMessage::Beacon(beacon) => {}
                 ConfigurationMessage::DefaultTTL(default_ttl) => {}
                 ConfigurationMessage::CompositionData(composition_data) => {
                     info!("received {}", composition_data);
+                    composition_data::dispatch(ctx, self.storage, composition_data, meta).await;
                 }
                 ConfigurationMessage::AppKey(app_key) => {}
                 ConfigurationMessage::ModelApp(model_app) => {}

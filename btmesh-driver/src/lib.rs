@@ -6,9 +6,7 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
-use btmesh_device::{
-    join, BluetoothMeshDevice, ChannelImpl, ReceivePayload, ReceiverImpl, SenderImpl,
-};
+use btmesh_device::{join, BluetoothMeshDevice, InboundChannelImpl, InboundPayload, InboundReceiverImpl, InboundSenderImpl, OutboundChannelImpl};
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
@@ -37,7 +35,7 @@ use crate::stack::interface::{NetworkError, NetworkInterfaces};
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::system::UpperMetadata;
+use crate::stack::provisioned::system::{AccessMetadata, UpperMetadata};
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
@@ -68,20 +66,36 @@ pub trait BluetoothMeshDriver {
 }
 
 pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
-    stack: RefCell<Stack>,
-    network: N,
-    rng: RefCell<R>,
-    storage: RefCell<Storage<B>>,
-    dispatcher: Dispatcher,
+    network: Option<N>,
+    rng: Option<R>,
+    storage: Storage<B>,
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
     pub fn new(network: N, rng: R, backing_store: B) -> Self {
         Self {
+            network: Some(network),
+            rng: Some(rng),
+            storage: Storage::new(backing_store),
+        }
+    }
+}
+
+pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore + 's> {
+    stack: RefCell<Stack>,
+    network: N,
+    rng: RefCell<R>,
+    storage: &'s Storage<B>,
+    dispatcher: Dispatcher,
+}
+
+impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDriver<'s, N, R, B> {
+    pub fn new(network: N, rng: R, storage: &'s Storage<B>) -> Self {
+        Self {
             stack: RefCell::new(Stack::None),
             network,
             rng: RefCell::new(rng),
-            storage: RefCell::new(Storage::new(backing_store)),
+            storage,
             dispatcher: Dispatcher::new(FOUNDATION_INBOUND.sender(), DEVICE_INBOUND.sender()),
         }
     }
@@ -187,9 +201,9 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
 
     fn run_device<'ch, D: BluetoothMeshDevice>(
         device: &'ch mut D,
-        receiver: ReceiverImpl,
+        receiver: InboundReceiverImpl,
     ) -> impl Future<Output = Result<(), ()>> + 'ch {
-        device.run(DeviceContext::new(receiver))
+        device.run(DeviceContext::new(receiver, OUTBOUND.sender()))
     }
 
     fn run_network(network: &N) -> impl Future<Output = Result<(), NetworkError>> + '_ {
@@ -211,7 +225,8 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
             input_oob_action: Default::default(),
         };
 
-        self.storage.borrow_mut().set_capabilities(capabilities);
+        self.storage.set_composition(composition);
+        self.storage.set_capabilities(capabilities);
 
         loop {
             info!("driver loop");
@@ -294,46 +309,59 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
         }
         info!("driver loop done");
     }
+
+    async fn run<'r, D: BluetoothMeshDevice>(
+        &'r mut self,
+        device: &'r mut D,
+    ) -> Result<(), DriverError> {
+        let composition = device.composition();
+
+        info!("run!");
+
+        let mut foundation_device = FoundationDevice::new(&self.storage);
+
+        let mut device_fut = select(
+            Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
+            Self::run_device(device, DEVICE_INBOUND.receiver()),
+        );
+        let mut driver_fut = self.run_driver(composition);
+        let mut network_fut = Self::run_network(&self.network);
+
+        // if the device or the driver is `Ready` then stuff is just done, stop.
+        match select3(driver_fut, device_fut, network_fut).await {
+            Either3::First(_) => {
+                info!("driver done");
+            }
+            Either3::Second(_val) => {
+                info!("device done");
+            }
+            Either3::Third(_val) => {
+                info!("network done");
+            }
+        }
+
+        info!("run ended!");
+        Ok(())
+    }
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMeshDriver
     for Driver<N, R, B>
 {
     type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
-        where
-            Self: 'f,
-            D: BluetoothMeshDevice + 'f;
+    where
+    Self: 'f,
+    D: BluetoothMeshDevice + 'f;
 
-    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D> {
-        let composition = device.composition();
-
-        info!("run!");
-
-        let mut foundation_device = FoundationDevice::new();
-
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
         async move {
-            let mut device_fut = select(
-                Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
-                Self::run_device(device, DEVICE_INBOUND.receiver()),
-            );
-            let mut driver_fut = self.run_driver(composition);
-            let mut network_fut = Self::run_network(&self.network);
-
-            // if the device or the driver is `Ready` then stuff is just done, stop.
-            match select3(driver_fut, device_fut, network_fut).await {
-                Either3::First(_) => {
-                    info!("driver done");
-                }
-                Either3::Second(_val) => {
-                    info!("device done");
-                }
-                Either3::Third(_val) => {
-                    info!("network done");
-                }
-            }
-
-            info!("run ended!");
-            Ok(())
+            InnerDriver::new(
+                unwrap!(self.network.take()),
+                unwrap!(self.rng.take()),
+                &self.storage,
+            )
+            .run(device)
+            .await
         }
     }
 }
@@ -350,5 +378,7 @@ pub enum DeviceState {
     Provisioned,
 }
 
-static FOUNDATION_INBOUND: ChannelImpl = ChannelImpl::new();
-static DEVICE_INBOUND: ChannelImpl = ChannelImpl::new();
+static FOUNDATION_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
+static DEVICE_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
+
+static OUTBOUND: OutboundChannelImpl = OutboundChannelImpl::new();

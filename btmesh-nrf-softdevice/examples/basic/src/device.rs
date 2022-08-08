@@ -62,7 +62,8 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
             loop {
                 //Timer::after(Duration::from_secs(1)).await;
                 //defmt::info!("server run loop");
-                match ctx.receive().await {
+                let (message, meta) = ctx.receive().await;
+                match message {
                     GenericOnOffMessage::Get => {
 
                     }
