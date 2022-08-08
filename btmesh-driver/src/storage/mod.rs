@@ -4,6 +4,9 @@ use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
 use core::future::Future;
 use core::hash::Hash;
+use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy::mutex::Mutex;
+use embassy::mutex::MutexGuard;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -48,7 +51,7 @@ pub enum Configuration {
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
     capabilities: Option<Capabilities>,
-    config: RefCell<Option<Configuration>>,
+    config: Mutex<CriticalSectionRawMutex, Option<Configuration>>,
 }
 
 impl<B: BackingStore> Storage<B> {
@@ -56,13 +59,13 @@ impl<B: BackingStore> Storage<B> {
         Self {
             backing_store: RefCell::new(backing_store),
             capabilities: None,
-            config: RefCell::new(None),
+            config: Mutex::new(None),
         }
     }
 
     pub async fn get(&self) -> Result<Configuration, StorageError> {
         self.load_if_needed().await?;
-        if let Some(config) = &*self.config.borrow() {
+        if let Some(config) = &*self.config.lock().await {
             Ok(config.clone())
         } else {
             Err(StorageError::Load)
@@ -76,16 +79,32 @@ impl<B: BackingStore> Storage<B> {
             // unprovisioned config is ephemeral.
             self.backing_store.borrow_mut().store(config).await?;
         }
-        self.config.borrow_mut().replace(config.clone());
+        let mut locked_config = self.config.lock().await;
+        locked_config.replace(config.clone());
+        Ok(())
+    }
+
+    pub async fn modify<F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), ()>>(
+        &self,
+        modification: F,
+    ) -> Result<(), StorageError> {
+        let config = self.config.lock().await;
+
+        if let Some(Configuration::Provisioned(config)) = &*config {
+            let mut config = config.clone();
+            if let Ok(_) = modification(&mut config) {
+                self.put(&Configuration::Provisioned(config)).await;
+            }
+        }
+
         Ok(())
     }
 
     #[allow(clippy::await_holding_refcell_ref)]
     async fn load_if_needed(&self) -> Result<(), StorageError> {
-        if self.config.borrow().is_none() {
-            self.config
-                .borrow_mut()
-                .replace(self.backing_store.borrow_mut().load().await?);
+        let mut config = self.config.lock().await;
+        if config.is_none() {
+            config.replace(self.backing_store.borrow_mut().load().await?);
         }
 
         Ok(())
@@ -94,7 +113,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn is_provisioned(&self) -> Result<bool, StorageError> {
         self.load_if_needed().await?;
         Ok(matches!(
-            &*self.config.borrow(),
+            &*self.config.lock().await,
             Some(Configuration::Provisioned(..))
         ))
     }
@@ -102,7 +121,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn is_unprovisioned(&self) -> Result<bool, StorageError> {
         self.load_if_needed().await?;
         Ok(matches!(
-            &*self.config.borrow(),
+            &*self.config.lock().await,
             Some(Configuration::Unprovisioned(..))
         ))
     }
