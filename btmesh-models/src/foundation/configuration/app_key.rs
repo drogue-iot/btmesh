@@ -1,11 +1,11 @@
 use crate::foundation::configuration::{
     AppKeyIndex, KeyIndex, NetKeyAppKeyIndexesPair, NetKeyIndex,
 };
-use crate::{opcode, opcode::Opcode};
 use crate::{Message, Status};
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{InsufficientBuffer, opcode, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
 opcode!( CONFIG_APPKEY_ADD 0x00 );
 opcode!( CONFIG_APPKEY_DELETE 0x80, 0x00 );

@@ -1,8 +1,7 @@
-use crate::opcode;
-use crate::opcode::Opcode;
 use crate::{Message, Model};
-use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
+use btmesh_common::{InsufficientBuffer, ModelIdentifier, opcode, ParseError};
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
 pub struct GenericBatteryServer;
 

@@ -14,6 +14,7 @@ pub mod crc;
 pub mod crypto;
 pub mod location;
 pub mod mic;
+pub mod opcode;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]

@@ -1,11 +1,10 @@
-use crate::opcode;
-use crate::opcode::Opcode;
 use crate::{Message, Model};
-use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
+use btmesh_common::{InsufficientBuffer, ModelIdentifier, opcode, ParseError};
 use embassy::time::Duration;
 use heapless::Vec;
 #[allow(unused_imports)]
 use micromath::F32Ext;
+use btmesh_common::opcode::Opcode;
 
 #[derive(Clone, Debug, Default)]
 pub struct SensorClient<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>

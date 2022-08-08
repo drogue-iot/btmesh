@@ -65,7 +65,7 @@ impl NetworkMetadata {
             iv_index: pdu.meta().iv_index(),
             replay_protected: false,
             should_relay: false,
-            local_element_index: None,
+            local_element_index: pdu.meta().local_element_index(),
             network_key_handle: pdu.meta().network_key_handle(),
         }
     }
@@ -76,6 +76,7 @@ impl NetworkMetadata {
 pub struct LowerMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
+    local_element_index: Option<u8>,
     src: UnicastAddress,
     dst: Address,
     ttl: Ttl,
@@ -94,6 +95,7 @@ impl LowerMetadata {
         Self {
             network_key_handle,
             iv_index,
+            local_element_index: None,
             src,
             dst,
             seq,
@@ -105,6 +107,7 @@ impl LowerMetadata {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
+            local_element_index: pdu.meta().local_element_index(),
             src: pdu.src(),
             dst: pdu.dst(),
             seq: pdu.seq(),
@@ -148,6 +151,11 @@ impl LowerMetadata {
     pub fn iv_index(&self) -> IvIndex {
         self.iv_index
     }
+
+    pub fn local_element_index(&self) -> Option<u8> {
+        self.local_element_index
+    }
+
 }
 
 #[derive(Clone)]
@@ -155,6 +163,7 @@ impl LowerMetadata {
 pub struct UpperMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
+    local_element_index: Option<u8>,
     akf_aid: Option<Aid>,
     seq: Seq,
     src: UnicastAddress,
@@ -168,6 +177,7 @@ impl UpperMetadata {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
+            local_element_index: pdu.meta().local_element_index(),
             akf_aid: if let SegmentedLowerPDU::Access(inner) = pdu {
                 inner.aid()
             } else {
@@ -185,6 +195,7 @@ impl UpperMetadata {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
+            local_element_index: pdu.meta().local_element_index(),
             akf_aid: if let UnsegmentedLowerPDU::Access(inner) = pdu {
                 inner.aid()
             } else {
@@ -209,6 +220,7 @@ impl UpperMetadata {
         Self {
             network_key_handle: message.meta().network_key_handle(),
             iv_index: message.meta().iv_index,
+            local_element_index: None,
             akf_aid: match message.meta().key_handle() {
                 KeyHandle::Device | KeyHandle::Network(_) => None,
                 KeyHandle::Application(key_handle) => Some(key_handle.aid()),
@@ -227,6 +239,10 @@ impl UpperMetadata {
 
     pub fn iv_index(&self) -> IvIndex {
         self.iv_index
+    }
+
+    pub fn local_element_index(&self) -> Option<u8> {
+        self.local_element_index
     }
 
     pub fn aid(&self) -> Option<Aid> {
@@ -266,6 +282,7 @@ impl UpperMetadata {
 pub struct AccessMetadata {
     network_key_handle: NetworkKeyHandle,
     iv_index: IvIndex,
+    local_element_index: Option<u8>,
     key_handle: KeyHandle,
     src: UnicastAddress,
     dst: Address,
@@ -282,6 +299,7 @@ impl AccessMetadata {
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index,
+            local_element_index: pdu.meta().local_element_index(),
             key_handle,
             src: pdu.meta().src(),
             dst: pdu.meta().dst(),
@@ -317,10 +335,14 @@ impl AccessMetadata {
     pub fn label_uuid(&self) -> Option<LabelUuid> {
         self.label_uuid
     }
+
+    pub fn local_element_index(&self) -> Option<u8> {
+        self.local_element_index
+    }
 }
 
-impl From<AccessMetadata> for InboundMetadata {
-    fn from(meta: AccessMetadata) -> Self {
+impl From<&AccessMetadata> for InboundMetadata {
+    fn from(meta: &AccessMetadata) -> Self {
         Self::new(
             meta.src,
             meta.dst,

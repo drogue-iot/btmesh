@@ -1,8 +1,7 @@
-use crate::opcode;
-use crate::opcode::Opcode;
 use crate::Message;
-use btmesh_common::{InsufficientBuffer, ParseError};
+use btmesh_common::{InsufficientBuffer, opcode, ParseError};
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
 opcode!( CONFIG_NODE_RESET 0x80, 0x49 );
 opcode!( CONFIG_NODE_RESET_STATUS 0x80, 0x4A );

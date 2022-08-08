@@ -14,12 +14,13 @@ pub use btmesh_common::{
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, Ttl};
-pub use btmesh_models::{Model, Opcode};
+pub use btmesh_models::{Model};
 use core::future::Future;
 use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy::channel::{Channel, Receiver, Sender};
 pub use futures::future::join;
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
 pub type InboundChannelImpl = Channel<CriticalSectionRawMutex, InboundPayload, 1>;
 pub type InboundSenderImpl = Sender<'static, CriticalSectionRawMutex, InboundPayload, 1>;

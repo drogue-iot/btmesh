@@ -1,8 +1,7 @@
-use crate::opcode;
-use crate::opcode::Opcode;
 use crate::Message;
-use btmesh_common::{Composition, InsufficientBuffer, ModelIdentifier, ParseError};
+use btmesh_common::{Composition, InsufficientBuffer, ModelIdentifier, opcode, ParseError};
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 use crate::foundation::configuration::ConfigurationMessage;
 
 opcode!( CONFIG_COMPOSITION_DATA_GET 0x80, 0x08 );

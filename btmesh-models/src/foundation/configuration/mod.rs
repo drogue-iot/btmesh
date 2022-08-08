@@ -30,10 +30,9 @@ use crate::foundation::configuration::relay::{RelayMessage, CONFIG_RELAY_GET, CO
 
 use crate::{Message, Model};
 
-use crate::opcode::Opcode;
-
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
 pub mod app_key;
 pub mod beacon;

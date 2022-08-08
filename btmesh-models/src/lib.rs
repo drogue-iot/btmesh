@@ -6,7 +6,6 @@
 
 #[allow(unused_imports)]
 use crate::foundation::configuration::{CONFIGURATION_CLIENT, CONFIGURATION_SERVER};
-pub use crate::opcode::Opcode;
 #[allow(unused_imports)]
 use crate::{
     generic::{
@@ -17,8 +16,8 @@ use crate::{
 };
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
+use btmesh_common::opcode::Opcode;
 
-pub mod opcode;
 //pub mod firmware;
 pub mod foundation;
 pub mod generic;

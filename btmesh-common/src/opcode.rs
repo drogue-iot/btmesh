@@ -1,5 +1,5 @@
-use btmesh_common::InsufficientBuffer;
 use heapless::Vec;
+use crate::InsufficientBuffer;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Opcode {
@@ -87,14 +87,14 @@ impl defmt::Format for Opcode {
 #[macro_export]
 macro_rules! opcode {
     ($name:ident $o1:expr) => {
-        pub const $name: Opcode = Opcode::OneOctet($o1);
+        pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::OneOctet($o1);
     };
 
     ($name:ident $o1:expr, $o2:expr) => {
-        pub const $name: Opcode = Opcode::TwoOctet($o1, $o2);
+        pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::TwoOctet($o1, $o2);
     };
 
     ($name:ident $o1:expr, $o2:expr, $o3:expr) => {
-        pub const $name: Opcode = Opcode::ThreeOctet($o1, $o2, $o3);
+        pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::ThreeOctet($o1, $o2, $o3);
     };
 }
