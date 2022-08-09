@@ -100,7 +100,7 @@ impl ::defmt::Format for EncryptionKey {
     fn format(&self, fmt: ::defmt::Formatter) {
         ::defmt::write!(
             fmt,
-            "0x{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}",
+            "0x{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
             self.0[0],
             self.0[1],
             self.0[2],
@@ -151,6 +151,7 @@ impl Deref for PrivacyKey {
 #[derive(Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct NetworkKey {
+    network_key: [u8; 16],
     privacy_key: PrivacyKey,
     encryption_key: EncryptionKey,
     nid: Nid,
@@ -160,7 +161,25 @@ pub struct NetworkKey {
 #[cfg(feature = "defmt")]
 impl ::defmt::Format for NetworkKey {
     fn format(&self, fmt: ::defmt::Formatter) {
-        ::defmt::write!(fmt, "0x{} {}", self.encryption_key, self.nid);
+        ::defmt::write!(fmt,
+                        "0x{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X} {}",
+                        self.network_key[0],
+                        self.network_key[1],
+                        self.network_key[2],
+                        self.network_key[3],
+                        self.network_key[4],
+                        self.network_key[5],
+                        self.network_key[6],
+                        self.network_key[7],
+                        self.network_key[8],
+                        self.network_key[9],
+                        self.network_key[10],
+                        self.network_key[11],
+                        self.network_key[12],
+                        self.network_key[13],
+                        self.network_key[14],
+                        self.network_key[15],
+                        self.nid);
     }
 }
 
@@ -171,6 +190,7 @@ impl NetworkKey {
         let network_id = NetworkId::new(crypto::k3(&network_key)?);
 
         Ok(Self {
+            network_key,
             privacy_key: PrivacyKey(privacy_key),
             encryption_key: EncryptionKey(encryption_key),
             nid: Nid::new(nid),

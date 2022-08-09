@@ -77,10 +77,13 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
 
     #[allow(clippy::identity_op)]
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        let cur = xmit.len();
         match self.akf_aid {
             None => xmit.push(0)?,
             Some(aid) => aid.emit(xmit)?,
         }
+        // set the SEGMENTED bit.
+        xmit[cur] = 0b10000000 | xmit[cur];
 
         let mut header = [0; 3];
         match self.szmic {

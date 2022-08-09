@@ -56,7 +56,7 @@ overflow-checks = false
 
 [profile.release.build-override]
 codegen-units = 8
-debug = 2
+debug = 0
 debug-assertions = false
 opt-level = 1 
 overflow-checks = false

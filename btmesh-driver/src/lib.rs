@@ -18,6 +18,7 @@ use btmesh_pdu::PDU;
 use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
+use embassy::time::{Duration, Timer};
 use embassy::util::{select, select3, select4, Either3, Either4};
 use rand_core::{CryptoRng, RngCore};
 
@@ -127,7 +128,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             self.network.transmit(&(pdu.into())).await?;
                         }
                         ProvisioningState::Data(device_key, provisioning_data, pdu) => {
-                            info!("provisioning: state data");
+                            info!(
+                                "provisioning: state data --> {:02x}",
+                                provisioning_data.network_key
+                            );
                             let primary_unicast_addr = provisioning_data.unicast_address;
                             let device_info = DeviceInfo::new(
                                 primary_unicast_addr,
@@ -136,8 +140,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let secrets = (device_key, provisioning_data).into();
                             let network_state = provisioning_data.into();
 
+                            let pdu = pdu.into();
                             info!("provisioning: provisioned");
-                            self.network.transmit(&PDU::Provisioning(pdu)).await?;
+                            for _ in 0..5 {
+                                self.network.transmit(&pdu).await?;
+                                Timer::after(Duration::from_millis(100)).await;
+                            }
                             *current_stack = Stack::Provisioned {
                                 stack: ProvisionedStack::new(device_info, secrets, network_state),
                                 sequence: Sequence::new(Seq::new(800)),

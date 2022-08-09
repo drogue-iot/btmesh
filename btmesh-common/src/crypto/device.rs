@@ -18,7 +18,7 @@ impl ::defmt::Format for DeviceKey {
     fn format(&self, fmt: ::defmt::Formatter) {
         ::defmt::write!(
             fmt,
-            "0x{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}",
+            "0x{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}",
             self.device_key[0],
             self.device_key[1],
             self.device_key[2],
