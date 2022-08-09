@@ -58,6 +58,7 @@ impl TryFrom<&Stack> for Configuration {
                 secrets: stack.secrets().clone(),
                 device_info: stack.device_info(),
                 sequence: sequence.current(),
+                foundation: Default::default(),
             }
             .into()),
         }

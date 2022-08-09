@@ -6,8 +6,12 @@
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
-use btmesh_device::{join, BluetoothMeshDevice, InboundChannelImpl, InboundPayload, InboundReceiverImpl, InboundSenderImpl, OutboundChannelImpl};
-use btmesh_pdu::provisioned::Message;
+use btmesh_device::{
+    join, BluetoothMeshDevice, InboundChannelImpl, InboundPayload, InboundReceiverImpl,
+    InboundSenderImpl, OutboundChannelImpl, OutboundPayload,
+};
+use btmesh_pdu::provisioned::access::AccessMessage;
+use btmesh_pdu::provisioned::{Message, System};
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
 use core::borrow::{Borrow, BorrowMut};
@@ -157,7 +161,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         match message {
                             Message::Access(message) => {
                                 info!("access message {}", message);
-                                self.dispatcher.dispatch(message);
+                                self.dispatcher.dispatch(message).await?;
                             }
                             Message::Control(_) => {}
                         }
@@ -169,6 +173,26 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 // PDU incompatible with stack state or stack not initialized; ignore.
             }
         }
+        Ok(())
+    }
+
+    async fn process_outbound_payload(
+        &self,
+        outbound_payload: OutboundPayload,
+    ) -> Result<(), DriverError> {
+        let config = self.storage.borrow().get().await?;
+        if let Configuration::Provisioned(config) = config {
+            let element_address = config.device_info().local_element_address( outbound_payload.0.0 as u8 ).ok_or(DriverError::InvalidState)?;
+            let default_ttl = config.foundation().configuration().default_ttl();
+            let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
+                outbound_payload.1,
+                outbound_payload.2,
+                (element_address, outbound_payload.3, *default_ttl)
+            );
+
+            info!("transmit {}", message);
+        }
+
         Ok(())
     }
 
@@ -281,20 +305,25 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
             if let Some(device_state) = device_state {
                 let receive_fut = self.network.receive(&device_state);
+                let transmit_fut = OUTBOUND.recv();
                 let beacon_fut = self.next_beacon();
 
-                match select(receive_fut, beacon_fut).await {
-                    Either::First(Ok(pdu)) => {
+                match select3(receive_fut, transmit_fut, beacon_fut).await {
+                    Either3::First(Ok(pdu)) => {
                         info!("receive_pdu!");
                         if let Err(err) = self.receive_pdu(&pdu).await {
                             info!("{}", err);
                         }
                     }
-                    Either::First(Err(err)) => {
+                    Either3::First(Err(err)) => {
                         info!("receive_pdu error!");
                         return Err(err.into());
                     }
-                    Either::Second(_) => {
+                    Either3::Second(outbound_payload) => {
+                        info!("got something to send along {}", outbound_payload);
+                        self.process_outbound_payload(outbound_payload).await?;
+                    }
+                    Either3::Third(_) => {
                         info!("send beacon!");
                         self.send_beacon().await?;
                     }

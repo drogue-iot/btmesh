@@ -24,6 +24,9 @@ impl Dispatcher {
 
         let meta = message.meta().into();
 
+        info!("opcode {}", opcode);
+        info!("local_element_index {}", local_element_index);
+
         if let Some(local_element_index) = local_element_index {
             if local_element_index == 0 {
                 self.foundation_sender.send( (Some(0usize), opcode, Vec::from_slice(parameters)?, meta ) ).await;

@@ -28,7 +28,7 @@ impl DeviceInfo {
         }
     }
 
-    fn local_element_index(&self, dst: Address) -> Option<u8> {
+    pub fn local_element_index(&self, dst: Address) -> Option<u8> {
         if let Address::Unicast(dst) = dst {
             if dst >= self.primary_unicast_address {
                 let diff = dst - self.primary_unicast_address;
@@ -38,6 +38,14 @@ impl DeviceInfo {
             }
         }
         None
+    }
+
+    pub fn local_element_address(&self, index: u8) -> Option<UnicastAddress> {
+        if index < self.number_of_elements {
+            Some(self.primary_unicast_address + index)
+        } else {
+            None
+        }
     }
 }
 

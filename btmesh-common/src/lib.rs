@@ -199,8 +199,9 @@ impl From<Ivi> for u8 {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Ttl(u8);
 
 impl Ttl {

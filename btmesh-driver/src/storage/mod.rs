@@ -10,6 +10,7 @@ use embassy::mutex::Mutex;
 use embassy::mutex::MutexGuard;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use btmesh_common::address::UnicastAddress;
 
 pub(crate) mod provisioned;
 pub(crate) mod unprovisioned;

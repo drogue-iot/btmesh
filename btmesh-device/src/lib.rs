@@ -31,7 +31,7 @@ pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata)
 pub type OutboundChannelImpl = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundSenderImpl = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundReceiverImpl = Receiver<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
-pub type OutboundPayload = ((usize, ModelIdentifier), Opcode, Vec<u8, 380>, OutboundMetadata);
+pub type OutboundPayload = ((usize, ModelIdentifier), Opcode, Vec<u8, 379>, OutboundMetadata);
 
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
@@ -128,6 +128,7 @@ pub trait BluetoothMeshModelContext<M: Model> {
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InboundMetadata {
     src: UnicastAddress,
     dst: Address,
@@ -178,11 +179,13 @@ impl InboundMetadata {
             iv_index: self.iv_index,
             key_handle: self.key_handle,
             label_uuid: self.label_uuid,
+            ttl: None,
         }
     }
 }
 
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct OutboundMetadata {
     dst: Address,
     //
@@ -190,6 +193,40 @@ pub struct OutboundMetadata {
     iv_index: IvIndex,
     key_handle: KeyHandle,
     label_uuid: Option<LabelUuid>,
+    ttl: Option<Ttl>,
+}
+
+impl OutboundMetadata {
+    pub fn with_ttl(mut self, ttl: Ttl) -> Self {
+        self.ttl.replace(ttl);
+        self
+    }
+
+    pub fn dst(&self) -> Address {
+        self.dst
+    }
+
+    pub fn network_key_handle(&self) -> NetworkKeyHandle {
+        self.network_key_handle
+    }
+
+    pub fn iv_index(&self) -> IvIndex {
+        self.iv_index
+    }
+
+    pub fn key_handle(&self) -> KeyHandle {
+        self.key_handle
+    }
+
+    pub fn label_uuid(&self) -> Option<LabelUuid> {
+        self.label_uuid
+    }
+
+    pub fn ttl(&self) -> Option<Ttl> {
+        self.ttl
+    }
+
+
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]

@@ -20,6 +20,14 @@ impl<S: System> From<AccessMessage<S>> for Message<S> {
 
 #[allow(unused)]
 impl<S: System> AccessMessage<S> {
+    pub fn new<M: Into<S::AccessMetadata>>(opcode: Opcode, parameters: Vec<u8,379>, meta: M) -> Self {
+        Self {
+            opcode,
+            parameters,
+            meta: meta.into(),
+        }
+    }
+
     pub fn opcode(&self) -> Opcode {
         self.opcode
     }

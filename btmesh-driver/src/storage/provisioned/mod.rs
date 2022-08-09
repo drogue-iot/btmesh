@@ -1,15 +1,17 @@
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use core::hash::{Hash, Hasher};
-#[cfg(feature = "serde")]
-use serde::{Deserialize, Serialize};
+use crate::storage::provisioned::foundation::Foundation;
 
-#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+mod foundation;
+
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ProvisionedConfiguration {
     pub(crate) network_state: NetworkState,
     pub(crate) secrets: Secrets,
     pub(crate) device_info: DeviceInfo,
     pub(crate) sequence: u32,
+    pub(crate) foundation: Foundation,
 }
 
 impl ProvisionedConfiguration {
@@ -27,6 +29,14 @@ impl ProvisionedConfiguration {
 
     pub fn sequence(&self) -> u32 {
         self.sequence
+    }
+
+    pub fn foundation(&self) -> &Foundation {
+        &self.foundation
+    }
+
+    pub fn foundation_mut(&mut self) -> &mut Foundation {
+        &mut self.foundation
     }
 }
 

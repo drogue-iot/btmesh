@@ -290,6 +290,25 @@ pub struct AccessMetadata {
     label_uuid: Option<LabelUuid>,
 }
 
+impl From<(UnicastAddress, OutboundMetadata, Ttl)> for AccessMetadata {
+    fn from(tuple: (UnicastAddress, OutboundMetadata, Ttl)) -> Self {
+        let src = tuple.0;
+        let meta = tuple.1;
+        let default_ttl = tuple.2;
+
+        Self {
+            network_key_handle: meta.network_key_handle(),
+            iv_index: meta.iv_index(),
+            local_element_index: None,
+            key_handle: meta.key_handle(),
+            src,
+            dst: meta.dst(),
+            ttl: meta.ttl().unwrap_or(default_ttl),
+            label_uuid: None
+        }
+    }
+}
+
 impl AccessMetadata {
     pub fn from_upper_access_pdu(
         key_handle: KeyHandle,
