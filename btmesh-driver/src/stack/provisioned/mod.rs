@@ -195,13 +195,15 @@ impl ProvisionedStack {
         &self.secrets
     }
 
-    fn process_outbound(
+    pub fn process_outbound(
         &mut self,
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
+        info!("upper pdu: {}", upper_pdu);
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
+        info!("network pdus: {}", network_pdus);
         self.transmit_queue
             .add(upper_pdu, network_pdus.len() as u8)?;
 

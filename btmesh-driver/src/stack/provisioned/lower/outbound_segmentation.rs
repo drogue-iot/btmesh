@@ -12,6 +12,8 @@ use heapless::Vec;
 const SEGMENTED_ACCESS_MTU: usize = 12;
 const NONSEGMENTED_ACCESS_MUT: usize = 15;
 
+const SEGMENT_LOWER_PDU_SIZE: usize = SEGMENTED_ACCESS_MTU + 4;
+
 #[derive(Default)]
 pub struct OutboundSegmentation {}
 
@@ -22,11 +24,15 @@ impl OutboundSegmentation {
         pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
+
+        info!("seg A");
         let meta = NetworkMetadata::from_upper_pdu(pdu);
+        info!("seg B");
         let mut result = Vec::new();
 
         match pdu {
             UpperPDU::Access(inner) => {
+                info!("seg C");
                 if inner.payload().len() <= NONSEGMENTED_ACCESS_MUT {
                     result
                         .push(CleartextNetworkPDU::new(
@@ -42,6 +48,7 @@ impl OutboundSegmentation {
                         )?)
                         .map_err(|_| InsufficientBuffer)?;
                 } else {
+                    info!("seg D");
                     let seq_zero = inner.meta().seq().into();
                     let payload = inner.payload().chunks(SEGMENTED_ACCESS_MTU);
                     let seg_n = payload.len() - 1;
@@ -52,6 +59,7 @@ impl OutboundSegmentation {
                         } else {
                             sequence.next()
                         };
+                        info!("seg D2 {}", segment_m.len() );
 
                         // it's just a pass-through, so the `()`-centric System is perfectly good.
                         let lower_pdu = SegmentedLowerAccessPDU::<()>::new(
@@ -64,9 +72,12 @@ impl OutboundSegmentation {
                             (),
                         )?;
 
-                        let mut transport_pdu = Vec::<_, SEGMENTED_ACCESS_MTU>::new();
+                        info!("seg D3");
+                        let mut transport_pdu = Vec::<_, SEGMENT_LOWER_PDU_SIZE>::new();
+                        info!("seg D3.5");
                         lower_pdu.emit(&mut transport_pdu)?;
 
+                        info!("seg D4");
                         result
                             .push(CleartextNetworkPDU::new(
                                 pdu.meta().iv_index().ivi(),

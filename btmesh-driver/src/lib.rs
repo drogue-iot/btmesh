@@ -190,7 +190,15 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 (element_address, outbound_payload.3, *default_ttl)
             );
 
-            info!("transmit {}", message);
+            if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
+                info!("transmit {}", message);
+                let network_pdus = stack.process_outbound( sequence, &(message.into()) );
+                info!("result {}", network_pdus);
+                for pdu in network_pdus? {
+                    info!("network PDU {}", pdu);
+                    self.network.transmit( &(pdu.into()) ).await?;
+                }
+            }
         }
 
         Ok(())

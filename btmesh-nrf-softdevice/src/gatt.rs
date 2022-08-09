@@ -55,6 +55,7 @@ impl SoftdeviceGattBearer {
                             self.inbound.try_send(data).ok();
                         }
                         ProxyServiceEvent::DataOutCccdWrite { notifications } => {
+                            defmt::info!("proxy data CCD {}", notifications );
                             if notifications {
                                 self.connection_channel
                                     .replace(Some(ConnectionChannel::Proxy));
@@ -127,6 +128,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                             .map_err(|_| BearerError::TransmissionFailure)?;
                     }
                     Some(ConnectionChannel::Proxy) => {
+                        defmt::info!("sending proxy");
                         self.server
                             .proxy
                             .data_out_notify(connection, pdu.clone())
@@ -148,6 +150,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
             if self.connected.load(Ordering::Relaxed) {
                 return Ok(());
             }
+
             let scan_data: Vec<u8, 16> = Vec::new();
 
             let adv = peripheral::ConnectableAdvertisement::ScannableUndirected {

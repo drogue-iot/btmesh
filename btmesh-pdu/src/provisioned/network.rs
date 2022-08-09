@@ -5,6 +5,7 @@ use btmesh_common::{
     Ctl, InsufficientBuffer, Ivi, ParseError, Seq, Ttl,
 };
 use heapless::Vec;
+use crate::PDU;
 
 /// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]
@@ -16,6 +17,12 @@ pub struct NetworkPDU {
     /* 7 bits */
     obfuscated: [u8; 6],
     encrypted_and_mic: Vec<u8, 28>,
+}
+
+impl From<NetworkPDU> for PDU {
+    fn from(inner: NetworkPDU) -> Self {
+        PDU::Network(inner)
+    }
 }
 
 impl NetworkPDU {
