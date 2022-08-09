@@ -4,9 +4,9 @@ use core::convert::TryInto;
 use heapless::Vec;
 use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 
+use crate::PDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use crate::PDU;
 
 pub mod advertising;
 pub mod generic;

@@ -21,6 +21,10 @@ pub struct DeviceInfo {
 }
 
 impl DeviceInfo {
+    pub fn display(&self) {
+        info!("primary unicast address: {}", self.primary_unicast_address);
+    }
+
     pub fn new(primary_unicast_address: UnicastAddress, number_of_elements: u8) -> Self {
         Self {
             number_of_elements,

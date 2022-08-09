@@ -29,6 +29,14 @@ impl<const N: usize> From<ProvisioningData> for NetworkKeys<N> {
 }
 
 impl<const N: usize> NetworkKeys<N> {
+    pub fn display(&self) {
+        for (index, key) in self.keys.iter().enumerate() {
+            if let Some(key) = key {
+                info!("network_key[{}]: {}", index, key);
+            }
+        }
+    }
+
     pub(crate) fn by_nid_iter(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.keys
             .iter()

@@ -1,4 +1,4 @@
-use crate::stack::interface::NetworkError;
+use crate::interface::NetworkError;
 use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::{BearerError, GattBearer};
 use btmesh_pdu::provisioned::network::NetworkPDU;
@@ -17,16 +17,13 @@ impl<B: GattBearer<MTU>, const MTU: usize> GattBearerNetworkInterface<B, MTU> {
     }
 
     pub async fn run(&self) -> Result<(), NetworkError> {
-        info!("running GATT bearer");
         self.bearer.run().await?;
         Ok(())
     }
 
     pub async fn receive(&self) -> Result<PDU, BearerError> {
-        info!("start GATT recv");
         loop {
             let data = self.bearer.receive().await?;
-            info!("received data from bearer");
             let proxy_pdu = ProxyPDU::parse(&data)?;
             if let SAR::Complete = proxy_pdu.sar {
                 match proxy_pdu.message_type {

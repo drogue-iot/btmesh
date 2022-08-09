@@ -1,5 +1,6 @@
 use crate::storage::provisioned::foundation::Foundation;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
+use btmesh_common::Composition;
 use core::hash::{Hash, Hasher};
 
 mod foundation;
@@ -15,6 +16,12 @@ pub struct ProvisionedConfiguration {
 }
 
 impl ProvisionedConfiguration {
+    pub fn display(&self, composition: &Composition) {
+        self.device_info.display();
+        self.network_state.display();
+        self.secrets.display();
+    }
+
     pub fn network_state(&self) -> NetworkState {
         self.network_state
     }

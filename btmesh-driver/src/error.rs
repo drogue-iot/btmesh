@@ -1,6 +1,6 @@
 use core::array::TryFromSliceError;
 
-use crate::stack::interface::NetworkError;
+use crate::interface::NetworkError;
 use crate::storage::StorageError;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;

@@ -57,8 +57,6 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                //Timer::after(Duration::from_secs(1)).await;
-                //defmt::info!("server run loop");
                 let (message, meta) = ctx.receive().await;
                 match message {
                     GenericOnOffMessage::Get => {}

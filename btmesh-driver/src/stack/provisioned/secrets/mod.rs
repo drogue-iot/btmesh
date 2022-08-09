@@ -32,6 +32,11 @@ impl From<(DeviceKey, ProvisioningData)> for Secrets {
 }
 
 impl Secrets {
+    pub fn display(&self) {
+        info!("device_key: {}", self.device_key);
+        self.network_keys.display();
+    }
+
     pub(crate) fn new(
         device_key: DeviceKey,
         network_keys: NetworkKeys,

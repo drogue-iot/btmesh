@@ -1,4 +1,3 @@
-use core::future::{Future, pending};
 use crate::stack::unprovisioned::UnprovisionedStack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
@@ -6,8 +5,8 @@ use crate::storage::Configuration;
 use crate::util::deadline::DeadlineFuture;
 use crate::{DeviceState, ProvisionedStack, Sequence};
 use btmesh_common::Uuid;
+use core::future::{pending, Future};
 
-pub mod interface;
 pub mod provisioned;
 pub mod unprovisioned;
 
@@ -44,31 +43,29 @@ impl Stack {
         }
     }
 
-    pub fn next_retransmit(&self) -> Option<impl Future<Output=()> + '_> {
+    pub fn next_retransmit(&self) -> Option<impl Future<Output = ()> + '_> {
         if let Stack::None = self {
-            return None
+            return None;
         }
-        Some(
-            async move {
-                match self {
-                    Stack::None => pending().await,
-                    Stack::Unprovisioned { stack, .. } => {
-                        if let Some(fut) = stack.next_retransmit() {
-                            fut.await
-                        } else {
-                            pending().await
-                        }
-                    },
-                    Stack::Provisioned { stack, .. } => {
-                        if let Some(fut) = stack.next_retransmit() {
-                            fut.await
-                        } else {
-                            pending().await
-                        }
-                    },
+        Some(async move {
+            match self {
+                Stack::None => pending().await,
+                Stack::Unprovisioned { stack, .. } => {
+                    if let Some(fut) = stack.next_retransmit() {
+                        fut.await
+                    } else {
+                        pending().await
+                    }
+                }
+                Stack::Provisioned { stack, .. } => {
+                    if let Some(fut) = stack.next_retransmit() {
+                        fut.await
+                    } else {
+                        pending().await
+                    }
                 }
             }
-        )
+        })
     }
 }
 

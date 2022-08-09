@@ -59,6 +59,11 @@ pub struct NetworkState {
 }
 
 impl NetworkState {
+    pub fn display(&self) {
+        info!("iv_index: {}", self.iv_index_state.iv_index);
+        info!("iv_update_flag: {}", self.iv_index_state.iv_update_flag);
+    }
+
     pub(crate) fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
         Self {
             iv_index_state: IvIndexState::new(iv_index, iv_update_flag),

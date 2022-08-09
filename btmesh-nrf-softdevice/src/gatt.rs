@@ -51,11 +51,9 @@ impl SoftdeviceGattBearer {
                 |e| match e {
                     MeshGattServerEvent::Proxy(event) => match event {
                         ProxyServiceEvent::DataInWrite(data) => {
-                            defmt::info!("proxy data-in write");
                             self.inbound.try_send(data).ok();
                         }
                         ProxyServiceEvent::DataOutCccdWrite { notifications } => {
-                            defmt::info!("proxy data CCD {}", notifications );
                             if notifications {
                                 self.connection_channel
                                     .replace(Some(ConnectionChannel::Proxy));
@@ -67,7 +65,6 @@ impl SoftdeviceGattBearer {
                     },
                     MeshGattServerEvent::Provisioning(event) => match event {
                         ProvisioningServiceEvent::DataInWrite(data) => {
-                            defmt::info!("provisioning data-in write");
                             self.inbound.try_send(data).ok();
                         }
                         ProvisioningServiceEvent::DataOutCccdWrite { notifications } => {
@@ -109,7 +106,6 @@ impl GattBearer<66> for SoftdeviceGattBearer {
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
-            defmt::info!("waiting on inbound GATT");
             Ok(self.inbound.recv().await)
         }
     }
@@ -128,7 +124,6 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                             .map_err(|_| BearerError::TransmissionFailure)?;
                     }
                     Some(ConnectionChannel::Proxy) => {
-                        defmt::info!("sending proxy");
                         self.server
                             .proxy
                             .data_out_notify(connection, pdu.clone())
@@ -169,7 +164,6 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                 .await;
             match result {
                 Ok(connection) => {
-                    defmt::info!("connected!!");
                     self.connected.store(true, Ordering::Relaxed);
                     self.connection.signal(connection);
                     return Ok(());

@@ -1,7 +1,7 @@
-use crate::stack::interface::advertising::segmentation::outbound::{
+use crate::interface::advertising::segmentation::outbound::{
     OutboundSegments, OutboundSegmentsIter,
 };
-use crate::stack::interface::advertising::segmentation::Segmentation;
+use crate::interface::advertising::segmentation::Segmentation;
 use crate::DeviceState;
 use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::PB_ADV_MTU;

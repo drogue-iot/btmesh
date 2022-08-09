@@ -48,6 +48,17 @@ pub enum Configuration {
     Provisioned(ProvisionedConfiguration),
 }
 
+impl Configuration {
+    pub fn display(&self, composition: &Composition) {
+        info!("========================================================================");
+        match self {
+            Configuration::Unprovisioned(config) => config.display(composition),
+            Configuration::Provisioned(config) => config.display(composition),
+        }
+        info!("========================================================================");
+    }
+}
+
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
     capabilities: RefCell<Option<Capabilities>>,

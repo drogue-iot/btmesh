@@ -43,7 +43,7 @@ nrf52833 = [
 defmt = [
     "dep:defmt",
     "btmesh-driver/defmt",
-    "nrf-softdevice/defmt",
+#    "nrf-softdevice/defmt",
 ]
 
 gatt = [

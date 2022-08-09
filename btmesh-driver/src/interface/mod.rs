@@ -1,5 +1,5 @@
-use crate::stack::interface::advertising::AdvertisingBearerNetworkInterface;
-use crate::stack::interface::gatt::GattBearerNetworkInterface;
+use crate::interface::advertising::AdvertisingBearerNetworkInterface;
+use crate::interface::gatt::GattBearerNetworkInterface;
 use crate::DeviceState;
 use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::{AdvertisingBearer, BearerError, GattBearer};

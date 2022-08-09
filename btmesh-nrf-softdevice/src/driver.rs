@@ -1,7 +1,7 @@
 use crate::advertising::SoftdeviceAdvertisingBearer;
 use crate::gatt::SoftdeviceGattBearer;
 use crate::rng::SoftdeviceRng;
-use btmesh_driver::stack::interface::{
+use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;

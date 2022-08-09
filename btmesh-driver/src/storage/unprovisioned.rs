@@ -1,5 +1,5 @@
 use crate::Configuration;
-use btmesh_common::Uuid;
+use btmesh_common::{Composition, Uuid};
 use rand_core::RngCore;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -11,6 +11,8 @@ pub struct UnprovisionedConfiguration {
 }
 
 impl UnprovisionedConfiguration {
+    pub fn display(&self, composition: &Composition) {}
+
     pub fn new<R: RngCore>(rng: &mut R) -> Self {
         let mut uuid = [0; 16];
         rng.fill_bytes(&mut uuid);

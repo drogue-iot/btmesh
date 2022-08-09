@@ -18,11 +18,12 @@ use btmesh_pdu::PDU;
 use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
-use embassy::util::{select, select3, Either3, select4, Either4};
+use embassy::util::{select, select3, select4, Either3, Either4};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
 pub mod fmt;
+pub mod interface;
 pub mod stack;
 
 mod device;
@@ -33,8 +34,8 @@ mod util;
 
 use crate::device::DeviceContext;
 use crate::dispatch::Dispatcher;
+use crate::interface::{NetworkError, NetworkInterfaces};
 use crate::models::FoundationDevice;
-use crate::stack::interface::{NetworkError, NetworkInterfaces};
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
 use crate::stack::provisioned::sequence::Sequence;
@@ -45,6 +46,7 @@ use crate::stack::Stack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
+use crate::util::hash::hash_of;
 pub use error::DriverError;
 
 #[allow(clippy::large_enum_variant)]
@@ -271,7 +273,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
     async fn run_driver(&self, composition: Composition) -> Result<(), DriverError> {
         info!("btmesh: starting up");
-        info!("composition {}", composition);
 
         let capabilities = Capabilities {
             number_of_elements: composition.number_of_elements(),
@@ -284,11 +285,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             input_oob_action: Default::default(),
         };
 
-        self.storage.set_composition(composition);
+        self.storage.set_composition(composition.clone());
         self.storage.set_capabilities(capabilities);
 
+        let mut last_config_hash = None;
+
         loop {
-            info!("driver loop");
             let config = match self.storage.borrow().get().await {
                 Ok(config) => config,
                 Err(_) => {
@@ -301,6 +303,18 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     config
                 }
             };
+
+            let current_hash = hash_of(&config);
+
+            if let Some(previous_hash) = last_config_hash {
+                if previous_hash != current_hash {
+                    config.display(&composition);
+                }
+            } else {
+                config.display(&composition);
+            }
+
+            last_config_hash.replace(current_hash);
 
             let mut desired = DesiredStack::Unchanged;
 
@@ -360,19 +374,20 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         self.process_outbound_payload(outbound_payload).await?;
                     }
                     Either4::Third(_) => {
-                        info!("send beacon!");
                         self.send_beacon().await?;
                     }
                     Either4::Fourth(_) => {
-                        info!("retransmit");
                         self.retransmit().await?;
                     }
                 }
 
                 let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
                 if let Some(config) = config {
-                    // will conditionally put depending on hash/dirty/sequence changes.
-                    self.storage.borrow().put(&config).await?;
+                    let current_hash = hash_of(&config);
+                    if let Some(previous_hash) = last_config_hash {
+                        self.storage.borrow().put(&config).await?;
+                    }
+                    last_config_hash.replace(current_hash);
                 }
             }
         }
@@ -442,10 +457,10 @@ where
 = impl Future<Output = ()> + 'f;
 
 type RetransmitFuture<'f, N, R, B>
-    where
-        N: NetworkInterfaces + 'f,
-        R: CryptoRng + RngCore + 'f,
-        B: BackingStore + 'f,
+where
+    N: NetworkInterfaces + 'f,
+    R: CryptoRng + RngCore + 'f,
+    B: BackingStore + 'f,
 = impl Future<Output = ()> + 'f;
 
 pub enum DeviceState {

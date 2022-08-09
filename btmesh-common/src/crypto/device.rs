@@ -13,6 +13,32 @@ pub struct DeviceKey {
     device_key: [u8; 16],
 }
 
+#[cfg(feature = "defmt")]
+impl ::defmt::Format for DeviceKey {
+    fn format(&self, fmt: ::defmt::Formatter) {
+        ::defmt::write!(
+            fmt,
+            "0x{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}{:X}",
+            self.device_key[0],
+            self.device_key[1],
+            self.device_key[2],
+            self.device_key[3],
+            self.device_key[4],
+            self.device_key[5],
+            self.device_key[6],
+            self.device_key[7],
+            self.device_key[8],
+            self.device_key[9],
+            self.device_key[10],
+            self.device_key[11],
+            self.device_key[12],
+            self.device_key[13],
+            self.device_key[14],
+            self.device_key[15],
+        )
+    }
+}
+
 impl DeviceKey {
     pub fn new(device_key: [u8; 16]) -> Self {
         Self { device_key }

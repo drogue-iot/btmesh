@@ -99,9 +99,15 @@ impl KeyRefreshFlag {
 }
 
 #[derive(Copy, Clone, Default, PartialEq, Eq, Debug, Hash)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct IvIndex(u32);
+
+#[cfg(feature = "defmt")]
+impl ::defmt::Format for IvIndex {
+    fn format(&self, fmt: ::defmt::Formatter) {
+        ::defmt::write!(fmt, "{}", self.0)
+    }
+}
 
 impl IvIndex {
     pub fn new(iv_index: u32) -> Self {
