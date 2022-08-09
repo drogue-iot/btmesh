@@ -18,7 +18,7 @@ use btmesh_pdu::PDU;
 use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
-use embassy::util::{select, select3, Either3};
+use embassy::util::{select, select3, Either3, select4, Either4};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -122,7 +122,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         }
                         ProvisioningState::Response(pdu) => {
                             info!("provisioning: state response");
-                            self.network.transmit(&PDU::Provisioning(pdu)).await?;
+                            self.network.transmit(&(pdu.into())).await?;
                         }
                         ProvisioningState::Data(device_key, provisioning_data, pdu) => {
                             info!("provisioning: state data");
@@ -207,6 +207,20 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         Ok(())
     }
 
+    async fn retransmit(&self) -> Result<(), DriverError> {
+        match &*self.stack.borrow() {
+            Stack::None => {}
+            Stack::Unprovisioned { stack, .. } => {
+                if let Some(pdu) = stack.retransmit() {
+                    self.network.transmit(&(pdu.into())).await?;
+                }
+            }
+            Stack::Provisioned { .. } => {}
+        }
+
+        Ok(())
+    }
+
     async fn send_beacon(&self) -> Result<(), DriverError> {
         match &*self.stack.borrow() {
             Stack::None => {
@@ -228,6 +242,16 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         async move {
             if let Some(next_beacon_deadline) = self.stack.borrow().next_beacon_deadline() {
                 next_beacon_deadline.await
+            } else {
+                pending().await
+            }
+        }
+    }
+
+    fn next_retransmit(&self) -> RetransmitFuture<'_, N, R, B> {
+        async move {
+            if let Some(next_retransmit) = self.stack.borrow().next_retransmit() {
+                next_retransmit.await
             } else {
                 pending().await
             }
@@ -318,25 +342,30 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 let receive_fut = self.network.receive(&device_state);
                 let transmit_fut = OUTBOUND.recv();
                 let beacon_fut = self.next_beacon();
+                let retransmit_fut = self.next_retransmit();
 
-                match select3(receive_fut, transmit_fut, beacon_fut).await {
-                    Either3::First(Ok(pdu)) => {
+                match select4(receive_fut, transmit_fut, beacon_fut, retransmit_fut).await {
+                    Either4::First(Ok(pdu)) => {
                         info!("receive_pdu!");
                         if let Err(err) = self.receive_pdu(&pdu).await {
                             info!("{}", err);
                         }
                     }
-                    Either3::First(Err(err)) => {
+                    Either4::First(Err(err)) => {
                         info!("receive_pdu error!");
                         return Err(err.into());
                     }
-                    Either3::Second(outbound_payload) => {
+                    Either4::Second(outbound_payload) => {
                         info!("got something to send along {}", outbound_payload);
                         self.process_outbound_payload(outbound_payload).await?;
                     }
-                    Either3::Third(_) => {
+                    Either4::Third(_) => {
                         info!("send beacon!");
                         self.send_beacon().await?;
+                    }
+                    Either4::Fourth(_) => {
+                        info!("retransmit");
+                        self.retransmit().await?;
                     }
                 }
 
@@ -410,6 +439,13 @@ where
     N: NetworkInterfaces + 'f,
     R: CryptoRng + RngCore + 'f,
     B: BackingStore + 'f,
+= impl Future<Output = ()> + 'f;
+
+type RetransmitFuture<'f, N, R, B>
+    where
+        N: NetworkInterfaces + 'f,
+        R: CryptoRng + RngCore + 'f,
+        B: BackingStore + 'f,
 = impl Future<Output = ()> + 'f;
 
 pub enum DeviceState {

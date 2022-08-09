@@ -11,7 +11,8 @@ use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
-use embassy::time::Duration;
+use core::future::Future;
+use embassy::time::{Duration, Timer};
 use heapless::Vec;
 use secrets::Secrets;
 
@@ -163,6 +164,10 @@ impl ProvisionedStack {
 
     pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
         Some(self.beacon.next())
+    }
+
+    pub fn next_retransmit(&self) -> Option<impl Future<Output = ()>> {
+        Some(Timer::after(Duration::from_millis(500)))
     }
 
     pub fn process_inbound_network_pdu(

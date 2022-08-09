@@ -1,3 +1,4 @@
+use core::future::{Future, pending};
 use crate::stack::unprovisioned::UnprovisionedStack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
@@ -41,6 +42,33 @@ impl Stack {
             Stack::Unprovisioned { stack, .. } => stack.next_beacon_deadline(),
             Stack::Provisioned { stack, .. } => stack.next_beacon_deadline(),
         }
+    }
+
+    pub fn next_retransmit(&self) -> Option<impl Future<Output=()> + '_> {
+        if let Stack::None = self {
+            return None
+        }
+        Some(
+            async move {
+                match self {
+                    Stack::None => pending().await,
+                    Stack::Unprovisioned { stack, .. } => {
+                        if let Some(fut) = stack.next_retransmit() {
+                            fut.await
+                        } else {
+                            pending().await
+                        }
+                    },
+                    Stack::Provisioned { stack, .. } => {
+                        if let Some(fut) = stack.next_retransmit() {
+                            fut.await
+                        } else {
+                            pending().await
+                        }
+                    },
+                }
+            }
+        )
     }
 }
 

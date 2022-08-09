@@ -6,6 +6,7 @@ use p256::elliptic_curve::sec1::{FromEncodedPoint, ToEncodedPoint};
 
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use crate::PDU;
 
 pub mod advertising;
 pub mod generic;
@@ -23,6 +24,12 @@ pub enum ProvisioningPDU {
     Data(Data),
     Complete,
     Failed(Failed),
+}
+
+impl From<ProvisioningPDU> for PDU {
+    fn from(inner: ProvisioningPDU) -> Self {
+        PDU::Provisioning(inner)
+    }
 }
 
 #[derive(Clone, Default, Hash, Debug)]

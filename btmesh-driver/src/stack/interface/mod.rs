@@ -108,6 +108,8 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
             let gatt_fut = self.gatt_interface.receive();
             let result = select(adv_fut, gatt_fut).await;
 
+            info!("received");
+
             match result {
                 Either::First(result) | Either::Second(result) => Ok(result?),
             }

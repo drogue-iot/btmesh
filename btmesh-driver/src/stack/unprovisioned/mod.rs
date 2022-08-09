@@ -4,8 +4,9 @@ use crate::util::hash::FnvHasher;
 use crate::DriverError;
 use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
+use core::future::Future;
 use core::hash::{Hash, Hasher};
-use embassy::time::Duration;
+use embassy::time::{Duration, Timer};
 use rand_core::{CryptoRng, RngCore};
 
 mod auth_value;
@@ -43,7 +44,29 @@ impl UnprovisionedStack {
     }
 
     pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
-        Some(self.beacon.next())
+        if self.in_progress() {
+            None
+        } else {
+            Some(self.beacon.next())
+        }
+    }
+
+    pub fn next_retransmit(&self) -> Option<impl Future<Output = ()>> {
+        if self.in_progress() {
+            info!("IS in progress");
+            Some(Timer::after(Duration::from_millis(1000)))
+        } else {
+            info!("NOT in progress");
+            None
+        }
+    }
+
+    pub fn retransmit(&self) -> Option<ProvisioningPDU> {
+        if let Some(fsm) = &self.provisionee {
+            fsm.response()
+        } else {
+            None
+        }
     }
 
     pub fn process<RNG: RngCore + CryptoRng>(
