@@ -2,10 +2,7 @@ use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
 use core::cell::RefCell;
-use core::future::{pending, Future};
-use core::pin::Pin;
-use core::task::{Context, Poll};
-use embassy::time::{Duration, Timer};
+use core::future::Future;
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
 #[device(cid = 0x0003, pid = 0x0001, vid = 0x0001)]
@@ -64,15 +61,9 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
                 //defmt::info!("server run loop");
                 let (message, meta) = ctx.receive().await;
                 match message {
-                    GenericOnOffMessage::Get => {
-
-                    }
-                    GenericOnOffMessage::Set(val) => {
-
-                    }
-                    GenericOnOffMessage::SetUnacknowledged(val) => {
-
-                    }
+                    GenericOnOffMessage::Get => {}
+                    GenericOnOffMessage::Set(val) => {}
+                    GenericOnOffMessage::SetUnacknowledged(val) => {}
                     GenericOnOffMessage::Status(_) => {
                         // not applicable
                     }
@@ -100,6 +91,7 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
         Self: 'f,
         C: BluetoothMeshModelContext<GenericOnOffClient> + 'f;
 
+    #[allow(clippy::await_holding_refcell_ref)]
     fn run<'run, C: BluetoothMeshModelContext<GenericOnOffClient> + 'run>(
         &'run self,
         ctx: C,

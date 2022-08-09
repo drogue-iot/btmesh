@@ -313,12 +313,13 @@ impl Reassembly {
 #[cfg(test)]
 mod tests {
     use crate::stack::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
-    use crate::stack::provisioned::system::{LowerMetadata, NetworkKeyHandle, UpperMetadata};
+    use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
     use crate::stack::provisioned::{DriverError, ProvisionedStack};
     use btmesh_common::address::UnicastAddress;
     use btmesh_common::crypto::network::Nid;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};
+    use btmesh_device::NetworkKeyHandle;
     use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::provisioned::lower::SegmentedLowerPDU;

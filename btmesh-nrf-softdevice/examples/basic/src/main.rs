@@ -26,16 +26,9 @@ extern "C" {
 
 #[embassy::main(config = "config()")]
 async fn main(_spawner: Spawner, p: Peripherals) {
-    let mut driver = Driver::new(
-        "drogue",
-        unsafe { &__storage as *const u8 as u32 },
-        100,
-    );
+    let mut driver = Driver::new("drogue", unsafe { &__storage as *const u8 as u32 }, 100);
 
-    let mut device = Device::new(
-        p.P0_13.degrade(),
-        p.P0_11.degrade(),
-    );
+    let mut device = Device::new(p.P0_13.degrade(), p.P0_11.degrade());
     driver.run(&mut device).await.unwrap();
 }
 

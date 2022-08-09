@@ -178,6 +178,7 @@ mod test {
             ),
             device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             sequence: 0,
+            foundation: Default::default(),
         });
 
         assert!(should_writeback(
@@ -201,6 +202,7 @@ mod test {
             ),
             device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             sequence: 100,
+            foundation: Default::default(),
         });
 
         let hash = hash_of(&provisioned_config);
@@ -229,6 +231,7 @@ mod test {
             ),
             device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             sequence: 199,
+            foundation: Default::default(),
         });
 
         assert!(!should_writeback(
@@ -255,6 +258,7 @@ mod test {
             ),
             device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             sequence: 200,
+            foundation: Default::default(),
         });
 
         assert!(should_writeback(
@@ -281,6 +285,7 @@ mod test {
             ),
             device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             sequence: 205,
+            foundation: Default::default(),
         });
 
         assert!(should_writeback(

@@ -164,7 +164,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                         #future_struct_name::new(
                             #ctor_params
                         ),
-                    ).await;
+                    ).await.1.ok();
 
                     Ok(())
                 }
@@ -313,7 +313,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         impl #generics ::btmesh_device::BluetoothMeshElement for #struct_name #generic_params {
             fn populate(&self, composition: &mut ::btmesh_device::Composition) {
                 #populate
-                composition.add_element(descriptor);
+                composition.add_element(descriptor).ok();
             }
 
             type RunFuture<'f,C> = impl Future<Output = Result<(), ()>> + 'f
@@ -334,7 +334,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                         #future_struct_name::new(
                             #ctor_params
                         ),
-                    ).await;
+                    ).await.1.ok();
 
                     Ok(())
                 }
