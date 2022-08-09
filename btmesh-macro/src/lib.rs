@@ -9,11 +9,7 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use regex::Regex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::punctuated::Punctuated;
-use syn::{
-    Field, File, GenericParam, Path, PathSegment, TraitBound, TraitBoundModifier, Type, TypeParam,
-    TypeParamBound,
-};
+use syn::{Field, File, GenericParam, Type};
 
 #[derive(FromMeta)]
 struct DeviceArgs {
@@ -67,7 +63,6 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                         #c,
                     })
                 }
-                _ => {}
             }
         }
         generic_params.extend(quote!( > ));
@@ -201,7 +196,7 @@ static MODEL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
     let element_struct = syn::parse_macro_input!(item as syn::ItemStruct);
 
-    let mut generics = element_struct.generics.clone();
+    let generics = element_struct.generics.clone();
 
     let mut generic_params = TokenStream2::new();
     if !generics.params.is_empty() {
@@ -226,7 +221,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                         #c,
                     })
                 }
-                _ => {}
             }
         }
         generic_params.extend(quote!( > ));

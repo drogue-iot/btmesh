@@ -3,23 +3,22 @@
 #![feature(generic_associated_types)]
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
+#![allow(clippy::await_holding_refcell_ref)]
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{
-    join, BluetoothMeshDevice, InboundChannelImpl, InboundPayload, InboundReceiverImpl,
-    InboundSenderImpl, OutboundChannelImpl, OutboundPayload,
+    BluetoothMeshDevice, InboundChannelImpl, InboundReceiverImpl, OutboundChannelImpl,
+    OutboundPayload,
 };
 use btmesh_pdu::provisioned::access::AccessMessage;
-use btmesh_pdu::provisioned::{Message, System};
-use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
+use btmesh_pdu::provisioned::Message;
+use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
-use core::borrow::{Borrow, BorrowMut};
-use core::cell::{Ref, RefCell};
+use core::borrow::Borrow;
+use core::cell::RefCell;
 use core::future::{pending, Future};
-use core::pin::Pin;
-use embassy::channel::{Channel, Receiver};
-use embassy::util::{select, select3, Either, Either3};
+use embassy::util::{select, select3, Either3};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -39,7 +38,7 @@ use crate::stack::interface::{NetworkError, NetworkInterfaces};
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::system::{AccessMetadata, UpperMetadata};
+use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
@@ -48,6 +47,7 @@ use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
 pub use error::DriverError;
 
+#[allow(clippy::large_enum_variant)]
 enum DesiredStack {
     Unchanged,
     Unprovisioned(UnprovisionedConfiguration),
@@ -234,10 +234,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
-    fn run_device<'ch, D: BluetoothMeshDevice>(
-        device: &'ch mut D,
+    fn run_device<D: BluetoothMeshDevice>(
+        device: &mut D,
         receiver: InboundReceiverImpl,
-    ) -> impl Future<Output = Result<(), ()>> + 'ch {
+    ) -> impl Future<Output = Result<(), ()>> + '_ {
         device.run(DeviceContext::new(receiver, OUTBOUND.sender()))
     }
 
@@ -347,7 +347,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
         }
-        info!("driver loop done");
     }
 
     async fn run<'r, D: BluetoothMeshDevice>(
@@ -358,14 +357,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         info!("run!");
 
-        let mut foundation_device = FoundationDevice::new(&self.storage);
+        let mut foundation_device = FoundationDevice::new(self.storage);
 
-        let mut device_fut = select(
+        let device_fut = select(
             Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
             Self::run_device(device, DEVICE_INBOUND.receiver()),
         );
-        let mut driver_fut = self.run_driver(composition);
-        let mut network_fut = Self::run_network(&self.network);
+        let driver_fut = self.run_driver(composition);
+        let network_fut = Self::run_network(&self.network);
 
         // if the device or the driver is `Ready` then stuff is just done, stop.
         match select3(driver_fut, device_fut, network_fut).await {

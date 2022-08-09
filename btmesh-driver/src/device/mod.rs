@@ -1,9 +1,8 @@
-use crate::stack::provisioned::system::AccessMetadata;
 use btmesh_common::ModelIdentifier;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    InboundChannelImpl, InboundMetadata, InboundPayload, InboundReceiverImpl, Model,
-    OutboundMetadata, OutboundReceiverImpl, OutboundSenderImpl,
+    InboundMetadata, InboundPayload, InboundReceiverImpl, Model, OutboundMetadata,
+    OutboundSenderImpl,
 };
 use btmesh_models::Message;
 use core::future::Future;
@@ -109,7 +108,7 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
         async move {
             let opcode = message.opcode();
             let mut parameters = Vec::new();
-            if let Ok(_) = message.emit_parameters(&mut parameters) {
+            if message.emit_parameters(&mut parameters).is_ok() {
                 self.outbound
                     .send((
                         (self.element_index, self.model_identifier),
@@ -129,7 +128,7 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
         Self: 'f,
         M: 'f;
 
-    fn publish(&self, message: M::Message) -> Self::PublishFuture<'_> {
+    fn publish(&self, _message: M::Message) -> Self::PublishFuture<'_> {
         async move { todo!() }
     }
 }

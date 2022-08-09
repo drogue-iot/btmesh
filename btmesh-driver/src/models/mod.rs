@@ -1,9 +1,7 @@
 use crate::models::configuration::Configuration;
 use crate::{BackingStore, Storage};
-use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
+use btmesh_device::BluetoothMeshModel;
 use btmesh_macro::{device, element};
-use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
-use cmac::crypto_mac::Output;
 use core::future::Future;
 
 pub mod configuration;

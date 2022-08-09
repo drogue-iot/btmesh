@@ -1,8 +1,8 @@
+#![allow(clippy::single_match)]
 use crate::{BackingStore, Storage};
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use core::future::Future;
-use core::marker::PhantomData;
 
 pub mod composition_data;
 
@@ -33,7 +33,9 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                 ConfigurationMessage::DefaultTTL(default_ttl) => {}
                 ConfigurationMessage::CompositionData(composition_data) => {
                     info!("received {}", composition_data);
-                    composition_data::dispatch(ctx, self.storage, composition_data, meta).await;
+                    composition_data::dispatch(ctx, self.storage, composition_data, meta)
+                        .await
+                        .map_err(|_| ())?;
                 }
                 ConfigurationMessage::AppKey(app_key) => {}
                 ConfigurationMessage::ModelApp(model_app) => {}

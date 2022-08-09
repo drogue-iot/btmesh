@@ -1,4 +1,3 @@
-use crate::stack::provisioned::system::AccessMetadata;
 use crate::{DriverError, ProvisionedStack};
 use btmesh_device::InboundSenderImpl;
 use btmesh_pdu::provisioned::access::AccessMessage;

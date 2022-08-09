@@ -1,6 +1,5 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
-use btmesh_common::address::UnicastAddress;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
@@ -8,7 +7,6 @@ use core::future::Future;
 use core::hash::Hash;
 use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
 use embassy::mutex::Mutex;
-use embassy::mutex::MutexGuard;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -96,8 +94,8 @@ impl<B: BackingStore> Storage<B> {
 
         if let Some(Configuration::Provisioned(config)) = &*config {
             let mut config = config.clone();
-            if let Ok(_) = modification(&mut config) {
-                self.put(&Configuration::Provisioned(config)).await;
+            if modification(&mut config).is_ok() {
+                self.put(&Configuration::Provisioned(config)).await?;
             }
         }
 

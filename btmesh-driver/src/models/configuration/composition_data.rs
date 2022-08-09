@@ -1,10 +1,9 @@
-use crate::stack::provisioned::system::AccessMetadata;
 use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
 use btmesh_models::foundation::configuration::composition_data::{
     CompositionDataMessage, CompositionStatus,
 };
-use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
+use btmesh_models::foundation::configuration::ConfigurationServer;
 
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: C,
@@ -19,7 +18,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                     CompositionStatus::new(0, storage.composition()).into(),
                     meta.reply(),
                 )
-                .await;
+                .await?;
             }
         }
         _ => {

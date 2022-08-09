@@ -2,7 +2,6 @@ use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
-use btmesh_common::crypto::network::Nid;
 use btmesh_common::{IvIndex, Seq, Ttl};
 use btmesh_device::{
     ApplicationKeyHandle, InboundMetadata, KeyHandle, NetworkKeyHandle, OutboundMetadata,
