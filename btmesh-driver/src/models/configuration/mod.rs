@@ -1,8 +1,8 @@
+use crate::{BackingStore, Storage};
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use core::future::Future;
 use core::marker::PhantomData;
-use crate::{BackingStore, Storage};
 
 pub mod composition_data;
 
@@ -12,9 +12,7 @@ pub struct Configuration<'s, B: BackingStore + 's> {
 
 impl<'s, B: BackingStore + 's> Configuration<'s, B> {
     pub fn new(storage: &'s Storage<B>) -> Self {
-        Self {
-            storage,
-        }
+        Self { storage }
     }
 }
 

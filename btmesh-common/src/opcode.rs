@@ -1,5 +1,5 @@
-use heapless::Vec;
 use crate::InsufficientBuffer;
+use heapless::Vec;
 
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Opcode {

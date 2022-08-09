@@ -6,9 +6,9 @@ use btmesh_common::crypto::device::DeviceKey;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
 use btmesh_pdu::provisioning::ProvisioningData;
 
+use btmesh_device::{ApplicationKeyHandle, NetworkKeyHandle};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use btmesh_device::{ApplicationKeyHandle, NetworkKeyHandle};
 
 pub mod application;
 pub mod network;

@@ -182,21 +182,24 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
     ) -> Result<(), DriverError> {
         let config = self.storage.borrow().get().await?;
         if let Configuration::Provisioned(config) = config {
-            let element_address = config.device_info().local_element_address( outbound_payload.0.0 as u8 ).ok_or(DriverError::InvalidState)?;
+            let element_address = config
+                .device_info()
+                .local_element_address(outbound_payload.0 .0 as u8)
+                .ok_or(DriverError::InvalidState)?;
             let default_ttl = config.foundation().configuration().default_ttl();
             let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
                 outbound_payload.1,
                 outbound_payload.2,
-                (element_address, outbound_payload.3, *default_ttl)
+                (element_address, outbound_payload.3, *default_ttl),
             );
 
             if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
                 info!("transmit {}", message);
-                let network_pdus = stack.process_outbound( sequence, &(message.into()) );
+                let network_pdus = stack.process_outbound(sequence, &(message.into()));
                 info!("result {}", network_pdus);
                 for pdu in network_pdus? {
                     info!("network PDU {}", pdu);
-                    self.network.transmit( &(pdu.into()) ).await?;
+                    self.network.transmit(&(pdu.into())).await?;
                 }
             }
         }

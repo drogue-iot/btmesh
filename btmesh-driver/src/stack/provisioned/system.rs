@@ -4,6 +4,9 @@ use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
 use btmesh_common::crypto::network::Nid;
 use btmesh_common::{IvIndex, Seq, Ttl};
+use btmesh_device::{
+    ApplicationKeyHandle, InboundMetadata, KeyHandle, NetworkKeyHandle, OutboundMetadata,
+};
 use btmesh_pdu::provisioned::access::AccessMessage;
 use btmesh_pdu::provisioned::lower::{LowerPDU, SegmentedLowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
@@ -12,8 +15,6 @@ use btmesh_pdu::provisioned::upper::control::UpperControlPDU;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use btmesh_pdu::provisioned::System;
 use heapless::Vec;
-use btmesh_device::{ApplicationKeyHandle, InboundMetadata, KeyHandle, NetworkKeyHandle, OutboundMetadata};
-
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -155,7 +156,6 @@ impl LowerMetadata {
     pub fn local_element_index(&self) -> Option<u8> {
         self.local_element_index
     }
-
 }
 
 #[derive(Clone)]
@@ -304,7 +304,7 @@ impl From<(UnicastAddress, OutboundMetadata, Ttl)> for AccessMetadata {
             src,
             dst: meta.dst(),
             ttl: meta.ttl().unwrap_or(default_ttl),
-            label_uuid: None
+            label_uuid: None,
         }
     }
 }
@@ -369,7 +369,7 @@ impl From<&AccessMetadata> for InboundMetadata {
             meta.network_key_handle,
             meta.iv_index,
             meta.key_handle,
-            meta.label_uuid
+            meta.label_uuid,
         )
     }
 }

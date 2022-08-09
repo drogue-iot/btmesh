@@ -9,8 +9,7 @@ use core::future::Future;
 pub mod configuration;
 
 #[device(cid = 0, pid = 0, vid = 0)]
-pub struct FoundationDevice<'s, B: BackingStore + 's>
-{
+pub struct FoundationDevice<'s, B: BackingStore + 's> {
     zero: Zero<'s, B>,
 }
 

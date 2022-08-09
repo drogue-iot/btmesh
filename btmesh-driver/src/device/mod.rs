@@ -1,13 +1,13 @@
 use crate::stack::provisioned::system::AccessMetadata;
+use btmesh_common::ModelIdentifier;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
     InboundChannelImpl, InboundMetadata, InboundPayload, InboundReceiverImpl, Model,
     OutboundMetadata, OutboundReceiverImpl, OutboundSenderImpl,
 };
+use btmesh_models::Message;
 use core::future::Future;
 use heapless::Vec;
-use btmesh_common::ModelIdentifier;
-use btmesh_models::Message;
 
 pub(crate) struct DeviceContext {
     inbound: InboundReceiverImpl,
@@ -23,7 +23,11 @@ impl<'ch> DeviceContext {
 impl BluetoothMeshDeviceContext for DeviceContext {
     type ElementContext = ElementContext;
 
-    fn element_context(&self, element_index: usize, inbound: InboundReceiverImpl) -> Self::ElementContext {
+    fn element_context(
+        &self,
+        element_index: usize,
+        inbound: InboundReceiverImpl,
+    ) -> Self::ElementContext {
         ElementContext {
             element_index,
             inbound,
@@ -106,11 +110,14 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
             let opcode = message.opcode();
             let mut parameters = Vec::new();
             if let Ok(_) = message.emit_parameters(&mut parameters) {
-                self.outbound.send(
-                    ( (self.element_index, self.model_identifier),
-                        opcode, parameters, meta
-                    )
-                ).await
+                self.outbound
+                    .send((
+                        (self.element_index, self.model_identifier),
+                        opcode,
+                        parameters,
+                        meta,
+                    ))
+                    .await
             }
 
             Ok(())

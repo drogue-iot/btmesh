@@ -1,5 +1,6 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
+use btmesh_common::address::UnicastAddress;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
@@ -10,7 +11,6 @@ use embassy::mutex::Mutex;
 use embassy::mutex::MutexGuard;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use btmesh_common::address::UnicastAddress;
 
 pub(crate) mod provisioned;
 pub(crate) mod unprovisioned;

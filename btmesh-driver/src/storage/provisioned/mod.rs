@@ -1,6 +1,6 @@
+use crate::storage::provisioned::foundation::Foundation;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use core::hash::{Hash, Hasher};
-use crate::storage::provisioned::foundation::Foundation;
 
 mod foundation;
 

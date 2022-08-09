@@ -1,10 +1,10 @@
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
+use btmesh_device::NetworkKeyHandle;
 use btmesh_pdu::provisioning::ProvisioningData;
 use heapless::Vec;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use btmesh_device::NetworkKeyHandle;
 
 #[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]

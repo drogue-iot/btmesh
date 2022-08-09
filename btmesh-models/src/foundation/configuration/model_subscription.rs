@@ -1,9 +1,9 @@
 use crate::{Message, Status};
 use btmesh_common::address::{Address, GroupAddress, LabelUuid, UnicastAddress};
-use btmesh_common::{InsufficientBuffer, ModelIdentifier, opcode, ParseError};
+use btmesh_common::opcode::Opcode;
+use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
 use core::convert::TryInto;
 use heapless::Vec;
-use btmesh_common::opcode::Opcode;
 //use serde::{Deserialize, Serialize};
 
 opcode!( CONFIG_MODEL_SUBSCRIPTION_ADD 0x80, 0x1B);

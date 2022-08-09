@@ -1,7 +1,7 @@
 use crate::provisioned::{Message, System};
+use btmesh_common::opcode::Opcode;
 use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
-use btmesh_common::opcode::Opcode;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -20,7 +20,11 @@ impl<S: System> From<AccessMessage<S>> for Message<S> {
 
 #[allow(unused)]
 impl<S: System> AccessMessage<S> {
-    pub fn new<M: Into<S::AccessMetadata>>(opcode: Opcode, parameters: Vec<u8,379>, meta: M) -> Self {
+    pub fn new<M: Into<S::AccessMetadata>>(
+        opcode: Opcode,
+        parameters: Vec<u8, 379>,
+        meta: M,
+    ) -> Self {
         Self {
             opcode,
             parameters,

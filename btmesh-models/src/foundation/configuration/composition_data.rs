@@ -1,8 +1,8 @@
-use crate::Message;
-use btmesh_common::{Composition, InsufficientBuffer, ModelIdentifier, opcode, ParseError};
-use heapless::Vec;
-use btmesh_common::opcode::Opcode;
 use crate::foundation::configuration::ConfigurationMessage;
+use crate::Message;
+use btmesh_common::opcode::Opcode;
+use btmesh_common::{opcode, Composition, InsufficientBuffer, ModelIdentifier, ParseError};
+use heapless::Vec;
 
 opcode!( CONFIG_COMPOSITION_DATA_GET 0x80, 0x08 );
 opcode!( CONFIG_COMPOSITION_DATA_STATUS 0x02 );
@@ -54,9 +54,7 @@ pub struct CompositionStatus {
 
 impl From<CompositionStatus> for ConfigurationMessage {
     fn from(inner: CompositionStatus) -> Self {
-        ConfigurationMessage::CompositionData(
-            inner.into()
-        )
+        ConfigurationMessage::CompositionData(inner.into())
     }
 }
 
@@ -68,10 +66,7 @@ impl From<CompositionStatus> for CompositionDataMessage {
 
 impl CompositionStatus {
     pub fn new(page: u8, data: Composition) -> Self {
-        Self {
-            page,
-            data
-        }
+        Self { page, data }
     }
 
     fn emit_parameters<const N: usize>(

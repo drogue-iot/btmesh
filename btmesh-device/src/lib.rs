@@ -8,37 +8,41 @@ use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
 use btmesh_common::crypto::network::Nid;
 pub use btmesh_common::location;
+use btmesh_common::opcode::Opcode;
 pub use btmesh_common::ElementDescriptor;
 pub use btmesh_common::{
     CompanyIdentifier, Composition, Features, InsufficientBuffer, ModelIdentifier,
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, Ttl};
-pub use btmesh_models::{Model};
+pub use btmesh_models::Model;
 use core::future::Future;
 use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy::channel::{Channel, Receiver, Sender};
 pub use futures::future::join;
 use heapless::Vec;
-use btmesh_common::opcode::Opcode;
 
 pub type InboundChannelImpl = Channel<CriticalSectionRawMutex, InboundPayload, 1>;
 pub type InboundSenderImpl = Sender<'static, CriticalSectionRawMutex, InboundPayload, 1>;
 pub type InboundReceiverImpl = Receiver<'static, CriticalSectionRawMutex, InboundPayload, 1>;
 pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
 
-
 pub type OutboundChannelImpl = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundSenderImpl = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundReceiverImpl = Receiver<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
-pub type OutboundPayload = ((usize, ModelIdentifier), Opcode, Vec<u8, 379>, OutboundMetadata);
+pub type OutboundPayload = (
+    (usize, ModelIdentifier),
+    Opcode,
+    Vec<u8, 379>,
+    OutboundMetadata,
+);
 
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
 
     fn element_context(&self, index: usize, inbound: InboundReceiverImpl) -> Self::ElementContext;
 
-    type ReceiveFuture<'f>: Future<Output =InboundPayload> + 'f
+    type ReceiveFuture<'f>: Future<Output = InboundPayload> + 'f
     where
         Self: 'f;
 
@@ -81,7 +85,7 @@ pub trait BluetoothMeshElementContext {
         inbound: InboundReceiverImpl,
     ) -> Self::ModelContext<M>;
 
-    type ReceiveFuture<'f>: Future<Output =InboundPayload> + 'f
+    type ReceiveFuture<'f>: Future<Output = InboundPayload> + 'f
     where
         Self: 'f;
 
@@ -120,9 +124,9 @@ pub trait BluetoothMeshModelContext<M: Model> {
     fn send(&self, message: M::Message, meta: OutboundMetadata) -> Self::SendFuture<'_>;
 
     type PublishFuture<'f>: Future<Output = Result<(), ()>> + 'f
-        where
-            Self: 'f,
-            M: 'f;
+    where
+        Self: 'f,
+        M: 'f;
 
     fn publish(&self, message: M::Message) -> Self::PublishFuture<'_>;
 }
@@ -157,7 +161,7 @@ impl InboundMetadata {
             network_key_handle,
             iv_index,
             key_handle,
-            label_uuid
+            label_uuid,
         }
     }
     pub fn src(&self) -> UnicastAddress {
@@ -225,8 +229,6 @@ impl OutboundMetadata {
     pub fn ttl(&self) -> Option<Ttl> {
         self.ttl
     }
-
-
 }
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]

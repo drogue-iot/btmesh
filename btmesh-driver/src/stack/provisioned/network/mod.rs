@@ -1,4 +1,4 @@
-use crate::stack::provisioned::system::{NetworkMetadata};
+use crate::stack::provisioned::system::NetworkMetadata;
 use crate::stack::provisioned::{DriverError, ProvisionedStack, ReplayProtection};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
@@ -7,9 +7,9 @@ use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
 
+use btmesh_device::NetworkKeyHandle;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use btmesh_device::NetworkKeyHandle;
 
 pub mod replay_protection;
 

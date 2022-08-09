@@ -1,11 +1,11 @@
 use crate::provisioned::System;
+use crate::PDU;
 use btmesh_common::crypto::network::Nid;
 use btmesh_common::{
     address::{Address, UnicastAddress},
     Ctl, InsufficientBuffer, Ivi, ParseError, Seq, Ttl,
 };
 use heapless::Vec;
-use crate::PDU;
 
 /// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]

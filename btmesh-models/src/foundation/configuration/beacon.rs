@@ -1,7 +1,7 @@
 use crate::Message;
-use btmesh_common::{InsufficientBuffer, opcode, ParseError};
-use heapless::Vec;
 use btmesh_common::opcode::Opcode;
+use btmesh_common::{opcode, InsufficientBuffer, ParseError};
+use heapless::Vec;
 
 opcode!( CONFIG_BEACON_GET 0x80, 0x09 );
 opcode!( CONFIG_BEACON_SET 0x80, 0x0A );

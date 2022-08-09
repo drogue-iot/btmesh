@@ -1,9 +1,9 @@
 use crate::foundation::configuration::{AppKeyIndex, KeyIndex};
 use crate::{Message, Status};
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::{InsufficientBuffer, ModelIdentifier, opcode, ParseError};
-use heapless::Vec;
 use btmesh_common::opcode::Opcode;
+use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
+use heapless::Vec;
 
 opcode!( CONFIG_MODEL_APP_BIND 0x80, 0x3D);
 opcode!( CONFIG_MODEL_APP_STATUS 0x80, 0x3E);

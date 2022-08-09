@@ -24,7 +24,6 @@ impl OutboundSegmentation {
         pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
     ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
-
         info!("seg A");
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         info!("seg B");
@@ -59,7 +58,7 @@ impl OutboundSegmentation {
                         } else {
                             sequence.next()
                         };
-                        info!("seg D2 {}", segment_m.len() );
+                        info!("seg D2 {}", segment_m.len());
 
                         // it's just a pass-through, so the `()`-centric System is perfectly good.
                         let lower_pdu = SegmentedLowerAccessPDU::<()>::new(
