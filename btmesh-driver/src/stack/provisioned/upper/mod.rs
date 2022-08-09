@@ -128,11 +128,15 @@ impl ProvisionedStack {
 
                 let device_key = self.secrets.device_key();
 
-                let mut bytes = [0; 379];
                 let mut transmic = TransMic::new32();
 
-                crypto::device::encrypt_device_key(&device_key, &nonce, &mut bytes, &mut transmic)
-                    .map_err(|_| DriverError::CryptoError)?;
+                crypto::device::encrypt_device_key(
+                    &device_key,
+                    &nonce,
+                    &mut *payload,
+                    &mut transmic,
+                )
+                .map_err(|_| DriverError::CryptoError)?;
 
                 Ok(UpperAccessPDU::new(
                     &payload,

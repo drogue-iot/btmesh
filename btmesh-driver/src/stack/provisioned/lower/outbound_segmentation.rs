@@ -31,7 +31,7 @@ impl OutboundSegmentation {
 
         match pdu {
             UpperPDU::Access(inner) => {
-                info!("seg C");
+                info!("seg C {:02x}", inner.payload());
                 if inner.payload().len() <= NONSEGMENTED_ACCESS_MUT {
                     result
                         .push(CleartextNetworkPDU::new(
