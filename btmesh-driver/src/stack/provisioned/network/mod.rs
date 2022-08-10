@@ -225,7 +225,6 @@ impl ProvisionedStack {
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
         let ctl = Ctl::parse((unobfuscated[0] & 0b10000000) >> 7)?;
 
-
         let seq = Seq::parse(u32::from_be_bytes([
             0,
             unobfuscated[1],

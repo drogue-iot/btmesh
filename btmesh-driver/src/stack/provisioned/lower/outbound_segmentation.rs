@@ -33,14 +33,11 @@ impl OutboundSegmentation {
                 inner.emit(&mut payload)?;
 
                 if payload.len() <= NONSEGMENTED_ACCESS_MUT {
-                    let lower_pdu = UnsegmentedLowerAccessPDU::<()>::new(
-                        inner.meta().aid(),
-                        &*payload,
-                        ()
-                    )?;
+                    let lower_pdu =
+                        UnsegmentedLowerAccessPDU::<()>::new(inner.meta().aid(), &*payload, ())?;
 
                     let mut transport_pdu = Vec::<_, 16>::new();
-                    lower_pdu.emit( &mut transport_pdu );
+                    lower_pdu.emit(&mut transport_pdu);
 
                     result
                         .push(CleartextNetworkPDU::new(

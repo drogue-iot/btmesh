@@ -36,37 +36,32 @@ impl ProvisionedStack {
         ),
         DriverError,
     > {
-
         let lower_pdu = LowerPDU::parse(network_pdu, LowerMetadata::from_network_pdu(network_pdu))?;
 
         match &lower_pdu {
             LowerPDU::Unsegmented(inner) => match inner {
-                UnsegmentedLowerPDU::Access(access_pdu) => {
-                    Ok((
-                        None,
-                        Some(
-                            UpperAccessPDU::parse(
-                                access_pdu.upper_pdu(),
-                                SzMic::Bit32,
-                                UpperMetadata::from_unsegmented_lower_pdu(inner),
-                            )?
-                                .into(),
-                        ),
-                    ))
-                },
-                UnsegmentedLowerPDU::Control(control_pdu) => {
-                    Ok((
-                        None,
-                        Some(
-                            UpperControlPDU::new(
-                                control_pdu.opcode(),
-                                control_pdu.parameters(),
-                                UpperMetadata::from_unsegmented_lower_pdu(inner),
-                            )?
-                                .into(),
-                        ),
-                    ))
-                },
+                UnsegmentedLowerPDU::Access(access_pdu) => Ok((
+                    None,
+                    Some(
+                        UpperAccessPDU::parse(
+                            access_pdu.upper_pdu(),
+                            SzMic::Bit32,
+                            UpperMetadata::from_unsegmented_lower_pdu(inner),
+                        )?
+                        .into(),
+                    ),
+                )),
+                UnsegmentedLowerPDU::Control(control_pdu) => Ok((
+                    None,
+                    Some(
+                        UpperControlPDU::new(
+                            control_pdu.opcode(),
+                            control_pdu.parameters(),
+                            UpperMetadata::from_unsegmented_lower_pdu(inner),
+                        )?
+                        .into(),
+                    ),
+                )),
             },
             LowerPDU::Segmented(inner) => {
                 let result = self.lower.inbound_segmentation.process(inner)?;

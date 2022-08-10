@@ -12,13 +12,16 @@ pub struct UnsegmentedLowerAccessPDU<S: System> {
 }
 
 impl<S: System> UnsegmentedLowerAccessPDU<S> {
-    pub fn new(akf_aid: Option<Aid>, upper_pdu: &[u8], meta: S::LowerMetadata) -> Result<Self, InsufficientBuffer> {
+    pub fn new(
+        akf_aid: Option<Aid>,
+        upper_pdu: &[u8],
+        meta: S::LowerMetadata,
+    ) -> Result<Self, InsufficientBuffer> {
         Ok(Self {
             akf_aid,
             upper_pdu: Vec::from_slice(upper_pdu)?,
             meta,
         })
-
     }
     pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let akf_aid = Aid::parse(data[0])?;

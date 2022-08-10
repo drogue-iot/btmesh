@@ -103,7 +103,6 @@ impl<S: System> LowerPDU<S> {
         network_pdu: &CleartextNetworkPDU<S>,
         meta: S::LowerMetadata,
     ) -> Result<Self, ParseError> {
-
         let data = network_pdu.transport_pdu();
 
         if data.len() >= 2 {
