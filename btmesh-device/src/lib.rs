@@ -99,7 +99,7 @@ pub trait BluetoothMeshModel<M: Model> {
         C: BluetoothMeshModelContext<M> + 'f;
 
     fn run<'run, C: BluetoothMeshModelContext<M> + 'run>(
-        &'run self,
+        &'run mut self,
         ctx: C,
     ) -> Self::RunFuture<'_, C>;
 

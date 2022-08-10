@@ -1,7 +1,6 @@
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
-use core::cell::RefCell;
 use core::future::Future;
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
@@ -52,7 +51,7 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
         C: BluetoothMeshModelContext<GenericOnOffServer> + 'f;
 
     fn run<'run, C: BluetoothMeshModelContext<GenericOnOffServer> + 'run>(
-        &'run self,
+        &'run mut self,
         ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
@@ -72,13 +71,13 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
 }
 
 struct MyOnOffClientHandler<'d> {
-    button: RefCell<Input<'d, AnyPin>>,
+    button: Input<'d, AnyPin>,
 }
 
 impl MyOnOffClientHandler<'_> {
     fn new(button: AnyPin) -> Self {
         Self {
-            button: RefCell::new(Input::new(button, Pull::Up)),
+            button: Input::new(button, Pull::Up),
         }
     }
 }
@@ -91,12 +90,12 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
 
     #[allow(clippy::await_holding_refcell_ref)]
     fn run<'run, C: BluetoothMeshModelContext<GenericOnOffClient> + 'run>(
-        &'run self,
+        &'run mut self,
         ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                self.button.borrow_mut().wait_for_falling_edge().await;
+                self.button.wait_for_falling_edge().await;
                 defmt::info!("** button pushed");
             }
         }
