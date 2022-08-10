@@ -18,8 +18,8 @@ use btmesh_pdu::PDU;
 use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
-use embassy::time::{Duration, Timer};
-use embassy::util::{select, select3, select4, Either3, Either4};
+use embassy_executor::time::{Duration, Timer};
+use embassy_util::{select, select3, select4, Either3, Either4};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;

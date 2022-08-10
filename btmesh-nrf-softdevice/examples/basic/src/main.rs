@@ -4,7 +4,7 @@
 #![feature(generic_associated_types)]
 #![feature(type_alias_impl_trait)]
 
-use embassy::executor::Spawner;
+use embassy_executor::executor::Spawner;
 use embassy_nrf::Peripherals;
 
 use embassy_nrf::config::Config;
@@ -24,7 +24,7 @@ extern "C" {
     static __storage: u8;
 }
 
-#[embassy::main(config = "config()")]
+#[embassy_executor::main(config = "config()")]
 async fn main(_spawner: Spawner, p: Peripherals) {
     let mut driver = Driver::new("drogue", unsafe { &__storage as *const u8 as u32 }, 100);
 

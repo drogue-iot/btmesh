@@ -2,7 +2,7 @@ use core::cell::Cell;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use embassy::time::{Duration, Instant, Timer};
+use embassy_executor::time::{Duration, Instant, Timer};
 
 pub struct Deadline {
     every: Duration,

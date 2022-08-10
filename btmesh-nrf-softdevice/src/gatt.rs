@@ -3,8 +3,8 @@ use btmesh_bearer::{BearerError, GattBearer};
 use core::cell::RefCell;
 use core::future::Future;
 use core::sync::atomic::Ordering;
-use embassy::blocking_mutex::raw::ThreadModeRawMutex;
-use embassy::channel::{Channel, Signal};
+use embassy_util::blocking_mutex::raw::ThreadModeRawMutex;
+use embassy_util::channel::{mpmc::Channel, signal::Signal};
 use heapless::Vec;
 use nrf_softdevice::ble::peripheral::AdvertiseError;
 use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
@@ -27,10 +27,10 @@ pub struct SoftdeviceGattBearer {
 }
 
 impl SoftdeviceGattBearer {
-    pub fn new(sd: &'static Softdevice) -> Self {
+    pub fn new(sd: &'static Softdevice, server: MeshGattServer) -> Self {
         Self {
             sd,
-            server: gatt_server::register(sd).unwrap(),
+            server,
             connection: Signal::new(),
             connected: AtomicBool::new(false),
             current_connection: RefCell::new(None),

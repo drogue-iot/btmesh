@@ -17,8 +17,8 @@ pub use btmesh_common::{
 use btmesh_common::{IvIndex, Ttl};
 pub use btmesh_models::Model;
 use core::future::Future;
-use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
-pub use embassy::channel::{Channel, Receiver, Sender};
+use embassy_util::blocking_mutex::raw::CriticalSectionRawMutex;
+pub use embassy_util::channel::mpmc::{Channel, Receiver, Sender};
 pub use futures::future::join;
 use heapless::Vec;
 
@@ -99,7 +99,7 @@ pub trait BluetoothMeshModel<M: Model> {
         C: BluetoothMeshModelContext<M> + 'f;
 
     fn run<'run, C: BluetoothMeshModelContext<M> + 'run>(
-        &'run self,
+        &'run mut self,
         ctx: C,
     ) -> Self::RunFuture<'_, C>;
 
