@@ -22,6 +22,8 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
     type TransmitFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;
 
     fn transmit<'m>(&'m self, message: &'m Vec<u8, PB_ADV_MTU>) -> Self::TransmitFuture<'m> {
+
+        defmt::info!("nrf-xmit {:x}", message);
         let adv =
             peripheral::NonconnectableAdvertisement::NonscannableUndirected { adv_data: message };
 

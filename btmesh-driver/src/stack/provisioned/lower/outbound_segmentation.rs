@@ -4,7 +4,7 @@ use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{Ctl, InsufficientBuffer};
-use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
+use btmesh_pdu::provisioned::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
 use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
@@ -31,8 +31,20 @@ impl OutboundSegmentation {
 
         match pdu {
             UpperPDU::Access(inner) => {
+                let mut payload = Vec::<_, 380>::new();
+                inner.emit(&mut payload)?;
+
                 info!("seg C {:02x}", inner.payload());
-                if inner.payload().len() <= NONSEGMENTED_ACCESS_MUT {
+                if payload.len() <= NONSEGMENTED_ACCESS_MUT {
+                    let lower_pdu = UnsegmentedLowerAccessPDU::<()>::new(
+                        inner.meta().aid(),
+                        &*payload,
+                        ()
+                    )?;
+
+                    let mut transport_pdu = Vec::<_, 16>::new();
+                    lower_pdu.emit( &mut transport_pdu );
+
                     result
                         .push(CleartextNetworkPDU::new(
                             pdu.meta().iv_index().ivi(),
@@ -42,14 +54,15 @@ impl OutboundSegmentation {
                             pdu.meta().seq(),
                             pdu.meta().src(),
                             pdu.meta().dst(),
-                            inner.payload(),
+                            &*transport_pdu,
                             meta,
                         )?)
                         .map_err(|_| InsufficientBuffer)?;
                 } else {
                     info!("seg D");
+
                     let seq_zero = inner.meta().seq().into();
-                    let payload = inner.payload().chunks(SEGMENTED_ACCESS_MTU);
+                    let payload = payload.chunks(SEGMENTED_ACCESS_MTU);
                     let seg_n = payload.len() - 1;
 
                     for (seg_o, segment_m) in payload.enumerate() {

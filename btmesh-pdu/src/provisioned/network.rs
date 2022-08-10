@@ -9,7 +9,6 @@ use heapless::Vec;
 
 /// On-the-wire network PDU as transmitted over a bearer.
 #[derive(Clone)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetworkPDU {
     ivi: Ivi,
     /* 1 bit */
@@ -17,6 +16,20 @@ pub struct NetworkPDU {
     /* 7 bits */
     obfuscated: [u8; 6],
     encrypted_and_mic: Vec<u8, 28>,
+}
+
+#[cfg(feature = "defmt")]
+impl ::defmt::Format for NetworkPDU {
+    fn format(&self, fmt: ::defmt::Formatter) {
+        ::defmt::write!(
+            fmt,
+            "NetworkPDU {{ ivi: {}, nid: {}, obfuscated: {:x}, encrypted_and_mic: {:x} }}",
+            self.ivi,
+            self.nid,
+            self.obfuscated,
+            self.encrypted_and_mic
+        )
+    }
 }
 
 impl From<NetworkPDU> for PDU {
@@ -116,6 +129,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         transport_pdu: &[u8],
         meta: S::NetworkMetadata,
     ) -> Result<Self, InsufficientBuffer> {
+        //defmt::info!("new cleartext payload transport_pdu {:x}", transport_pdu);
         Ok(Self {
             //network_key,
             ivi,

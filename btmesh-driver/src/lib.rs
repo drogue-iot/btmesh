@@ -155,8 +155,15 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
-                if let Some(result) = stack.process_inbound_network_pdu(pdu)? {
+                info!("recv:A");
+                let result = stack.process_inbound_network_pdu(pdu);
+                if let Err(inner) = result {
+                    info!("error! {}", inner);
+                }
+                if let Some(result) = result? {
+                    info!("recv:B");
                     if let Some((block_ack, meta)) = result.block_ack {
+                        info!("recv:C");
                         // send outbound block-ack
                         for network_pdu in
                             stack.process_outbound_block_ack(sequence, block_ack, meta)?
@@ -165,11 +172,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             self.network.transmit(&PDU::Network(network_pdu)).await.ok();
                         }
                     }
+                    info!("recv:D");
 
                     if let Some(message) = result.message {
+                        info!("recv:E");
                         // dispatch to element(s)
                         match message {
                             Message::Access(message) => {
+                                info!("recv:F");
                                 info!("access message {}", message);
                                 self.dispatcher.dispatch(message).await?;
                             }
@@ -209,7 +219,17 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 info!("result {}", network_pdus);
                 for pdu in network_pdus? {
                     info!("network PDU {}", pdu);
-                    self.network.transmit(&(pdu.into())).await?;
+                    self.network.transmit(&(pdu.clone().into())).await?;
+                    info!("********************************");
+                    info!("********************************");
+                    if let Ok(Some(result)) = stack.process_inbound_network_pdu(&pdu) {
+                        if let Some(message) = result.message {
+                            info!("mmmmmmessage {}", message);
+
+                        }
+                    }
+                    info!("********************************");
+                    info!("********************************");
                 }
             }
         }
@@ -297,6 +317,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         self.storage.set_capabilities(capabilities);
 
         let mut last_config_hash = None;
+        self.storage.borrow().init().await?;
 
         loop {
             let config = match self.storage.borrow().get().await {
@@ -333,6 +354,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
                 (Stack::None, Configuration::Provisioned(config))
                 | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
+                    info!("heading to provisioned with seq {}", config.sequence);
                     desired = DesiredStack::Provisioned(config);
                 }
                 _ => {
@@ -420,8 +442,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         // if the device or the driver is `Ready` then stuff is just done, stop.
         match select3(driver_fut, device_fut, network_fut).await {
-            Either3::First(_) => {
+            Either3::First(Ok(_)) => {
                 info!("driver done");
+            }
+            Either3::First(Err(err)) => {
+                info!("driver done with error {}", err);
             }
             Either3::Second(_val) => {
                 info!("device done");

@@ -90,7 +90,7 @@ impl ProvisionedStack {
     }
 
     pub fn encrypt_network_pdu(
-        &self,
+        &mut self,
         cleartext_pdu: &CleartextNetworkPDU<ProvisionedStack>,
     ) -> Result<NetworkPDU, DriverError> {
         let ctl_ttl = match cleartext_pdu.ctl() {
@@ -99,22 +99,27 @@ impl ProvisionedStack {
         } << 7
             | cleartext_pdu.ttl().value();
 
+        info!("network encrypt with sequence {}", cleartext_pdu.seq());
+        info!("network encrypt with iv_index {}", cleartext_pdu.meta().iv_index());
+
+        let mut encrypted_and_mic = Vec::<_, 28>::new();
+        encrypted_and_mic
+            .extend_from_slice(&cleartext_pdu.dst().as_bytes())
+            .map_err(|_| DriverError::InsufficientSpace)?;
+
+        info!("encrypt transport pdu {:x}", cleartext_pdu.transport_pdu());
+        encrypted_and_mic
+            .extend_from_slice(cleartext_pdu.transport_pdu())
+            .map_err(|_| DriverError::InsufficientSpace)?;
+
+        let network_key = self.network_key(cleartext_pdu.meta().network_key_handle())?;
+
         let nonce = NetworkNonce::new(
             ctl_ttl,
             cleartext_pdu.seq(),
             cleartext_pdu.src(),
             cleartext_pdu.meta().iv_index(),
         );
-
-        let mut encrypted_and_mic = Vec::<_, 28>::new();
-        encrypted_and_mic
-            .extend_from_slice(&cleartext_pdu.dst().as_bytes())
-            .map_err(|_| DriverError::InsufficientSpace)?;
-        encrypted_and_mic
-            .extend_from_slice(cleartext_pdu.transport_pdu())
-            .map_err(|_| DriverError::InsufficientSpace)?;
-
-        let network_key = self.network_key(cleartext_pdu.meta().network_key_handle())?;
 
         match cleartext_pdu.ctl() {
             Ctl::Access => {
@@ -152,8 +157,6 @@ impl ProvisionedStack {
         let privacy_plaintext =
             crypto::privacy_plaintext(cleartext_pdu.meta().iv_index(), &encrypted_and_mic);
 
-        //let privacy_key = self.privacy_key(cleartext_pdu.meta().network_key_handle())?;
-
         let pecb = crypto::e(&network_key.privacy_key(), privacy_plaintext)
             .map_err(|_| DriverError::CryptoError)?;
 
@@ -170,12 +173,23 @@ impl ProvisionedStack {
         unobfuscated[5] = src_bytes[1];
         let obfuscated = crypto::pecb_xor(pecb, unobfuscated);
 
+        let network_pdu = NetworkPDU::new(
+            cleartext_pdu.ivi(),
+            cleartext_pdu.nid(),
+            obfuscated,
+            &*encrypted_and_mic,
+        )?;
+
+        Ok(network_pdu)
+
+        /*
         Ok(NetworkPDU::new(
             cleartext_pdu.ivi(),
             cleartext_pdu.nid(),
             obfuscated,
             &*encrypted_and_mic,
         )?)
+         */
     }
 
     pub fn try_decrypt_network_pdu(
@@ -184,16 +198,22 @@ impl ProvisionedStack {
         iv_index: IvIndex,
     ) -> Result<Option<CleartextNetworkPDU<ProvisionedStack>>, DriverError> {
         let mut result = None;
+        info!("try decrypt network:A");
         for network_key in self.network_keys_by_nid(pdu.nid()) {
+            info!("try decrypt network:B");
             if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
+                info!("try decrypt network:C");
                 result.replace(pdu);
                 break;
             }
         }
+        info!("try decrypt network:D");
 
         if let Some(result) = &mut result {
+            info!("try decrypt network:E");
             self.validate_cleartext_network_pdu(result);
         }
+        info!("try decrypt network:F");
 
         Ok(result)
     }
@@ -212,8 +232,12 @@ impl ProvisionedStack {
         let pecb = crypto::e(&network_key.privacy_key(), privacy_plaintext)
             .map_err(|_| DriverError::InvalidKeyLength)?;
 
+        info!("obfuscated {:x}", pdu.obfuscated());
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
-        let ctl = Ctl::parse(unobfuscated[0] & 0b10000000)?;
+        info!("unobfuscated {:x}", unobfuscated);
+        let ctl = Ctl::parse((unobfuscated[0] & 0b10000000) >> 7)?;
+
+        info!("decrypt CTL = {}", ctl);
 
         let seq = Seq::parse(u32::from_be_bytes([
             0,
@@ -237,16 +261,20 @@ impl ProvisionedStack {
 
         if crypto::network::try_decrypt_network(&network_key, &nonce, payload, &mic).is_ok() {
             let ttl = Ttl::parse(unobfuscated[0] & 0b01111111)?;
+            /*
             let seq = Seq::parse(u32::from_be_bytes([
                 0,
                 unobfuscated[1],
                 unobfuscated[2],
                 unobfuscated[3],
             ]))?;
+             */
 
             let src = UnicastAddress::parse([unobfuscated[4], unobfuscated[5]])?;
             let dst = Address::parse([payload[0], payload[1]]);
             let transport_pdu = &payload[2..];
+
+            info!("transport PDU {:x}", &payload[2..]);
 
             let local_element_index = self.network.local_element_index(dst);
 

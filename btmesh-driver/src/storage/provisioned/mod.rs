@@ -17,6 +17,7 @@ pub struct ProvisionedConfiguration {
 
 impl ProvisionedConfiguration {
     pub fn display(&self, composition: &Composition) {
+        info!("seq: {}", self.sequence);
         self.device_info.display();
         self.network_state.display();
         self.secrets.display();

@@ -12,6 +12,14 @@ pub struct UnsegmentedLowerAccessPDU<S: System> {
 }
 
 impl<S: System> UnsegmentedLowerAccessPDU<S> {
+    pub fn new(akf_aid: Option<Aid>, upper_pdu: &[u8], meta: S::LowerMetadata) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
+            akf_aid,
+            upper_pdu: Vec::from_slice(upper_pdu)?,
+            meta,
+        })
+
+    }
     pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let akf_aid = Aid::parse(data[0])?;
         Ok(Self {
@@ -19,6 +27,15 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
             upper_pdu: Vec::from_slice(&data[1..])?,
             meta,
         })
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        match self.akf_aid {
+            None => xmit.push(0)?,
+            Some(aid) => aid.emit(xmit)?,
+        }
+        xmit.extend_from_slice(&self.upper_pdu)?;
+        Ok(())
     }
 
     pub fn akf(&self) -> bool {

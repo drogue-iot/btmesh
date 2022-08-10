@@ -2,6 +2,7 @@ use crate::Message;
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ParseError};
 use heapless::Vec;
+use crate::foundation::configuration::ConfigurationMessage;
 
 opcode!( CONFIG_BEACON_GET 0x80, 0x09 );
 opcode!( CONFIG_BEACON_SET 0x80, 0x0A );
@@ -13,6 +14,13 @@ pub enum BeaconMessage {
     Set(bool),
     Status(bool),
 }
+
+impl From<BeaconMessage>  for ConfigurationMessage {
+    fn from(inner: BeaconMessage) -> Self {
+        ConfigurationMessage::Beacon(inner)
+    }
+}
+
 
 impl Message for BeaconMessage {
     fn opcode(&self) -> Opcode {

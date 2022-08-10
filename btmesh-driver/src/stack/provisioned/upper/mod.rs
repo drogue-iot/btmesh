@@ -128,6 +128,8 @@ impl ProvisionedStack {
 
                 let device_key = self.secrets.device_key();
 
+                info!("clr {}", payload);
+
                 let mut transmic = TransMic::new32();
 
                 crypto::device::encrypt_device_key(
@@ -137,6 +139,9 @@ impl ProvisionedStack {
                     &mut transmic,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
+
+                info!("cypher {:x} {}", &*payload, payload.len());
+                info!("mic {:x}", transmic.as_ref());
 
                 Ok(UpperAccessPDU::new(
                     &payload,

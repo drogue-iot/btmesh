@@ -42,6 +42,8 @@ impl System for () {
     type ControlMetadata = ();
 }
 
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Message<S: System> {
     Access(AccessMessage<S>),
     Control(ControlMessage<S>),

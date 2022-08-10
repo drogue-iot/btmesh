@@ -4,6 +4,7 @@ use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use core::future::Future;
 
+pub mod beacon;
 pub mod composition_data;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
@@ -26,24 +27,28 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
         ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
-            info!("running configuration server");
-            let (message, meta) = ctx.receive().await;
-            match message {
-                ConfigurationMessage::Beacon(beacon) => {}
-                ConfigurationMessage::DefaultTTL(default_ttl) => {}
-                ConfigurationMessage::CompositionData(composition_data) => {
-                    info!("received {}", composition_data);
-                    composition_data::dispatch(ctx, self.storage, composition_data, meta)
-                        .await
-                        .map_err(|_| ())?;
+            loop {
+                let (message, meta) = ctx.receive().await;
+                match message {
+                    ConfigurationMessage::Beacon(beacon) => {
+                        beacon::dispatch(&ctx, self.storage, beacon, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
+                    ConfigurationMessage::DefaultTTL(default_ttl) => {}
+                    ConfigurationMessage::CompositionData(composition_data) => {
+                        info!("received {}", composition_data);
+                        composition_data::dispatch(&ctx, self.storage, composition_data, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
+                    ConfigurationMessage::AppKey(app_key) => {}
+                    ConfigurationMessage::ModelApp(model_app) => {}
+                    ConfigurationMessage::ModelPublication(model_publication) => {}
+                    ConfigurationMessage::ModelSubscription(model_subscription) => {}
+                    ConfigurationMessage::NodeReset(node_reset) => {}
                 }
-                ConfigurationMessage::AppKey(app_key) => {}
-                ConfigurationMessage::ModelApp(model_app) => {}
-                ConfigurationMessage::ModelPublication(model_publication) => {}
-                ConfigurationMessage::ModelSubscription(model_subscription) => {}
-                ConfigurationMessage::NodeReset(node_reset) => {}
             }
-
             Ok(())
         }
     }
