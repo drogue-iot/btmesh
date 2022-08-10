@@ -99,15 +99,11 @@ impl ProvisionedStack {
         } << 7
             | cleartext_pdu.ttl().value();
 
-        info!("network encrypt with sequence {}", cleartext_pdu.seq());
-        info!("network encrypt with iv_index {}", cleartext_pdu.meta().iv_index());
-
         let mut encrypted_and_mic = Vec::<_, 28>::new();
         encrypted_and_mic
             .extend_from_slice(&cleartext_pdu.dst().as_bytes())
             .map_err(|_| DriverError::InsufficientSpace)?;
 
-        info!("encrypt transport pdu {:x}", cleartext_pdu.transport_pdu());
         encrypted_and_mic
             .extend_from_slice(cleartext_pdu.transport_pdu())
             .map_err(|_| DriverError::InsufficientSpace)?;
@@ -198,22 +194,16 @@ impl ProvisionedStack {
         iv_index: IvIndex,
     ) -> Result<Option<CleartextNetworkPDU<ProvisionedStack>>, DriverError> {
         let mut result = None;
-        info!("try decrypt network:A");
         for network_key in self.network_keys_by_nid(pdu.nid()) {
-            info!("try decrypt network:B");
             if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
-                info!("try decrypt network:C");
                 result.replace(pdu);
                 break;
             }
         }
-        info!("try decrypt network:D");
 
         if let Some(result) = &mut result {
-            info!("try decrypt network:E");
             self.validate_cleartext_network_pdu(result);
         }
-        info!("try decrypt network:F");
 
         Ok(result)
     }
@@ -232,12 +222,9 @@ impl ProvisionedStack {
         let pecb = crypto::e(&network_key.privacy_key(), privacy_plaintext)
             .map_err(|_| DriverError::InvalidKeyLength)?;
 
-        info!("obfuscated {:x}", pdu.obfuscated());
         let unobfuscated = crypto::pecb_xor(pecb, *pdu.obfuscated());
-        info!("unobfuscated {:x}", unobfuscated);
         let ctl = Ctl::parse((unobfuscated[0] & 0b10000000) >> 7)?;
 
-        info!("decrypt CTL = {}", ctl);
 
         let seq = Seq::parse(u32::from_be_bytes([
             0,
@@ -273,8 +260,6 @@ impl ProvisionedStack {
             let src = UnicastAddress::parse([unobfuscated[4], unobfuscated[5]])?;
             let dst = Address::parse([payload[0], payload[1]]);
             let transport_pdu = &payload[2..];
-
-            info!("transport PDU {:x}", &payload[2..]);
 
             let local_element_index = self.network.local_element_index(dst);
 

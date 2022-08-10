@@ -77,10 +77,8 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub async fn init(&self) -> Result<(), StorageError> {
-        info!("config init");
         if let Ok(Configuration::Provisioned(mut config)) = self.get().await {
             let seq = config.sequence;
-            info!("config init A {}", seq);
 
             let mut extra = seq % 100;
             if extra == 100 {
@@ -90,9 +88,7 @@ impl<B: BackingStore> Storage<B> {
 
             config.sequence = seq;
             self.put(&(config.into())).await?;
-            info!("config init A {}", seq);
         }
-        info!("config init B");
 
         Ok(())
     }

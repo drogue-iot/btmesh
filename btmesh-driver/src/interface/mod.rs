@@ -108,8 +108,6 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
             let gatt_fut = self.gatt_interface.receive();
             let result = select(adv_fut, gatt_fut).await;
 
-            info!("received");
-
             match result {
                 Either::First(result) | Either::Second(result) => Ok(result?),
             }
@@ -121,7 +119,6 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
     Self: 'm;
 
     fn transmit<'m>(&'m self, pdu: &'m PDU) -> Self::TransmitFuture<'m> {
-        info!("xmit -> {}", pdu);
         async move {
             let gatt_fut = self.gatt_interface.transmit(pdu);
             let adv_fut = self.advertising_interface.transmit(pdu);

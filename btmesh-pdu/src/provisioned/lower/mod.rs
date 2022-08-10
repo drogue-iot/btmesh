@@ -105,7 +105,6 @@ impl<S: System> LowerPDU<S> {
     ) -> Result<Self, ParseError> {
 
         let data = network_pdu.transport_pdu();
-        //defmt::info!("parse LOWER {:x}", data);
 
         if data.len() >= 2 {
             let seg = data[0] & 0b10000000 != 0;

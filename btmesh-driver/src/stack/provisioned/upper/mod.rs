@@ -128,8 +128,6 @@ impl ProvisionedStack {
 
                 let device_key = self.secrets.device_key();
 
-                info!("clr {}", payload);
-
                 let mut transmic = TransMic::new32();
 
                 crypto::device::encrypt_device_key(
@@ -139,9 +137,6 @@ impl ProvisionedStack {
                     &mut transmic,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
-
-                info!("cypher {:x} {}", &*payload, payload.len());
-                info!("mic {:x}", transmic.as_ref());
 
                 Ok(UpperAccessPDU::new(
                     &payload,
@@ -188,9 +183,7 @@ impl ProvisionedStack {
         &mut self,
         pdu: UpperAccessPDU<ProvisionedStack>,
     ) -> Result<AccessMessage<ProvisionedStack>, DriverError> {
-        info!("decrypt A");
         if let Some(aid) = pdu.meta().aid() {
-            info!("decrypt B");
             // akf=true and an AID was provided.
             let nonce = ApplicationNonce::new(
                 pdu.transmic().szmic(),
@@ -199,16 +192,12 @@ impl ProvisionedStack {
                 pdu.meta().dst(),
                 pdu.meta().iv_index(),
             );
-            info!("decrypt C");
 
             let mut decrypt_result = None;
 
             'outer: for application_key_handle in self.secrets.application_keys_by_aid(aid) {
-                info!("decrypt D");
                 let application_key = self.secrets.application_key(application_key_handle)?;
-                info!("decrypt E");
                 if pdu.meta().label_uuids().is_empty() {
-                    info!("decrypt F");
                     let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                         .map_err(|_| DriverError::InsufficientSpace)?;
                     if crypto::application::try_decrypt_application_key(
@@ -220,18 +209,15 @@ impl ProvisionedStack {
                     )
                     .is_ok()
                     {
-                        info!("decrypt G");
                         decrypt_result.replace((application_key_handle, None, bytes));
                         break 'outer;
                     }
                 } else {
-                    info!("decrypt H");
                     // try each label-uuid until success.
                     // while this is two nested loops, the probability of
                     // more than a single execution is exceedingly low,
                     // but never zero.
                     for label_uuid in pdu.meta().label_uuids() {
-                        info!("decrypt I");
                         let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                             .map_err(|_| DriverError::InsufficientSpace)?;
                         if crypto::application::try_decrypt_application_key(
@@ -254,9 +240,7 @@ impl ProvisionedStack {
                 }
             }
 
-            info!("decrypt J");
             if let Some((application_key_handle, label_uuid, bytes)) = decrypt_result {
-                info!("decrypt K");
                 return Ok(AccessMessage::parse(
                     &*bytes,
                     AccessMetadata::from_upper_access_pdu(
@@ -267,7 +251,6 @@ impl ProvisionedStack {
                 )?);
             }
         } else {
-            info!("decrypt L");
             let nonce = DeviceNonce::new(
                 pdu.transmic().szmic(),
                 pdu.meta().seq(),
@@ -276,10 +259,8 @@ impl ProvisionedStack {
                 pdu.meta().iv_index(),
             );
 
-            info!("decrypt M");
             let device_key = self.secrets.device_key();
 
-            info!("decrypt N {}", pdu.payload());
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;
             if crypto::device::try_decrypt_device_key(
@@ -290,7 +271,6 @@ impl ProvisionedStack {
             )
             .is_ok()
             {
-                info!("decrypt O {}", bytes);
                 return Ok(AccessMessage::parse(
                     &*bytes,
                     AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, &pdu),
@@ -298,7 +278,6 @@ impl ProvisionedStack {
             }
         }
 
-        info!("decrypt P");
         Err(DriverError::InvalidPDU)
     }
 }

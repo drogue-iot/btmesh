@@ -14,7 +14,6 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         BeaconMessage::Get => {
-            info!("send response to beacon-get");
             ctx.send(BeaconMessage::Status(true).into(), meta.reply())
                 .await?;
         }

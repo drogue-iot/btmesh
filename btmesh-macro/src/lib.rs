@@ -182,10 +182,12 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         #device_impl
     );
 
+    /*
     let pretty = result.clone();
     let file: File = syn::parse(pretty.into()).unwrap();
     let pretty = prettyplease::unparse(&file);
     println!("{}", pretty);
+     */
 
     result.into()
 }
@@ -354,10 +356,12 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         #static_channels
     );
 
+    /*
     let pretty = result.clone();
     let file: File = syn::parse(pretty.into()).unwrap();
     let pretty = prettyplease::unparse(&file);
     println!("{}", pretty);
+     */
 
     result.into()
 }

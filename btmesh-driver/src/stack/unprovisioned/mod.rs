@@ -53,10 +53,8 @@ impl UnprovisionedStack {
 
     pub fn next_retransmit(&self) -> Option<impl Future<Output = ()>> {
         if self.in_progress() {
-            info!("IS in progress");
             Some(Timer::after(Duration::from_millis(1000)))
         } else {
-            info!("NOT in progress");
             None
         }
     }

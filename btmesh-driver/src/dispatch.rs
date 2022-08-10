@@ -26,18 +26,12 @@ impl Dispatcher {
 
         let meta = message.meta().into();
 
-        info!("opcode {}", opcode);
-        info!("local_element_index {}", local_element_index);
-
         if let Some(local_element_index) = local_element_index {
-            info!("dispatch:A");
             if local_element_index == 0 {
-                info!("dispatch:B");
                 self.foundation_sender
                     .send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))
                     .await;
             }
-            info!("dispatch:C");
             self.device_sender
                 .send((
                     Some(local_element_index as usize),
@@ -47,11 +41,9 @@ impl Dispatcher {
                 ))
                 .await;
         } else {
-            info!("dispatch:D");
             self.foundation_sender
                 .send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;
-            info!("dispatch:E");
             self.device_sender
                 .send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;

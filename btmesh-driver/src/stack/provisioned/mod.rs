@@ -184,25 +184,18 @@ impl ProvisionedStack {
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
 
-        info!("pinp:A");
-
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
-            info!("pinp:B");
             let (block_ack_meta, upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
-            info!("pinp:C");
 
             let message = if let Some(upper_pdu) = upper_pdu {
-                info!("pinp:D");
                 Some(self.process_inbound_upper_pdu(upper_pdu)?)
             } else {
-                info!("pinp:E");
                 None
             };
 
             Ok((block_ack_meta, message).try_into().ok())
         } else {
-            info!("pinp:F");
             // nothing doing, bad result, nothing parsed, keep on truckin'
             Ok(None)
         }
@@ -218,9 +211,7 @@ impl ProvisionedStack {
         message: &Message<ProvisionedStack>,
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
-        info!("upper pdu: {}", upper_pdu);
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
-        info!("network pdus: {}", network_pdus);
         self.transmit_queue
             .add(upper_pdu, network_pdus.len() as u8)?;
 

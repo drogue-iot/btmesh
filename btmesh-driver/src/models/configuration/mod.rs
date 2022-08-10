@@ -37,7 +37,6 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                     }
                     ConfigurationMessage::DefaultTTL(default_ttl) => {}
                     ConfigurationMessage::CompositionData(composition_data) => {
-                        info!("received {}", composition_data);
                         composition_data::dispatch(&ctx, self.storage, composition_data, meta)
                             .await
                             .map_err(|_| ())?;

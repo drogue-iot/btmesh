@@ -129,9 +129,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         transport_pdu: &[u8],
         meta: S::NetworkMetadata,
     ) -> Result<Self, InsufficientBuffer> {
-        //defmt::info!("new cleartext payload transport_pdu {:x}", transport_pdu);
         Ok(Self {
-            //network_key,
             ivi,
             nid,
             ctl,
