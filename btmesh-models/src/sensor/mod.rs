@@ -1,7 +1,6 @@
 use crate::{Message, Model};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
-use embassy::time::Duration;
 use heapless::Vec;
 #[allow(unused_imports)]
 use micromath::F32Ext;
@@ -126,8 +125,8 @@ pub struct SensorDescriptor {
     pub positive_tolerance: Tolerance,
     pub negative_tolerance: Tolerance,
     pub sampling_function: SamplingFunction,
-    pub measurement_period: Option<Duration>,
-    pub update_interval: Option<Duration>,
+    pub measurement_period: Option<u32>,
+    pub update_interval: Option<u32>,
     pub size: usize,
     pub x_size: usize,
 }
@@ -552,14 +551,14 @@ impl SensorDescriptor {
         self.sampling_function.emit_parameters(xmit)?;
 
         let value = if let Some(m) = self.measurement_period {
-            log_1_1(m.as_secs() as f32)
+            log_1_1(m as f32)
         } else {
             0
         };
         xmit.push(value).map_err(|_| InsufficientBuffer)?;
 
         let value = if let Some(m) = self.update_interval {
-            log_1_1(m.as_secs() as f32)
+            log_1_1(m as f32)
         } else {
             0
         };

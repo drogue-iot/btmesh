@@ -17,8 +17,8 @@ pub use btmesh_common::{
 use btmesh_common::{IvIndex, Ttl};
 pub use btmesh_models::Model;
 use core::future::Future;
-use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
-pub use embassy::channel::{Channel, Receiver, Sender};
+use embassy_util::blocking_mutex::raw::CriticalSectionRawMutex;
+pub use embassy_util::channel::mpmc::{Channel, Receiver, Sender};
 pub use futures::future::join;
 use heapless::Vec;
 

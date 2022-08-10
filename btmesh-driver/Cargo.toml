@@ -12,7 +12,8 @@ btmesh-bearer = { path = "../btmesh-bearer" }
 btmesh-device = { path = "../btmesh-device" }
 btmesh-models = { path = "../btmesh-models"}
 btmesh-macro = { path = "../btmesh-macro"}
-embassy = { version = "0.1.0", default-features = false, features = ["nightly", "time"] }
+embassy-executor = { version = "0.1.0", default-features = false, features = ["nightly", "time"] }
+embassy-util = { version = "0.1.0", default-features = false, features = ["nightly"] }
 heapless = "=0.7.13"
 hash32 = "0.2.1"
 hash32-derive = "0.1.1"
@@ -30,14 +31,14 @@ defmt = { version = "0.3", optional = true }
 
 [dev-dependencies]
 rand_core = { version = "0.6.2", default-features = false, features = ["getrandom"] }
-embassy = { version = "0.1.0", default-features = false, features = ["time", "time-tick-1000hz" ] }
+embassy-executor = { version = "0.1.0", default-features = false, features = ["time", "time-tick-1000hz" ] }
 
 
 [features]
 default = [
     "flash",
     "memory",
-    "embassy/time-tick-1000hz",
+    "embassy-executor/time-tick-1000hz",
 ]
 flash = [
     "embedded-storage",

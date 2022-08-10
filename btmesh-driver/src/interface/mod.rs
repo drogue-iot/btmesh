@@ -6,7 +6,7 @@ use btmesh_bearer::{AdvertisingBearer, BearerError, GattBearer};
 use btmesh_device::join;
 use btmesh_pdu::PDU;
 use core::future::Future;
-use embassy::util::{select, Either};
+use embassy_util::{select, Either};
 
 pub mod advertising;
 pub mod gatt;

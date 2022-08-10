@@ -5,8 +5,8 @@ use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
 use core::future::Future;
 use core::hash::Hash;
-use embassy::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy::mutex::Mutex;
+use embassy_util::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_util::mutex::Mutex;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 

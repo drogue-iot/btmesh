@@ -17,7 +17,7 @@ btmesh-device = { path = "../btmesh-device" }
 heapless = "=0.7.13"
 atomic-polyfill = "0.1.8"
 rand_core = { version = "0.6.2", default-features = false }
-embassy = { version = "0.1.0", default-features = false, features = ["executor-agnostic", "nightly" ] }
+embassy-util = { version = "0.1.0", default-features = false, features = ["nightly" ] }
 nrf-softdevice = { version = "0.1.0", features = ["ble-peripheral", "ble-gatt-server"] }
 nrf-softdevice-s113 = { version = "0.1.0", optional=true }
 nrf-softdevice-s140 = { version = "0.1.0", optional=true }
@@ -65,7 +65,7 @@ low_power = [
 ]
 
 [patch.crates-io]
-embassy = { git = "https://github.com/embassy-rs/embassy.git", rev = "36a1f203648dcb402727ea3eb5d30cf1f6993795" }
-nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "a5026485151138112b522a27c4a340614d7a7512" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "a5026485151138112b522a27c4a340614d7a7512" }
-nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "a5026485151138112b522a27c4a340614d7a7512" }
+embassy = { git = "https://github.com/embassy-rs/embassy.git", rev = "de22cb906567b1262f91398c82b6ed90803852fc" }
+nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
+nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
+nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
