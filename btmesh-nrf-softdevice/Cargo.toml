@@ -50,7 +50,6 @@ gatt = [
 
 relay = [
     "btmesh-common/relay",
-    "gatt",
 ]
 proxy = [
     "btmesh-common/proxy",

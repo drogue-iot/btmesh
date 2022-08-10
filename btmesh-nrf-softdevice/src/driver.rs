@@ -12,8 +12,8 @@ use btmesh_device::BluetoothMeshDevice;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
 
-fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
-    let config = nrf_softdevice::Config {
+fn enable_softdevice(device_name: &'static str, use_gatt: bool) -> &'static mut Softdevice {
+    let mut config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {
             source: raw::NRF_CLOCK_LF_SRC_RC as u8,
             rc_ctiv: 4,
@@ -24,15 +24,13 @@ fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
             conn_count: 1,
             event_length: 24,
         }),
-        conn_gatt: Some(raw::ble_gatt_conn_cfg_t { att_mtu: 517 }),
-        gatts_attr_tab_size: Some(raw::ble_gatts_cfg_attr_tab_size_t {
-            attr_tab_size: 32768,
-        }),
+        conn_gatt: None,
+        gatts_attr_tab_size: None,
         gap_role_count: Some(raw::ble_gap_cfg_role_count_t {
             adv_set_count: 1,
-            periph_role_count: 2,
-            central_role_count: 2,
-            central_sec_count: 2,
+            periph_role_count: 1,
+            central_role_count: 1,
+            central_sec_count: 1,
             _bitfield_1: Default::default(),
         }),
         gap_device_name: Some(raw::ble_gap_cfg_device_name_t {
@@ -47,6 +45,20 @@ fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
 
         ..Default::default()
     };
+
+    if use_gatt {
+        config.conn_gatt = Some(raw::ble_gatt_conn_cfg_t { att_mtu: 517 });
+        config.gatts_attr_tab_size = Some(raw::ble_gatts_cfg_attr_tab_size_t {
+            attr_tab_size: 32768,
+        });
+        config.gap_role_count = Some(raw::ble_gap_cfg_role_count_t {
+            adv_set_count: 1,
+            periph_role_count: 2,
+            central_role_count: 2,
+            central_sec_count: 2,
+            _bitfield_1: Default::default(),
+        });
+    }
     Softdevice::enable(&config)
 }
 
@@ -85,7 +97,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
         base_address: u32,
         sequence_threshold: u32,
     ) -> Self {
-        let sd: &'static Softdevice = enable_softdevice(name);
+        let sd: &'static Softdevice = enable_softdevice(name, false);
         let rng = SoftdeviceRng::new(sd);
         let backing_store =
             FlashBackingStore::new(Flash::take(sd), base_address, sequence_threshold);
@@ -128,7 +140,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
         base_address: u32,
         sequence_threshold: u32,
     ) -> Self {
-        let sd = enable_softdevice(name);
+        let sd = enable_softdevice(name, true);
         let server = MeshGattServer::new(sd).unwrap();
 
         let rng = SoftdeviceRng::new(sd);
