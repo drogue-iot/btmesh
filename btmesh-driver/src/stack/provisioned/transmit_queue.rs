@@ -29,22 +29,19 @@ impl<const N: usize> TransmitQueue<N> {
         upper_pdu: UpperPDU<ProvisionedStack>,
         num_segments: u8,
     ) -> Result<(), InsufficientBuffer> {
-        info!("add to queue");
         let slot = self.queue.iter_mut().find(|e| e.is_none());
 
         let seq_zero = upper_pdu.meta().seq().into();
 
         if let Some(slot) = slot {
-            info!("added to queue {}", seq_zero);
+            debug!("added to retransmit queue {}", seq_zero);
             slot.replace(QueueEntry {
                 upper_pdu,
                 acked: Acked::new(seq_zero, num_segments),
             });
         } else {
-            info!("no space in queue");
+            warn!("no space in retransmit queue");
         }
-
-        info!("queue size {}", self.queue.len());
 
         Ok(())
     }

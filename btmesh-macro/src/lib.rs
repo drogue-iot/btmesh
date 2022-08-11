@@ -114,7 +114,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         });
         fanout.extend(quote! {
             if matches!(target_element_index, Some(#i)) || matches!(target_element_index, None) {
-                #element_channel_name.send(message.clone()).await;
+                #element_channel_name.try_send(message.clone());
             }
         });
         ctor_params.extend(quote! {

@@ -11,6 +11,7 @@ use btmesh_device::{
     BluetoothMeshDevice, InboundChannelImpl, InboundReceiverImpl, OutboundChannelImpl,
     OutboundPayload,
 };
+use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
 use btmesh_pdu::provisioned::access::AccessMessage;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::Capabilities;
@@ -296,6 +297,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             input_oob_action: Default::default(),
         };
 
+        let composition = enhance_composition(composition);
+
         self.storage.set_composition(composition.clone());
         self.storage.set_capabilities(capabilities);
 
@@ -481,3 +484,17 @@ static FOUNDATION_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
 static DEVICE_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
 
 static OUTBOUND: OutboundChannelImpl = OutboundChannelImpl::new();
+
+fn enhance_composition(composition: Composition) -> Composition {
+    let mut enhanced = Composition::new(composition.cid(), composition.pid(), composition.vid());
+
+    for (i, element) in composition.elements_iter().enumerate() {
+        let mut element = element.clone();
+        if i == 0 {
+            element.add_model(CONFIGURATION_SERVER);
+        }
+        enhanced.add_element(element);
+    }
+
+    enhanced
+}

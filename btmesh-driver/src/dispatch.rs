@@ -32,10 +32,13 @@ impl Dispatcher {
                 local_element_index, message
             );
             if local_element_index == 0 {
+                debug!("dispatch A");
                 self.foundation_sender
                     .send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))
                     .await;
+                debug!("dispatch B");
             }
+            debug!("dispatch C");
             self.device_sender
                 .send((
                     Some(local_element_index as usize),
@@ -44,15 +47,20 @@ impl Dispatcher {
                     meta,
                 ))
                 .await;
+            debug!("dispatch D");
         } else {
             debug!("dispatch message to all elements: {}", message);
             self.foundation_sender
                 .send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;
+            debug!("dispatch E");
             self.device_sender
                 .send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;
+            debug!("dispatch F");
         }
+
+        debug!("dispatch complete");
 
         Ok(())
     }

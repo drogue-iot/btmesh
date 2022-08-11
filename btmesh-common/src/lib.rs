@@ -475,7 +475,7 @@ impl Composition {
         }
     }
 
-    pub fn add_element(&mut self, element: ElementDescriptor) -> Result<(), ElementDescriptor> {
+    pub fn add_element(&mut self, mut element: ElementDescriptor) -> Result<(), ElementDescriptor> {
         self.elements.push(element)
     }
 
