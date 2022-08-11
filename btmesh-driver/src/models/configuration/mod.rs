@@ -35,20 +35,19 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::DefaultTTL(default_ttl) => {}
+                    ConfigurationMessage::DefaultTTL(_default_ttl) => {}
                     ConfigurationMessage::CompositionData(composition_data) => {
                         composition_data::dispatch(&ctx, self.storage, composition_data, meta)
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::AppKey(app_key) => {}
-                    ConfigurationMessage::ModelApp(model_app) => {}
-                    ConfigurationMessage::ModelPublication(model_publication) => {}
-                    ConfigurationMessage::ModelSubscription(model_subscription) => {}
-                    ConfigurationMessage::NodeReset(node_reset) => {}
+                    ConfigurationMessage::AppKey(_app_key) => {}
+                    ConfigurationMessage::ModelApp(_model_app) => {}
+                    ConfigurationMessage::ModelPublication(_model_publication) => {}
+                    ConfigurationMessage::ModelSubscription(_model_subscription) => {}
+                    ConfigurationMessage::NodeReset(_node_reset) => {}
                 }
             }
-            Ok(())
         }
     }
 }

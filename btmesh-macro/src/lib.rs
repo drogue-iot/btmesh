@@ -9,7 +9,7 @@ use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use regex::Regex;
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Field, File, GenericParam, Type};
+use syn::{Field, GenericParam, Type};
 
 #[derive(FromMeta)]
 struct DeviceArgs {

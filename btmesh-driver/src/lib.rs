@@ -387,7 +387,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
                 if let Some(config) = config {
                     let current_hash = hash_of(&config);
-                    if let Some(previous_hash) = last_config_hash {
+                    if let Some(_previous_hash) = last_config_hash {
                         self.storage.borrow().put(&config).await?;
                     }
                     last_config_hash.replace(current_hash);
