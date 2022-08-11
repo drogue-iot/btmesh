@@ -112,9 +112,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         match (&pdu, &mut current_stack) {
             (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, uuid }) => {
+                debug!( "inbound provisioning pdu: {}", pdu);
                 if let Some(provisioning_state) = stack.process(pdu, &mut *self.rng.borrow_mut())? {
                     match provisioning_state {
                         ProvisioningState::Failed => {
+                            warn!( "provisioning failed");
                             *current_stack = Stack::Unprovisioned {
                                 stack: UnprovisionedStack::new(
                                     self.storage.borrow().capabilities(),
@@ -123,9 +125,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             };
                         }
                         ProvisioningState::Response(pdu) => {
+                            debug!( "outbound provisioning pdu: {}", pdu);
                             self.network.transmit(&(pdu.into())).await?;
                         }
                         ProvisioningState::Data(device_key, provisioning_data, pdu) => {
+                            debug!( "received provisioning data: {}", provisioning_data);
                             let primary_unicast_addr = provisioning_data.unicast_address;
                             let device_info = DeviceInfo::new(
                                 primary_unicast_addr,
@@ -135,10 +139,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let network_state = provisioning_data.into();
 
                             let pdu = pdu.into();
+                            debug!( "sending provisioning complete response" );
                             for _ in 0..5 {
                                 self.network.transmit(&pdu).await?;
                                 Timer::after(Duration::from_millis(100)).await;
                             }
+                            debug!( "adjusting into fully provisioned state");
                             *current_stack = Stack::Provisioned {
                                 stack: ProvisionedStack::new(device_info, secrets, network_state),
                                 sequence: Sequence::new(Seq::new(800)),
