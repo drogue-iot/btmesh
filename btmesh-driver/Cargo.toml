@@ -44,6 +44,7 @@ flash = [
     "embedded-storage",
     "embedded-storage-async",
     "postcard",
+    "postcard/use-defmt",
     "serde/derive",
     "btmesh-common/serde",
     "btmesh-pdu/serde"

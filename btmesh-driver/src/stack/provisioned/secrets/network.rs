@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 
 #[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub(crate) struct NetworkKeys<const N: usize = 4> {
     pub(crate) keys: Vec<Option<NetworkKey>, N>,
 }

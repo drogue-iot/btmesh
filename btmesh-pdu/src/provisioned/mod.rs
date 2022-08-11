@@ -15,7 +15,7 @@ pub trait System {
 
     type NetworkMetadata;
     type LowerMetadata;
-    type UpperMetadata;
+    type UpperMetadata: Clone;
     type AccessMetadata;
     type ControlMetadata;
 }
@@ -27,7 +27,7 @@ pub trait System: ::defmt::Format {
 
     type NetworkMetadata: ::defmt::Format;
     type LowerMetadata: ::defmt::Format;
-    type UpperMetadata: ::defmt::Format;
+    type UpperMetadata: ::defmt::Format + Clone;
     type AccessMetadata: ::defmt::Format;
     type ControlMetadata: ::defmt::Format;
 }

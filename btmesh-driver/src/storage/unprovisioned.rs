@@ -4,6 +4,7 @@ use rand_core::RngCore;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[derive(Clone, Hash, Debug)]
 pub struct UnprovisionedConfiguration {

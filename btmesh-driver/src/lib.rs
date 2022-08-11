@@ -112,11 +112,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         match (&pdu, &mut current_stack) {
             (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, uuid }) => {
-                debug!( "inbound provisioning pdu: {}", pdu);
+                debug!("inbound provisioning pdu: {}", pdu);
                 if let Some(provisioning_state) = stack.process(pdu, &mut *self.rng.borrow_mut())? {
                     match provisioning_state {
                         ProvisioningState::Failed => {
-                            warn!( "provisioning failed");
+                            warn!("provisioning failed");
                             *current_stack = Stack::Unprovisioned {
                                 stack: UnprovisionedStack::new(
                                     self.storage.borrow().capabilities(),
@@ -125,11 +125,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             };
                         }
                         ProvisioningState::Response(pdu) => {
-                            debug!( "outbound provisioning pdu: {}", pdu);
+                            debug!("outbound provisioning pdu: {}", pdu);
                             self.network.transmit(&(pdu.into())).await?;
                         }
                         ProvisioningState::Data(device_key, provisioning_data, pdu) => {
-                            debug!( "received provisioning data: {}", provisioning_data);
+                            debug!("received provisioning data: {}", provisioning_data);
                             let primary_unicast_addr = provisioning_data.unicast_address;
                             let device_info = DeviceInfo::new(
                                 primary_unicast_addr,
@@ -139,12 +139,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let network_state = provisioning_data.into();
 
                             let pdu = pdu.into();
-                            debug!( "sending provisioning complete response" );
+                            debug!("sending provisioning complete response");
                             for _ in 0..5 {
                                 self.network.transmit(&pdu).await?;
                                 Timer::after(Duration::from_millis(100)).await;
                             }
-                            debug!( "adjusting into fully provisioned state");
+                            debug!("adjusting into fully provisioned state");
                             *current_stack = Stack::Provisioned {
                                 stack: ProvisionedStack::new(device_info, secrets, network_state),
                                 sequence: Sequence::new(Seq::new(800)),
@@ -173,7 +173,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             Message::Access(message) => {
                                 self.dispatcher.dispatch(message).await?;
                             }
-                            Message::Control(_) => {}
+                            Message::Control(message) => stack.process_inbound_control(&message),
                         }
                     }
                 }
@@ -216,14 +216,19 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
     }
 
     async fn retransmit(&self) -> Result<(), DriverError> {
-        match &*self.stack.borrow() {
+        match &mut *self.stack.borrow_mut() {
             Stack::None => {}
             Stack::Unprovisioned { stack, .. } => {
                 if let Some(pdu) = stack.retransmit() {
                     self.network.transmit(&(pdu.into())).await?;
                 }
             }
-            Stack::Provisioned { .. } => {}
+            Stack::Provisioned { stack, sequence } => {
+                for pdu in stack.retransmit(&sequence)? {
+                    debug!("retransmit network pdu {}", pdu);
+                    self.network.transmit(&(pdu.into())).await;
+                }
+            }
         }
 
         Ok(())
@@ -404,26 +409,26 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         let mut foundation_device = FoundationDevice::new(self.storage);
 
+        let network_fut = Self::run_network(&self.network);
         let device_fut = select(
             Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
             Self::run_device(device, DEVICE_INBOUND.receiver()),
         );
         let driver_fut = self.run_driver(composition);
-        let network_fut = Self::run_network(&self.network);
 
         // if the device or the driver is `Ready` then stuff is just done, stop.
-        match select3(driver_fut, device_fut, network_fut).await {
-            Either3::First(Ok(_)) => {
+        match select3(network_fut, driver_fut, device_fut).await {
+            Either3::First(_val) => {
+                info!("network exited");
+            }
+            Either3::Second(Ok(_)) => {
                 info!("driver exited");
             }
-            Either3::First(Err(err)) => {
+            Either3::Second(Err(err)) => {
                 info!("driver exited with error {}", err);
             }
-            Either3::Second(_val) => {
-                info!("device exited");
-            }
             Either3::Third(_val) => {
-                info!("network exited");
+                info!("device exited");
             }
         }
 

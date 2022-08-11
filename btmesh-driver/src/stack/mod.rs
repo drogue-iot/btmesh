@@ -79,10 +79,10 @@ impl TryFrom<&Stack> for Configuration {
                 Ok(UnprovisionedConfiguration { uuid: *uuid }.into())
             }
             Stack::Provisioned { stack, sequence } => Ok(ProvisionedConfiguration {
+                sequence: sequence.current(),
                 network_state: stack.network_state(),
                 secrets: stack.secrets().clone(),
                 device_info: stack.device_info(),
-                sequence: sequence.current(),
                 foundation: Default::default(),
             }
             .into()),

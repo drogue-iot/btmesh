@@ -49,6 +49,7 @@ impl From<u8> for Aid {
 
 #[derive(Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct ApplicationKey {
     application_key: [u8; 16],
     aid: Aid,

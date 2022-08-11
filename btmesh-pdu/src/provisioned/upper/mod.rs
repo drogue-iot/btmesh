@@ -11,6 +11,21 @@ pub enum UpperPDU<S: System> {
     Control(UpperControlPDU<S>),
 }
 
+impl<S: System> Clone for UpperPDU<S> {
+    fn clone(&self) -> Self {
+        match self {
+            UpperPDU::Access(inner) => {
+                let inner = inner.clone();
+                UpperPDU::Access(inner)
+            }
+            UpperPDU::Control(inner) => {
+                let inner = inner.clone();
+                UpperPDU::Control(inner)
+            }
+        }
+    }
+}
+
 impl<S: System> UpperPDU<S> {
     pub fn meta(&self) -> &S::UpperMetadata {
         match self {

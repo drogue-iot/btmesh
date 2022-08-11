@@ -1,6 +1,7 @@
+use crate::provisioned::lower::BlockAck;
 use crate::provisioned::upper::control::ControlOpcode;
 use crate::provisioned::{Message, System};
-use btmesh_common::InsufficientBuffer;
+use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -22,10 +23,30 @@ impl<S: System> ControlMessage<S> {
             meta,
         })
     }
+
+    pub fn opcode(&self) -> ControlOpcode {
+        self.opcode
+    }
+
+    pub fn parameters(&self) -> &[u8] {
+        &*self.parameters
+    }
 }
 
 impl<S: System> From<ControlMessage<S>> for Message<S> {
     fn from(inner: ControlMessage<S>) -> Self {
         Self::Control(inner)
+    }
+}
+
+impl<S: System> TryFrom<&ControlMessage<S>> for BlockAck {
+    type Error = ParseError;
+
+    fn try_from(value: &ControlMessage<S>) -> Result<Self, Self::Error> {
+        if let ControlOpcode::SegmentAcknowledgement = value.opcode {
+            Ok(BlockAck::parse(&*value.parameters)?)
+        } else {
+            Err(ParseError::InvalidPDUFormat)
+        }
     }
 }

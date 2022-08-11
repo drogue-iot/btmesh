@@ -1,6 +1,7 @@
 use btmesh_common::Ttl;
 
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[derive(Clone, Debug)]
 pub struct Configuration {
     default_ttl: Ttl,

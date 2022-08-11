@@ -6,7 +6,7 @@ use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::{DriverError, UpperMetadata};
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
@@ -16,7 +16,12 @@ use embassy_executor::time::{Duration, Timer};
 use heapless::Vec;
 use secrets::Secrets;
 
+use crate::stack::provisioned::system::ControlMetadata;
 use crate::util::deadline::{Deadline, DeadlineFuture};
+use crate::DeviceState::Provisioned;
+use btmesh_pdu::provisioned::control::ControlMessage;
+use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
+use btmesh_pdu::provisioned::upper::UpperPDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -30,6 +35,7 @@ pub mod upper;
 
 #[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct IvIndexState {
     iv_index: IvIndex,
     iv_update_flag: IvUpdateFlag,
@@ -54,6 +60,7 @@ impl IvIndexState {
 
 #[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct NetworkState {
     iv_index_state: IvIndexState,
 }
@@ -172,7 +179,25 @@ impl ProvisionedStack {
     }
 
     pub fn next_retransmit(&self) -> Option<impl Future<Output = ()>> {
-        Some(Timer::after(Duration::from_millis(500)))
+        Some(Timer::after(Duration::from_millis(100)))
+    }
+
+    pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 64>, DriverError> {
+        let mut pdus = Vec::new();
+
+        let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 16> = self.transmit_queue.iter().collect();
+
+        for upper_pdu in upper_pdus {
+            for network_pdu in self
+                .process_outbound_upper_pdu(sequence, &upper_pdu, true)?
+                .iter()
+                .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
+            {
+                pdus.push(network_pdu);
+            }
+        }
+
+        Ok(pdus)
     }
 
     pub fn process_inbound_network_pdu(
@@ -203,6 +228,17 @@ impl ProvisionedStack {
 
     pub(crate) fn secrets(&self) -> &Secrets {
         &self.secrets
+    }
+
+    pub fn process_inbound_control(&mut self, message: &ControlMessage<ProvisionedStack>) {
+        match message.opcode() {
+            ControlOpcode::SegmentAcknowledgement => {
+                if let Ok(block_ack) = message.try_into() {
+                    self.transmit_queue.receive_ack(block_ack);
+                }
+            }
+            _ => {}
+        }
     }
 
     pub fn process_outbound(

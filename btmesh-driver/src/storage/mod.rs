@@ -42,6 +42,7 @@ pub trait BackingStore {
 
 #[allow(clippy::large_enum_variant)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[derive(Clone, Hash, Debug)]
 pub enum Configuration {
     Unprovisioned(UnprovisionedConfiguration),
@@ -84,7 +85,7 @@ impl<B: BackingStore> Storage<B> {
             if extra == 100 {
                 extra = 0;
             }
-            let seq = (seq - extra) + 200;
+            let seq = (seq - extra) + 100;
 
             config.sequence = seq;
             self.put(&(config.into())).await?;
@@ -134,7 +135,8 @@ impl<B: BackingStore> Storage<B> {
     async fn load_if_needed(&self) -> Result<(), StorageError> {
         let mut config = self.config.lock().await;
         if config.is_none() {
-            config.replace(self.backing_store.borrow_mut().load().await?);
+            let loaded_config = self.backing_store.borrow_mut().load().await?;
+            config.replace(loaded_config);
         }
 
         Ok(())

@@ -47,6 +47,7 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                 .read(self.base_address, &mut bytes)
                 .await
                 .map_err(|_| StorageError::Load)?;
+
             let config = from_bytes(&bytes).map_err(|_| StorageError::Serialization)?;
 
             match &config {
@@ -72,6 +73,10 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                 let mut bytes = AlignedBytePage([0; 4096]);
                 to_slice(config, &mut bytes.0).map_err(|_| StorageError::Serialization)?;
                 self.flash
+                    .erase(self.base_address, self.base_address + 4096)
+                    .await
+                    .map_err(|_| StorageError::Store)?;
+                self.flash
                     .write(self.base_address, &bytes.0)
                     .await
                     .map_err(|_| StorageError::Store)?;
@@ -82,7 +87,7 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                         hash: hash_of(config),
                         sequence: provisioned_config.sequence(),
                     },
-                }
+                };
             }
             Ok(())
         }

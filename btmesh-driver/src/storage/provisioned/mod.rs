@@ -5,13 +5,14 @@ use core::hash::{Hash, Hasher};
 
 mod foundation;
 
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ProvisionedConfiguration {
+    pub(crate) sequence: u32,
     pub(crate) network_state: NetworkState,
     pub(crate) secrets: Secrets,
     pub(crate) device_info: DeviceInfo,
-    pub(crate) sequence: u32,
     pub(crate) foundation: Foundation,
 }
 
@@ -36,7 +37,7 @@ impl ProvisionedConfiguration {
     }
 
     pub fn sequence(&self) -> u32 {
-        self.sequence
+        self.sequence as u32
     }
 
     pub fn foundation(&self) -> &Foundation {

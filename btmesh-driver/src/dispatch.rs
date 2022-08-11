@@ -27,7 +27,10 @@ impl Dispatcher {
         let meta = message.meta().into();
 
         if let Some(local_element_index) = local_element_index {
-            debug!("dispatch message to element {}: {}", local_element_index, message);
+            debug!(
+                "dispatch message to element {}: {}",
+                local_element_index, message
+            );
             if local_element_index == 0 {
                 self.foundation_sender
                     .send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))

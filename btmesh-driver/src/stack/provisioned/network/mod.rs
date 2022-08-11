@@ -15,6 +15,7 @@ pub mod replay_protection;
 
 #[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct DeviceInfo {
     number_of_elements: u8,
     primary_unicast_address: UnicastAddress,

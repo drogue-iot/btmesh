@@ -3,6 +3,7 @@ use crate::storage::provisioned::foundation::configuration::Configuration;
 pub mod configuration;
 
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[derive(Clone, Debug, Default)]
 pub struct Foundation {
     configuration: Configuration,

@@ -140,8 +140,39 @@ pub struct InvalidBlock;
 pub struct BlockAck(u32, SeqZero);
 
 impl BlockAck {
+    pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() != 6 {
+            Err(ParseError::InvalidLength)
+        } else {
+            let obo = (parameters[0] & 0b10000000) != 0;
+
+            let seq_zero = SeqZero::parse(
+                ((parameters[0] as u16 & 0b01111111) << 6)
+                    | ((parameters[1] as u16 & 0b11111100) >> 2),
+            )?;
+
+            let block_ack =
+                u32::from_be_bytes([parameters[2], parameters[3], parameters[4], parameters[5]]);
+
+            Ok(Self(block_ack, seq_zero))
+        }
+    }
+
     pub fn new(seq_zero: SeqZero) -> Self {
         Self(0, seq_zero)
+    }
+
+    pub fn is_fully_acked(&self, seg_n: u8) -> bool {
+        if seg_n >= 32 {
+            return false;
+        }
+
+        for i in 0..seg_n {
+            if (1 << i) & self.0 == 0 {
+                return false;
+            }
+        }
+        return true;
     }
 
     pub fn is_acked(&self, seg_o: u8) -> Result<bool, InvalidBlock> {
@@ -149,6 +180,10 @@ impl BlockAck {
             return Err(InvalidBlock);
         }
         Ok((self.0 & (1 << seg_o)) != 0)
+    }
+
+    pub fn acked_iter(&self) -> impl Iterator<Item = u8> {
+        AckIter::new(self.0)
     }
 
     pub fn ack(&mut self, seg_o: u8) -> Result<(), InvalidBlock> {
@@ -165,6 +200,35 @@ impl BlockAck {
 
     pub fn seq_zero(&self) -> SeqZero {
         self.1
+    }
+}
+
+pub struct AckIter {
+    block_ack: u32,
+    cur: u8,
+}
+
+impl AckIter {
+    pub fn new(block_ack: u32) -> Self {
+        Self { block_ack, cur: 0 }
+    }
+}
+
+impl Iterator for AckIter {
+    type Item = u8;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        loop {
+            if self.cur >= 32 {
+                return None;
+            } else {
+                let next = ((1 << self.cur) & self.block_ack) != 0;
+                self.cur += 1;
+                if next {
+                    return Some(self.cur - 1);
+                }
+            }
+        }
     }
 }
 

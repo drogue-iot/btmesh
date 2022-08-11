@@ -45,6 +45,16 @@ pub struct UpperControlPDU<S: System> {
     meta: S::UpperMetadata,
 }
 
+impl<S: System> Clone for UpperControlPDU<S> {
+    fn clone(&self) -> Self {
+        Self {
+            opcode: self.opcode.clone(),
+            parameters: self.parameters.clone(),
+            meta: self.meta.clone(),
+        }
+    }
+}
+
 impl<S: System> UpperControlPDU<S> {
     pub fn new(
         opcode: ControlOpcode,

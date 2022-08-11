@@ -12,6 +12,16 @@ pub struct UpperAccessPDU<S: System> {
     meta: S::UpperMetadata,
 }
 
+impl<S: System> Clone for UpperAccessPDU<S> {
+    fn clone(&self) -> Self {
+        Self {
+            payload: self.payload.clone(),
+            transmic: self.transmic.clone(),
+            meta: self.meta.clone(),
+        }
+    }
+}
+
 impl<S: System> UpperAccessPDU<S> {
     pub fn new(
         payload: &[u8],
