@@ -6,6 +6,7 @@ use core::future::Future;
 
 pub mod beacon;
 pub mod composition_data;
+pub mod node_reset;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
     storage: &'s Storage<B>,
@@ -45,7 +46,11 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                     ConfigurationMessage::ModelApp(_model_app) => {}
                     ConfigurationMessage::ModelPublication(_model_publication) => {}
                     ConfigurationMessage::ModelSubscription(_model_subscription) => {}
-                    ConfigurationMessage::NodeReset(_node_reset) => {}
+                    ConfigurationMessage::NodeReset(node_reset) => {
+                        node_reset::dispatch(&ctx, self.storage, node_reset, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                 }
             }
         }

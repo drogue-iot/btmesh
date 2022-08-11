@@ -158,6 +158,10 @@ impl<B: BackingStore> Storage<B> {
         ))
     }
 
+    pub async fn reset(&self) -> Result<(), StorageError> {
+        unimplemented!();
+    }
+
     pub fn capabilities(&self) -> Capabilities {
         unwrap!(self.capabilities.borrow().clone())
     }

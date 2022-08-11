@@ -1,3 +1,4 @@
+use crate::foundation::configuration::ConfigurationMessage;
 use crate::Message;
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ParseError};
@@ -28,6 +29,12 @@ impl NodeResetMessage {
         } else {
             Err(ParseError::InvalidLength)
         }
+    }
+}
+
+impl From<NodeResetMessage> for ConfigurationMessage {
+    fn from(inner: NodeResetMessage) -> Self {
+        ConfigurationMessage::NodeReset(inner)
     }
 }
 
