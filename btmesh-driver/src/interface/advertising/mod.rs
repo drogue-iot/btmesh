@@ -284,7 +284,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                 self.inbound_transaction_number.take();
                 Ok(true)
             }
-            _ => Err(BearerError::InvalidTransaction),
+            _ => Ok(false),
         }
     }
 
