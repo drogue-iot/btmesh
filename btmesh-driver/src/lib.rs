@@ -154,12 +154,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
+                debug!("inbound network pdu: {}", pdu);
                 if let Some(result) = stack.process_inbound_network_pdu(pdu)? {
                     if let Some((block_ack, meta)) = result.block_ack {
                         // send outbound block-ack
                         for network_pdu in
                             stack.process_outbound_block_ack(sequence, block_ack, meta)?
                         {
+                            debug!("outbound network block-ack pdu: {}", pdu);
                             // don't error if we can't send.
                             self.network.transmit(&PDU::Network(network_pdu)).await.ok();
                         }
@@ -204,7 +206,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
                 let network_pdus = stack.process_outbound(sequence, &(message.into()));
                 for pdu in network_pdus? {
-                    self.network.transmit(&(pdu.clone().into())).await?;
+                    debug!("outbound network pdu: {}", pdu);
+                    self.network.transmit(&(pdu.into())).await?;
                 }
             }
         }
