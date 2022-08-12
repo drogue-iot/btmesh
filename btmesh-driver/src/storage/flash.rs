@@ -39,6 +39,9 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
     type StoreFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
         where
             Self: 'm;
+    type ClearFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
+        where
+            Self: 'm;
 
     fn load(&mut self) -> Self::LoadFuture<'_> {
         async move {
@@ -89,6 +92,17 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                     },
                 };
             }
+            Ok(())
+        }
+    }
+
+    fn clear(&mut self) -> Self::ClearFuture<'_> {
+        async move {
+            self.flash
+                .erase(self.base_address, self.base_address + 4096)
+                .await
+                .map_err(|_| StorageError::Store)?;
+            self.latest_load = LatestLoad::None;
             Ok(())
         }
     }

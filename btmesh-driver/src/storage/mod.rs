@@ -36,8 +36,14 @@ pub trait BackingStore {
     where
         Self: 'm;
 
+    // TODO: rustc didn't like me returning a StoreFuture from both clear and store... wtf?
+    type ClearFuture<'m>: Future<Output = Result<(), StorageError>> + 'm
+    where
+        Self: 'm;
+
     fn load(&mut self) -> Self::LoadFuture<'_>;
     fn store<'f>(&'f mut self, config: &'f Configuration) -> Self::StoreFuture<'f>;
+    fn clear(&mut self) -> Self::ClearFuture<'_>;
 }
 
 #[allow(clippy::large_enum_variant)]
@@ -159,7 +165,11 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub async fn reset(&self) -> Result<(), StorageError> {
-        unimplemented!();
+        let mut locked_config = self.config.lock().await;
+        self.backing_store.borrow_mut().clear().await?;
+        debug!("node reset");
+        locked_config.take();
+        Ok(())
     }
 
     pub fn capabilities(&self) -> Capabilities {

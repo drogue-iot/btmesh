@@ -12,6 +12,9 @@ impl BackingStore for MemoryBackingStore {
     type StoreFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
         where
             Self: 'm;
+    type ClearFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
+        where
+            Self: 'm;
 
     fn load(&mut self) -> Self::LoadFuture<'_> {
         ready(Ok(self.content.clone()))
@@ -19,6 +22,11 @@ impl BackingStore for MemoryBackingStore {
 
     fn store(&mut self, content: &Configuration) -> Self::StoreFuture<'_> {
         self.content = content.clone();
+        ready(Ok(()))
+    }
+
+    fn clear(&mut self) -> Self::ClearFuture<'_> {
+        // TODO: should self.content be an Option<Configuration>?
         ready(Ok(()))
     }
 }
