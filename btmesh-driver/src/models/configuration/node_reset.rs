@@ -14,8 +14,6 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         NodeResetMessage::Reset => {
-            ctx.send(NodeResetMessage::Status.into(), meta.reply())
-                .await?;
             let result = ctx
                 .send_with_completion(NodeResetMessage::Status.into(), meta.reply(), &SIGNAL)
                 .await;
