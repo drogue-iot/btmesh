@@ -1,11 +1,8 @@
 use btmesh_common::ModelIdentifier;
-use btmesh_device::{
-    BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    InboundMetadata, InboundPayload, InboundReceiverImpl, Model, OutboundMetadata,
-    OutboundSenderImpl,
-};
+use btmesh_device::{BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext, CompletionStatus, CompletionToken, InboundMetadata, InboundPayload, InboundReceiverImpl, Model, OutboundMetadata, OutboundSenderImpl};
 use btmesh_models::Message;
 use core::future::Future;
+use embassy_util::channel::signal::Signal;
 use heapless::Vec;
 
 pub(crate) struct DeviceContext {
@@ -115,11 +112,37 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
                         opcode,
                         parameters,
                         meta,
+                        None,
                     ))
                     .await
             }
 
             Ok(())
+        }
+    }
+
+    type SendWithCompletionFuture<'f> = impl Future<Output = CompletionStatus> + 'f
+    where
+    Self: 'f,
+    M: 'f;
+
+    fn send_with_completion(&self, message: M::Message, meta: OutboundMetadata, signal: &'static Signal<CompletionStatus>) -> Self::SendWithCompletionFuture<'_>{
+        async move {
+            let opcode = message.opcode();
+            let mut parameters = Vec::new();
+            if message.emit_parameters(&mut parameters).is_ok() {
+                self.outbound
+                    .send((
+                        (self.element_index, self.model_identifier),
+                        opcode,
+                        parameters,
+                        meta,
+                        Some(CompletionToken::new(signal)),
+                    ))
+                    .await
+            }
+
+            signal.wait().await
         }
     }
 

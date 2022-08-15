@@ -10,7 +10,19 @@ pub struct TransmitQueue<const N: usize = 5> {
 }
 
 #[derive(Clone)]
-struct QueueEntry {
+enum QueueEntry {
+    Nonsegmented(NonsegmentedQueueEntry),
+    Segmented(SegmentedQueueEntry)
+}
+
+#[derive(Clone)]
+struct NonsegmentedQueueEntry {
+    upper_pdu: UpperPDU<ProvisionedStack>,
+    num_retransmit: u8,
+}
+
+#[derive(Clone)]
+struct SegmentedQueueEntry {
     upper_pdu: UpperPDU<ProvisionedStack>,
     acked: Acked,
 }
@@ -24,7 +36,7 @@ impl<const N: usize> Default for TransmitQueue<N> {
 }
 
 impl<const N: usize> TransmitQueue<N> {
-    pub fn add(
+    pub fn add_segmented(
         &mut self,
         upper_pdu: UpperPDU<ProvisionedStack>,
         num_segments: u8,
@@ -35,10 +47,10 @@ impl<const N: usize> TransmitQueue<N> {
 
         if let Some(slot) = slot {
             debug!("added to retransmit queue {}", seq_zero);
-            slot.replace(QueueEntry {
+            slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
                 upper_pdu,
                 acked: Acked::new(seq_zero, num_segments),
-            });
+            }));
         } else {
             warn!("no space in retransmit queue");
         }
@@ -46,22 +58,42 @@ impl<const N: usize> TransmitQueue<N> {
         Ok(())
     }
 
-    pub fn iter(&self) -> impl Iterator<Item = UpperPDU<ProvisionedStack>> + '_ {
+    pub fn add_nonsegmented(
+        &mut self,
+        upper_pdu: UpperPDU<ProvisionedStack>,
+        num_retransmit: u8
+    ) -> Result<(), InsufficientBuffer> {
+        let slot = self.queue.iter_mut().find(|e| e.is_none());
+
+        if let Some(slot) = slot {
+            slot.replace(QueueEntry::Nonsegmented(NonsegmentedQueueEntry {
+                upper_pdu,
+                num_retransmit
+            }));
+        } else {
+            warn!("no space in retransmit queue");
+        }
+
+        Ok(())
+
+    }
+
+    pub fn iter(&mut self) -> impl Iterator<Item = UpperPDU<ProvisionedStack>> + '_ {
         QueueIter {
-            inner: self.queue.iter(),
+            inner: self.queue.iter_mut(),
         }
     }
 
     pub fn receive_ack(&mut self, block_ack: BlockAck) -> Result<(), DriverError> {
         if let Some(slot) = self.queue.iter_mut().find(|e| {
-            if let Some(entry) = e {
+            if let Some(QueueEntry::Segmented(entry)) = e {
                 let seq_zero: SeqZero = entry.upper_pdu.meta().seq().into();
                 seq_zero == block_ack.seq_zero()
             } else {
                 false
             }
         }) {
-            if let Some(entry) = slot {
+            if let Some(QueueEntry::Segmented(entry)) = slot {
                 let fully_acked = entry.acked.ack(block_ack)?;
                 if fully_acked {
                     info!("fully acked, removing from retransmit queue");
@@ -73,21 +105,42 @@ impl<const N: usize> TransmitQueue<N> {
     }
 }
 
-struct QueueIter<'i, I: Iterator<Item = &'i Option<QueueEntry>>> {
+struct QueueIter<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> {
     inner: I,
 }
 
-impl<'i, I: Iterator<Item = &'i Option<QueueEntry>>> Iterator for QueueIter<'i, I> {
+impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<'i, I> {
     type Item = UpperPDU<ProvisionedStack>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if let Some(next) = self.inner.next() {
-            if let Some(next) = next {
-                return Some(next.upper_pdu.clone());
-            }
-        }
+        if let Some(outer) = self.inner.next() {
+            let mut should_take = false;
 
-        None
+            let result = if let Some(next) = outer {
+                match next {
+                    QueueEntry::Nonsegmented(inner) => {
+                        inner.num_retransmit -= 1;
+                        if inner.num_retransmit == 0 {
+                            should_take = true;
+                        }
+                        Some(inner.upper_pdu.clone())
+                    }
+                    QueueEntry::Segmented(inner) => {
+                        Some(inner.upper_pdu.clone())
+                    }
+                }
+            } else {
+                None
+            };
+
+            if should_take {
+                outer.take();
+            }
+
+            result
+        } else {
+            None
+        }
     }
 }
 

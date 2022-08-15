@@ -248,9 +248,13 @@ impl ProvisionedStack {
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
-        if network_pdus.len() > 1 {
+
+        if network_pdus.len() == 1 {
             self.transmit_queue
-                .add(upper_pdu, network_pdus.len() as u8)?;
+                .add_nonsegmented(upper_pdu, network_pdus.len() as u8)?;
+        } else if network_pdus.len() > 1 {
+            self.transmit_queue
+                .add_segmented(upper_pdu, 3)?;
         }
 
         let network_pdus = network_pdus

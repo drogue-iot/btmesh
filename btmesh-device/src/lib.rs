@@ -17,8 +17,11 @@ pub use btmesh_common::{
 use btmesh_common::{IvIndex, Ttl};
 pub use btmesh_models::Model;
 use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use embassy_util::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_util::channel::mpmc::{Channel, Receiver, Sender};
+use embassy_util::channel::signal::Signal;
 pub use futures::future::join;
 use heapless::Vec;
 
@@ -35,6 +38,7 @@ pub type OutboundPayload = (
     Opcode,
     Vec<u8, 379>,
     OutboundMetadata,
+    Option<CompletionToken>,
 );
 
 pub trait BluetoothMeshDeviceContext {
@@ -123,12 +127,55 @@ pub trait BluetoothMeshModelContext<M: Model> {
 
     fn send(&self, message: M::Message, meta: OutboundMetadata) -> Self::SendFuture<'_>;
 
+    type SendWithCompletionFuture<'f>: Future<Output = CompletionStatus> + 'f
+        where
+            Self: 'f,
+            M: 'f;
+
+    fn send_with_completion(&self, message: M::Message, meta: OutboundMetadata, signal: &'static Signal<CompletionStatus>) -> Self::SendWithCompletionFuture<'_>;
+
     type PublishFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where
         Self: 'f,
         M: 'f;
 
     fn publish(&self, message: M::Message) -> Self::PublishFuture<'_>;
+}
+
+pub enum CompletionStatus {
+    Complete,
+    Incomplete,
+}
+
+pub struct CompletionToken {
+    signal: &'static Signal<CompletionStatus>,
+}
+
+impl CompletionToken {
+    pub fn new(signal :&'static Signal<CompletionStatus>) -> Self {
+        Self {
+            signal
+        }
+    }
+}
+
+impl Drop for CompletionToken {
+    fn drop(&mut self) {
+        self.signal.signal(CompletionStatus::Incomplete );
+    }
+}
+
+
+pub struct CompletionFuture {
+    signal: &'static Signal<CompletionStatus>,
+}
+
+impl Future for CompletionFuture {
+    type Output = CompletionStatus;
+
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        self.signal.poll_wait(cx)
+    }
 }
 
 #[derive(Copy, Clone)]
