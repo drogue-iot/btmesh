@@ -6,6 +6,8 @@ use btmesh_bearer::{AdvertisingBearer, BearerError, GattBearer};
 use btmesh_device::join;
 use btmesh_pdu::PDU;
 use core::future::Future;
+use core::pin::Pin;
+use core::task::{Context, Poll};
 use embassy_util::{select, Either};
 
 pub mod advertising;
@@ -161,16 +163,21 @@ impl<B: AdvertisingBearer> AdvertisingOnlyNetworkInterfaces<B> {
     }
 }
 
+struct NeverEnding;
+impl Future for NeverEnding {
+    type Output = Result<(), NetworkError>;
+    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        Poll::Pending
+    }
+}
+
 impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterfaces<B> {
     type RunFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm
     where
     Self: 'm;
 
     fn run(&self) -> Self::RunFuture<'_> {
-        async move {
-            /* nothing */
-            Ok(())
-        }
+        NeverEnding
     }
 
     type ReceiveFuture<'m> = impl Future<Output=Result<PDU, NetworkError>> + 'm
