@@ -19,12 +19,12 @@ use secrets::Secrets;
 use crate::stack::provisioned::system::ControlMetadata;
 use crate::util::deadline::{Deadline, DeadlineFuture};
 use crate::DeviceState::Provisioned;
+use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::control::ControlMessage;
 use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
-use btmesh_device::CompletionToken;
 
 pub mod lower;
 pub mod network;
@@ -252,8 +252,11 @@ impl ProvisionedStack {
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 
         if network_pdus.len() == 1 {
-            self.transmit_queue
-                .add_nonsegmented(upper_pdu, network_pdus.len() as u8, completion_token)?;
+            self.transmit_queue.add_nonsegmented(
+                upper_pdu,
+                network_pdus.len() as u8,
+                completion_token,
+            )?;
         } else if network_pdus.len() > 1 {
             self.transmit_queue
                 .add_segmented(upper_pdu, 3, completion_token)?;

@@ -1,10 +1,10 @@
 use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
+use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
-use btmesh_device::CompletionToken;
 
 pub struct TransmitQueue<const N: usize = 5> {
     queue: Vec<Option<QueueEntry>, N>,
@@ -13,7 +13,7 @@ pub struct TransmitQueue<const N: usize = 5> {
 #[derive(Clone)]
 enum QueueEntry {
     Nonsegmented(NonsegmentedQueueEntry),
-    Segmented(SegmentedQueueEntry)
+    Segmented(SegmentedQueueEntry),
 }
 
 #[derive(Clone)]
@@ -54,7 +54,7 @@ impl<const N: usize> TransmitQueue<N> {
             slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
                 upper_pdu,
                 acked: Acked::new(seq_zero, num_segments),
-                completion_token
+                completion_token,
             }));
         } else {
             warn!("no space in retransmit queue");
@@ -82,7 +82,6 @@ impl<const N: usize> TransmitQueue<N> {
         }
 
         Ok(())
-
     }
 
     pub fn iter(&mut self) -> impl Iterator<Item = UpperPDU<ProvisionedStack>> + '_ {
@@ -132,13 +131,14 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
                         inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
                             should_take = true;
-                            inner.completion_token.as_ref().map(|token| token.complete());
+                            inner
+                                .completion_token
+                                .as_ref()
+                                .map(|token| token.complete());
                         }
                         Some(inner.upper_pdu.clone())
                     }
-                    QueueEntry::Segmented(inner) => {
-                        Some(inner.upper_pdu.clone())
-                    }
+                    QueueEntry::Segmented(inner) => Some(inner.upper_pdu.clone()),
                 }
             } else {
                 None

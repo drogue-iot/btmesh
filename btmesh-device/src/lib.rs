@@ -128,11 +128,16 @@ pub trait BluetoothMeshModelContext<M: Model> {
     fn send(&self, message: M::Message, meta: OutboundMetadata) -> Self::SendFuture<'_>;
 
     type SendWithCompletionFuture<'f>: Future<Output = CompletionStatus> + 'f
-        where
-            Self: 'f,
-            M: 'f;
+    where
+        Self: 'f,
+        M: 'f;
 
-    fn send_with_completion(&self, message: M::Message, meta: OutboundMetadata, signal: &'static Signal<CompletionStatus>) -> Self::SendWithCompletionFuture<'_>;
+    fn send_with_completion(
+        &self,
+        message: M::Message,
+        meta: OutboundMetadata,
+        signal: &'static Signal<CompletionStatus>,
+    ) -> Self::SendWithCompletionFuture<'_>;
 
     type PublishFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where
@@ -153,10 +158,8 @@ pub struct CompletionToken {
 }
 
 impl CompletionToken {
-    pub fn new(signal :&'static Signal<CompletionStatus>) -> Self {
-        Self {
-            signal
-        }
+    pub fn new(signal: &'static Signal<CompletionStatus>) -> Self {
+        Self { signal }
     }
 
     pub fn complete(&self) {
@@ -173,7 +176,6 @@ impl Drop for CompletionToken {
         self.incomplete()
     }
 }
-
 
 pub struct CompletionFuture {
     signal: &'static Signal<CompletionStatus>,

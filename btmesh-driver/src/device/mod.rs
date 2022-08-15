@@ -1,5 +1,9 @@
 use btmesh_common::ModelIdentifier;
-use btmesh_device::{BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext, CompletionStatus, CompletionToken, InboundMetadata, InboundPayload, InboundReceiverImpl, Model, OutboundMetadata, OutboundSenderImpl};
+use btmesh_device::{
+    BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
+    CompletionStatus, CompletionToken, InboundMetadata, InboundPayload, InboundReceiverImpl, Model,
+    OutboundMetadata, OutboundSenderImpl,
+};
 use btmesh_models::Message;
 use core::future::Future;
 use embassy_util::channel::signal::Signal;
@@ -126,7 +130,12 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
     Self: 'f,
     M: 'f;
 
-    fn send_with_completion(&self, message: M::Message, meta: OutboundMetadata, signal: &'static Signal<CompletionStatus>) -> Self::SendWithCompletionFuture<'_>{
+    fn send_with_completion(
+        &self,
+        message: M::Message,
+        meta: OutboundMetadata,
+        signal: &'static Signal<CompletionStatus>,
+    ) -> Self::SendWithCompletionFuture<'_> {
         async move {
             let opcode = message.opcode();
             let mut parameters = Vec::new();

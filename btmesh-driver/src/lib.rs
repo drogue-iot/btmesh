@@ -206,7 +206,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             );
 
             if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
-                let network_pdus = stack.process_outbound(sequence, &(message.into()), outbound_payload.4);
+                let network_pdus =
+                    stack.process_outbound(sequence, &(message.into()), outbound_payload.4);
                 for pdu in network_pdus? {
                     debug!("outbound network pdu: {}", pdu);
                     self.network.transmit(&(pdu.into())).await?;
