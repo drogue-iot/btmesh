@@ -310,9 +310,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 Ok(config) => config,
                 Err(_) => {
                     info!("failed to load config");
-                    let config = Configuration::Unprovisioned(UnprovisionedConfiguration {
-                        uuid: Uuid::new_random(&mut *self.rng.borrow_mut()),
-                    });
+                    let uuid = Uuid::new_random(&mut *self.rng.borrow_mut());
+                    info!("generated node UUID {}", uuid);
+                    let config = Configuration::Unprovisioned(UnprovisionedConfiguration { uuid });
                     info!("storing provisioning config");
                     self.storage.borrow().put(&config).await?;
                     config

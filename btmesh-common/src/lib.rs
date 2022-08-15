@@ -317,8 +317,18 @@ impl Ctl {
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Uuid([u8; 16]);
+
+#[cfg(feature = "defmt")]
+impl defmt::Format for Uuid {
+    fn format(&self, fmt: defmt::Formatter) {
+        defmt::write!(
+            fmt,
+            "{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}{=u8:02X}",
+            self.0[0], self.0[1], self.0[2], self.0[3], self.0[4], self.0[5], self.0[6], self.0[7], self.0[8], self.0[9], self.0[10], self.0[11], self.0[12], self.0[13], self.0[14], self.0[15],
+        )
+    }
+}
 
 impl Uuid {
     pub fn new(uuid: [u8; 16]) -> Self {
