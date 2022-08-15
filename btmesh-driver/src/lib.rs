@@ -80,11 +80,12 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(network: N, rng: R, backing_store: B) -> Self {
+    pub fn new(network: N, mut rng: R, backing_store: B) -> Self {
+        let upc = UnprovisionedConfiguration::new(&mut rng);
         Self {
             network: Some(network),
             rng: Some(rng),
-            storage: Storage::new(backing_store),
+            storage: Storage::new(backing_store, upc),
         }
     }
 }
@@ -288,13 +289,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         let capabilities = Capabilities {
             number_of_elements: composition.number_of_elements(),
-            algorithms: Default::default(),
-            public_key_type: Default::default(),
-            static_oob_type: Default::default(),
-            output_oob_size: Default::default(),
-            output_oob_action: Default::default(),
-            input_oob_size: Default::default(),
-            input_oob_action: Default::default(),
+            ..Default::default()
         };
 
         let composition = enhance_composition(composition);
@@ -306,18 +301,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         self.storage.borrow().init().await?;
 
         loop {
-            let config = match self.storage.borrow().get().await {
-                Ok(config) => config,
-                Err(_) => {
-                    info!("failed to load config");
-                    let uuid = Uuid::new_random(&mut *self.rng.borrow_mut());
-                    info!("generated node UUID {}", uuid);
-                    let config = Configuration::Unprovisioned(UnprovisionedConfiguration { uuid });
-                    info!("storing provisioning config");
-                    self.storage.borrow().put(&config).await?;
-                    config
-                }
-            };
+            let config = self.storage.borrow().get().await?;
 
             let current_hash = hash_of(&config);
 
@@ -354,7 +338,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     info!("setting up unprovisioned stack");
                     *self.stack.borrow_mut() = Stack::Unprovisioned {
                         stack: UnprovisionedStack::new(self.storage.borrow().capabilities()),
-                        uuid: config.uuid(),
+                        uuid: config.uuid,
                     }
                 }
                 DesiredStack::Provisioned(config) => {
@@ -395,10 +379,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
                 if let Some(config) = config {
                     let current_hash = hash_of(&config);
-                    if let Some(_previous_hash) = last_config_hash {
-                        self.storage.borrow().put(&config).await?;
+                    if let Some(previous_hash) = last_config_hash {
+                        if previous_hash != current_hash {
+                            self.storage.borrow().put(&config).await?;
+                            last_config_hash.replace(current_hash);
+                        }
                     }
-                    last_config_hash.replace(current_hash);
                 }
             }
         }

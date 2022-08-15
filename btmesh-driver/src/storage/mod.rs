@@ -71,15 +71,17 @@ pub struct Storage<B: BackingStore> {
     capabilities: RefCell<Option<Capabilities>>,
     composition: RefCell<Option<Composition>>,
     config: Mutex<CriticalSectionRawMutex, Option<Configuration>>,
+    default_config: Configuration,
 }
 
 impl<B: BackingStore> Storage<B> {
-    pub fn new(backing_store: B) -> Self {
+    pub fn new(backing_store: B, upc: UnprovisionedConfiguration) -> Self {
         Self {
             backing_store: RefCell::new(backing_store),
             capabilities: RefCell::new(None),
             composition: RefCell::new(None),
             config: Mutex::new(None),
+            default_config: Configuration::Unprovisioned(upc),
         }
     }
 
@@ -95,8 +97,9 @@ impl<B: BackingStore> Storage<B> {
 
             config.sequence = seq;
             self.put(&(config.into())).await?;
+        } else {
+            self.put(&self.default_config).await?;
         }
-
         Ok(())
     }
 
@@ -168,7 +171,7 @@ impl<B: BackingStore> Storage<B> {
         let mut locked_config = self.config.lock().await;
         self.backing_store.borrow_mut().clear().await?;
         debug!("node reset");
-        locked_config.take();
+        locked_config.replace(self.default_config.clone());
         Ok(())
     }
 

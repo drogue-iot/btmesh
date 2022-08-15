@@ -12,19 +12,14 @@ pub struct UnprovisionedConfiguration {
 }
 
 impl UnprovisionedConfiguration {
-    pub fn display(&self, composition: &Composition) {}
-
-    pub fn new<R: RngCore>(rng: &mut R) -> Self {
-        let mut uuid = [0; 16];
-        rng.fill_bytes(&mut uuid);
-
-        Self {
-            uuid: Uuid::new(uuid),
-        }
+    pub fn display(&self, composition: &Composition) {
+        info!("uuid: {}", self.uuid);
     }
 
-    pub fn uuid(&self) -> Uuid {
-        self.uuid
+    pub fn new<R: RngCore>(rng: &mut R) -> Self {
+        Self {
+            uuid: Uuid::new_random(rng),
+        }
     }
 }
 
