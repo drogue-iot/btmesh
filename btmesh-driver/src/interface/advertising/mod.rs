@@ -108,7 +108,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                     (
                         DeviceState::Unprovisioned {
                             uuid,
-                            in_progress: _,
+                            in_progress,
                         },
                         PB_ADV,
                     ) => {
@@ -117,6 +117,8 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                         }
                     }
                     (DeviceState::Provisioned, MESH_MESSAGE) => {
+                        self.link_id.take();
+                        self.inbound_transaction_number.take();
                         if let Ok(pdu) = NetworkPDU::parse(&data[2..]) {
                             return Ok(PDU::Network(pdu));
                         }
