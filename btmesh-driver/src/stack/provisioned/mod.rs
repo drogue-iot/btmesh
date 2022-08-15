@@ -24,6 +24,7 @@ use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
+use btmesh_device::CompletionToken;
 
 pub mod lower;
 pub mod network;
@@ -245,16 +246,17 @@ impl ProvisionedStack {
         &mut self,
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
+        completion_token: Option<CompletionToken>,
     ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 
         if network_pdus.len() == 1 {
             self.transmit_queue
-                .add_nonsegmented(upper_pdu, network_pdus.len() as u8)?;
+                .add_nonsegmented(upper_pdu, network_pdus.len() as u8, completion_token)?;
         } else if network_pdus.len() > 1 {
             self.transmit_queue
-                .add_segmented(upper_pdu, 3)?;
+                .add_segmented(upper_pdu, 3, completion_token)?;
         }
 
         let network_pdus = network_pdus

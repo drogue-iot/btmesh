@@ -4,6 +4,7 @@ use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
+use btmesh_device::CompletionToken;
 
 pub struct TransmitQueue<const N: usize = 5> {
     queue: Vec<Option<QueueEntry>, N>,
@@ -19,12 +20,14 @@ enum QueueEntry {
 struct NonsegmentedQueueEntry {
     upper_pdu: UpperPDU<ProvisionedStack>,
     num_retransmit: u8,
+    completion_token: Option<CompletionToken>,
 }
 
 #[derive(Clone)]
 struct SegmentedQueueEntry {
     upper_pdu: UpperPDU<ProvisionedStack>,
     acked: Acked,
+    completion_token: Option<CompletionToken>,
 }
 
 impl<const N: usize> Default for TransmitQueue<N> {
@@ -40,6 +43,7 @@ impl<const N: usize> TransmitQueue<N> {
         &mut self,
         upper_pdu: UpperPDU<ProvisionedStack>,
         num_segments: u8,
+        completion_token: Option<CompletionToken>,
     ) -> Result<(), InsufficientBuffer> {
         let slot = self.queue.iter_mut().find(|e| e.is_none());
 
@@ -50,6 +54,7 @@ impl<const N: usize> TransmitQueue<N> {
             slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
                 upper_pdu,
                 acked: Acked::new(seq_zero, num_segments),
+                completion_token
             }));
         } else {
             warn!("no space in retransmit queue");
@@ -61,14 +66,16 @@ impl<const N: usize> TransmitQueue<N> {
     pub fn add_nonsegmented(
         &mut self,
         upper_pdu: UpperPDU<ProvisionedStack>,
-        num_retransmit: u8
+        num_retransmit: u8,
+        completion_token: Option<CompletionToken>,
     ) -> Result<(), InsufficientBuffer> {
         let slot = self.queue.iter_mut().find(|e| e.is_none());
 
         if let Some(slot) = slot {
             slot.replace(QueueEntry::Nonsegmented(NonsegmentedQueueEntry {
                 upper_pdu,
-                num_retransmit
+                num_retransmit,
+                completion_token,
             }));
         } else {
             warn!("no space in retransmit queue");
@@ -97,6 +104,9 @@ impl<const N: usize> TransmitQueue<N> {
                 let fully_acked = entry.acked.ack(block_ack)?;
                 if fully_acked {
                     info!("fully acked, removing from retransmit queue");
+                    entry.completion_token.as_ref().map(|token| {
+                        token.complete();
+                    });
                     slot.take();
                 }
             }
@@ -122,6 +132,7 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
                         inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
                             should_take = true;
+                            inner.completion_token.as_ref().map(|token| token.complete());
                         }
                         Some(inner.upper_pdu.clone())
                     }

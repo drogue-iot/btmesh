@@ -147,6 +147,7 @@ pub enum CompletionStatus {
     Incomplete,
 }
 
+#[derive(Clone)]
 pub struct CompletionToken {
     signal: &'static Signal<CompletionStatus>,
 }
@@ -157,11 +158,19 @@ impl CompletionToken {
             signal
         }
     }
+
+    pub fn complete(&self) {
+        self.signal.signal(CompletionStatus::Complete)
+    }
+
+    pub fn incomplete(&self) {
+        self.signal.signal(CompletionStatus::Incomplete)
+    }
 }
 
 impl Drop for CompletionToken {
     fn drop(&mut self) {
-        self.signal.signal(CompletionStatus::Incomplete );
+        self.incomplete()
     }
 }
 
