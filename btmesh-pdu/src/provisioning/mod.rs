@@ -177,7 +177,7 @@ impl Start {
     }
 }
 
-#[derive(Copy, Clone, Hash, Debug)]
+#[derive(Copy, Clone, Hash, Debug, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PublicKey {
     pub x: [u8; 32],

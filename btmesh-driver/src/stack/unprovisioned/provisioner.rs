@@ -327,11 +327,10 @@ impl TryFrom<Phase<Authentication>> for Phase<DataDistribution> {
 mod tests {
     use core::ops::Deref;
 
-    use crate::stack::unprovisioned::provisionee::Provisionee;
-
     use super::*;
+    use crate::stack::unprovisioned::provisionee::Provisionee;
     use btmesh_common::{address::UnicastAddress, KeyRefreshFlag};
-    use btmesh_pdu::provisioning::Capabilities;
+    use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU::Failed};
     use rand_core::OsRng;
 
     #[test]
@@ -350,6 +349,7 @@ mod tests {
         });
         loop {
             for pdu in provisioner.response().into_iter() {
+                assert!(!matches!(pdu, Failed(_)), "Unexpected PDU: {:?}", pdu);
                 device = match device.next(pdu, rng) {
                     Ok(provisionee) => {
                         if let Some(pdu) = provisionee.response() {
