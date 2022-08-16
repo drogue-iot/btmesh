@@ -22,9 +22,11 @@ nrf-softdevice = { version = "0.1.0", features = ["ble-peripheral", "ble-gatt-se
 nrf-softdevice-s140 = { version = "0.1.0", optional=true }
 nrf-softdevice-macro = { version = "0.1.0" }
 defmt = { version = "0.3", optional = true }
+embassy-nrf = { version = "0.1.0", default-features = false, features = ["time-driver-rtc1", "gpiote"], optional = true }
+embassy-executor = { version = "0.1.0", default-features = false, features = [ "nightly" ], optional = true}
 
-[dev-dependencies]
-embassy = { version = "0.1.0", default-features = false, features = ["executor-agnostic", "time-tick-1000hz", "nightly"] }
+#[dev-dependencies]
+#embassy-executor = { version = "0.1.0", default-features = false, features = [ "nightly" ] }
 
 [features]
 nrf52840 = [
@@ -65,7 +67,9 @@ low_power = [
 ]
 
 [patch.crates-io]
-embassy = { git = "https://github.com/embassy-rs/embassy.git", rev = "5790985f9fdfe80fe543a08b91ab5917b5e94d72" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "5790985f9fdfe80fe543a08b91ab5917b5e94d72" }
+embassy-util = { git = "https://github.com/embassy-rs/embassy.git", rev = "5790985f9fdfe80fe543a08b91ab5917b5e94d72" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "5790985f9fdfe80fe543a08b91ab5917b5e94d72" }
 nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
 nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
 nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "ab0ad770c729b4f034bf0a085b50347a3e6b2ea9" }
