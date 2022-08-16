@@ -5,10 +5,13 @@ use core::future::Future;
 use core::sync::atomic::Ordering;
 use embassy_util::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_util::channel::{mpmc::Channel, signal::Signal};
+use embassy_util::{Either, select};
 use heapless::Vec;
 use nrf_softdevice::ble::peripheral::AdvertiseError;
 use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
 use nrf_softdevice::Softdevice;
+
+static RESET_SIGNAL: Signal<()> = Signal::new();
 
 pub enum ConnectionChannel {
     Provisioning,
@@ -45,42 +48,47 @@ impl SoftdeviceGattBearer {
         loop {
             let connection = self.connection.wait().await;
             self.current_connection.borrow_mut().replace(connection);
-            gatt_server::run(
-                self.current_connection.borrow().as_ref().unwrap(),
-                &self.server,
-                |e| match e {
-                    MeshGattServerEvent::Proxy(event) => match event {
-                        ProxyServiceEvent::DataInWrite(data) => {
-                            self.inbound.try_send(data).ok();
-                        }
-                        ProxyServiceEvent::DataOutCccdWrite { notifications } => {
-                            if notifications {
-                                self.connection_channel
-                                    .replace(Some(ConnectionChannel::Proxy));
-                            } else {
-                                self.connection_channel.take();
+
+            let server_fut = async move {
+                gatt_server::run(
+                    self.current_connection.borrow().as_ref().unwrap(),
+                    &self.server,
+                    |e| match e {
+                        MeshGattServerEvent::Proxy(event) => match event {
+                            ProxyServiceEvent::DataInWrite(data) => {
+                                self.inbound.try_send(data).ok();
                             }
-                        }
-                        _ => { /* ignorable */ }
-                    },
-                    MeshGattServerEvent::Provisioning(event) => match event {
-                        ProvisioningServiceEvent::DataInWrite(data) => {
-                            self.inbound.try_send(data).ok();
-                        }
-                        ProvisioningServiceEvent::DataOutCccdWrite { notifications } => {
-                            if notifications {
-                                self.connection_channel
-                                    .replace(Some(ConnectionChannel::Provisioning));
-                            } else {
-                                self.connection_channel.take();
+                            ProxyServiceEvent::DataOutCccdWrite { notifications } => {
+                                if notifications {
+                                    self.connection_channel
+                                        .replace(Some(ConnectionChannel::Proxy));
+                                } else {
+                                    self.connection_channel.take();
+                                }
                             }
-                        }
-                        _ => { /* ignorable */ }
+                            _ => { /* ignorable */ }
+                        },
+                        MeshGattServerEvent::Provisioning(event) => match event {
+                            ProvisioningServiceEvent::DataInWrite(data) => {
+                                self.inbound.try_send(data).ok();
+                            }
+                            ProvisioningServiceEvent::DataOutCccdWrite { notifications } => {
+                                if notifications {
+                                    self.connection_channel
+                                        .replace(Some(ConnectionChannel::Provisioning));
+                                } else {
+                                    self.connection_channel.take();
+                                }
+                            }
+                            _ => { /* ignorable */ }
+                        },
                     },
-                },
-            )
-                .await
-                .ok();
+                ).await.ok()
+            };
+
+            let reset_fut = RESET_SIGNAL.wait();
+
+            select(server_fut, reset_fut).await;
 
             self.connection_channel.borrow_mut().take();
             self.current_connection.borrow_mut().take();
@@ -92,6 +100,10 @@ impl SoftdeviceGattBearer {
 pub const ATT_MTU: usize = 69;
 
 impl GattBearer<66> for SoftdeviceGattBearer {
+    fn reset(&self) {
+        RESET_SIGNAL.signal(())
+    }
+
     type RunFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm
     where
     Self: 'm;
@@ -113,7 +125,6 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     type TransmitFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm;
 
     fn transmit<'m>(&'m self, pdu: &'m Vec<u8, 66>) -> Self::TransmitFuture<'m> {
-        //async move { Ok(()) }
         async move {
             if let Some(connection) = &*self.current_connection.borrow() {
                 match &*self.connection_channel.borrow() {
@@ -152,6 +163,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                 adv_data: &adv_data,
                 scan_data: &scan_data,
             };
+
             let result = peripheral::advertise_connectable(
                 self.sd,
                 adv,
@@ -160,8 +172,8 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                     interval: 50,
                     ..Default::default()
                 },
-            )
-                .await;
+            ).await;
+
             match result {
                 Ok(connection) => {
                     self.connected.store(true, Ordering::Relaxed);

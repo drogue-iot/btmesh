@@ -22,7 +22,7 @@ impl<B: GattBearer<MTU>, const MTU: usize> GattBearerNetworkInterface<B, MTU> {
     }
 
     pub fn reset(&self) {
-        // nothing
+        self.bearer.reset();
     }
 
     pub async fn receive(&self) -> Result<PDU, BearerError> {

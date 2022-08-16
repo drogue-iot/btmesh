@@ -102,7 +102,6 @@ impl<const N: usize> TransmitQueue<N> {
             if let Some(QueueEntry::Segmented(entry)) = slot {
                 let fully_acked = entry.acked.ack(block_ack)?;
                 if fully_acked {
-                    info!("fully acked, removing from retransmit queue");
                     entry.completion_token.as_ref().map(|token| {
                         token.complete();
                     });
@@ -128,15 +127,13 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
             let result = if let Some(next) = outer {
                 match next {
                     QueueEntry::Nonsegmented(inner) => {
-                        info!("xmit remaining {}", inner.num_retransmit);
                         inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
-                            info!("copmleteing token");
                             should_take = true;
-                            inner.completion_token.as_ref().map(|token| {
-                                info!("actually copmleting");
-                                token.complete()
-                            });
+                            inner
+                                .completion_token
+                                .as_ref()
+                                .map(|token| token.complete());
                         }
                         Some(inner.upper_pdu.clone())
                     }

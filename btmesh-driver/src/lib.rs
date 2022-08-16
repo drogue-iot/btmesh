@@ -128,7 +128,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         }
                         ProvisioningState::Response(pdu) => {
                             debug!("outbound provisioning pdu: {}", pdu);
-                            self.network.transmit(&(pdu.into())).await?;
+                            self.network.transmit(&(pdu.into()), false).await?;
                         }
                         ProvisioningState::Data(device_key, provisioning_data, pdu) => {
                             debug!("received provisioning data: {}", provisioning_data);
@@ -142,8 +142,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
                             let pdu = pdu.into();
                             debug!("sending provisioning complete response");
-                            for _ in 0..5 {
-                                self.network.transmit(&pdu).await?;
+                            for retransmit in 0..5 {
+                                self.network.transmit(&pdu, (retransmit != 0)).await?;
                                 Timer::after(Duration::from_millis(100)).await;
                             }
                             debug!("adjusting into fully provisioned state");
@@ -167,7 +167,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         {
                             debug!("outbound network block-ack pdu: {}", pdu);
                             // don't error if we can't send.
-                            self.network.transmit(&PDU::Network(network_pdu)).await.ok();
+                            self.network
+                                .transmit(&PDU::Network(network_pdu), false)
+                                .await
+                                .ok();
                         }
                     }
 
@@ -204,7 +207,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
                 outbound_payload.1,
                 outbound_payload.2,
-                (element_address, outbound_payload.3, *default_ttl),
+                (element_address, outbound_payload.3, default_ttl),
             );
 
             if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
@@ -212,7 +215,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack.process_outbound(sequence, &(message.into()), outbound_payload.4);
                 for pdu in network_pdus? {
                     debug!("outbound network pdu: {}", pdu);
-                    self.network.transmit(&(pdu.into())).await?;
+                    self.network.transmit(&(pdu.into()), false).await?;
                 }
             }
         }
@@ -225,13 +228,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             Stack::None => {}
             Stack::Unprovisioned { stack, .. } => {
                 if let Some(pdu) = stack.retransmit() {
-                    self.network.transmit(&(pdu.into())).await?;
+                    self.network.transmit(&(pdu.into()), true).await?;
                 }
             }
             Stack::Provisioned { stack, sequence } => {
                 for pdu in stack.retransmit(&sequence)? {
-                    debug!("retransmit network pdu {}", pdu);
-                    self.network.transmit(&(pdu.into())).await;
+                    self.network.transmit(&(pdu.into()), true).await;
                 }
             }
         }

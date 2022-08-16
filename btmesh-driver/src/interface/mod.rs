@@ -37,7 +37,7 @@ pub trait NetworkInterfaces {
         Self: 'm;
 
     /// Transmit data on all of the network interfaces.
-    fn transmit<'m>(&'m self, pdu: &'m PDU) -> Self::TransmitFuture<'m>;
+    fn transmit<'m>(&'m self, pdu: &'m PDU, is_retransmit: bool) -> Self::TransmitFuture<'m>;
 
     type RetransmitFuture<'m>: Future<Output = Result<(), NetworkError>> + 'm
     where
@@ -122,9 +122,13 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
     where
     Self: 'm;
 
-    fn transmit<'m>(&'m self, pdu: &'m PDU) -> Self::TransmitFuture<'m> {
+    fn transmit<'m>(&'m self, pdu: &'m PDU, is_retransmit: bool) -> Self::TransmitFuture<'m> {
         async move {
-            let gatt_fut = self.gatt_interface.transmit(pdu);
+            let gatt_fut = async {
+                if !is_retransmit {
+                    self.gatt_interface.transmit(pdu).await;
+                }
+            };
             let adv_fut = self.advertising_interface.transmit(pdu);
 
             let _result = join(gatt_fut, adv_fut).await;
@@ -199,7 +203,7 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
     where
     Self: 'm;
 
-    fn transmit<'m>(&'m self, pdu: &'m PDU) -> Self::TransmitFuture<'m> {
+    fn transmit<'m>(&'m self, pdu: &'m PDU, is_retransmit: bool) -> Self::TransmitFuture<'m> {
         async move { Ok(self.interface.transmit(pdu).await?) }
     }
 

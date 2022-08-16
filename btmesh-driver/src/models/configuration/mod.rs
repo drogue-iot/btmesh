@@ -6,6 +6,7 @@ use core::future::Future;
 
 pub mod beacon;
 pub mod composition_data;
+pub mod default_ttl;
 pub mod node_reset;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
@@ -36,7 +37,11 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::DefaultTTL(_default_ttl) => {}
+                    ConfigurationMessage::DefaultTTL(default_ttl) => {
+                        default_ttl::dispatch(&ctx, self.storage, default_ttl, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                     ConfigurationMessage::CompositionData(composition_data) => {
                         composition_data::dispatch(&ctx, self.storage, composition_data, meta)
                             .await

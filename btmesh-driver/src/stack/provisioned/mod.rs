@@ -183,7 +183,7 @@ impl ProvisionedStack {
         Some(Timer::after(Duration::from_millis(100)))
     }
 
-    pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 64>, DriverError> {
+    pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 16>, DriverError> {
         let mut pdus = Vec::new();
 
         let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 16> = self.transmit_queue.iter().collect();
@@ -252,18 +252,14 @@ impl ProvisionedStack {
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 
         if network_pdus.len() == 1 {
-            info!("add non-segmented");
             self.transmit_queue
                 .add_nonsegmented(upper_pdu, 3, completion_token)?;
         } else if network_pdus.len() > 1 {
-            info!("add segmented");
             self.transmit_queue.add_segmented(
                 upper_pdu,
                 network_pdus.len() as u8,
                 completion_token,
             )?;
-        } else {
-            info!("nothing, dropping token?");
         }
 
         let network_pdus = network_pdus

@@ -1,6 +1,7 @@
+use crate::foundation::configuration::ConfigurationMessage;
 use crate::Message;
 use btmesh_common::opcode::Opcode;
-use btmesh_common::{opcode, InsufficientBuffer, ParseError};
+use btmesh_common::{opcode, InsufficientBuffer, ParseError, Ttl};
 use heapless::Vec;
 
 opcode!( CONFIG_DEFAULT_TTL_GET 0x80, 0x0C );
@@ -10,8 +11,14 @@ opcode!( CONFIG_DEFAULT_TTL_STATUS 0x80, 0x0E );
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DefaultTTLMessage {
     Get,
-    Set(u8),
-    Status(u8),
+    Set(Ttl),
+    Status(Ttl),
+}
+
+impl From<DefaultTTLMessage> for ConfigurationMessage {
+    fn from(inner: DefaultTTLMessage) -> Self {
+        Self::DefaultTTL(inner)
+    }
 }
 
 #[allow(unused)]
@@ -30,8 +37,8 @@ impl Message for DefaultTTLMessage {
     ) -> Result<(), InsufficientBuffer> {
         match self {
             Self::Get => {}
-            Self::Set(val) => xmit.push(*val).map_err(|_| InsufficientBuffer)?,
-            Self::Status(val) => xmit.push(*val).map_err(|_| InsufficientBuffer)?,
+            Self::Set(ttl) => xmit.push(ttl.value()).map_err(|_| InsufficientBuffer)?,
+            Self::Status(ttl) => xmit.push(ttl.value()).map_err(|_| InsufficientBuffer)?,
         }
         Ok(())
     }
@@ -48,7 +55,7 @@ impl DefaultTTLMessage {
 
     pub fn parse_set(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() == 1 {
-            Ok(Self::Set(parameters[0]))
+            Ok(Self::Set(Ttl::parse(parameters[0])?))
         } else {
             Err(ParseError::InvalidLength)
         }

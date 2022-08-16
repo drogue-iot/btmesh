@@ -29,6 +29,8 @@ pub trait AdvertisingBearer {
 }
 
 pub trait GattBearer<const MTU: usize> {
+    fn reset(&self);
+
     type RunFuture<'m>: Future<Output = Result<(), BearerError>> + 'm
     where
         Self: 'm;

@@ -74,13 +74,13 @@ impl CompositionStatus {
         xmit: &mut Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         xmit.push(self.page).map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.data.cid().0.to_be_bytes())
+        xmit.extend_from_slice(&self.data.cid().0.to_le_bytes())
             .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.data.pid().0.to_be_bytes())
+        xmit.extend_from_slice(&self.data.pid().0.to_le_bytes())
             .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.data.vid().0.to_be_bytes())
+        xmit.extend_from_slice(&self.data.vid().0.to_le_bytes())
             .map_err(|_| InsufficientBuffer)?;
-        xmit.extend_from_slice(&self.data.crpl().to_be_bytes())
+        xmit.extend_from_slice(&self.data.crpl().to_le_bytes())
             .map_err(|_| InsufficientBuffer)?;
         self.data.features().emit(xmit)?;
         for element in self.data.elements_iter() {
