@@ -52,6 +52,8 @@ pub trait NetworkInterfaces {
 
     /// Perform beaconing on all of the network interfaces.
     fn beacon(&self, beacon: Beacon) -> Self::BeaconFuture<'_>;
+
+    fn reset(&self);
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -149,6 +151,11 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
             Ok(())
         }
     }
+
+    fn reset(&self) {
+        self.advertising_interface.reset();
+        self.gatt_interface.reset();
+    }
 }
 
 pub struct AdvertisingOnlyNetworkInterfaces<B: AdvertisingBearer> {
@@ -210,5 +217,9 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
 
     fn beacon(&self, beacon: Beacon) -> Self::BeaconFuture<'_> {
         async move { Ok(self.interface.beacon(beacon).await?) }
+    }
+
+    fn reset(&self) {
+        self.interface.reset();
     }
 }

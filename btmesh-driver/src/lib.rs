@@ -16,7 +16,7 @@ use btmesh_pdu::provisioned::access::AccessMessage;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
-use core::borrow::Borrow;
+use core::borrow::{Borrow, BorrowMut};
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_executor::time::{Duration, Timer};
@@ -147,10 +147,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                 Timer::after(Duration::from_millis(100)).await;
                             }
                             debug!("adjusting into fully provisioned state");
-                            *current_stack = Stack::Provisioned {
-                                stack: ProvisionedStack::new(device_info, secrets, network_state),
-                                sequence: Sequence::new(Seq::new(800)),
-                            };
+
+                            let provisioned_config: ProvisionedConfiguration =
+                                (device_info, secrets, network_state).into();
+                            self.storage
+                                .put(&Configuration::Provisioned(provisioned_config.into()))
+                                .await?;
                         }
                     }
                 }
@@ -298,23 +300,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         self.storage.set_composition(composition.clone());
         self.storage.set_capabilities(capabilities);
 
-        let mut last_config_hash = None;
         self.storage.borrow().init().await?;
 
         loop {
             let config = self.storage.borrow().get().await?;
-
-            let current_hash = hash_of(&config);
-
-            if let Some(previous_hash) = last_config_hash {
-                if previous_hash != current_hash {
-                    config.display(&composition);
-                }
-            } else {
-                config.display(&composition);
-            }
-
-            last_config_hash.replace(current_hash);
 
             let mut desired = DesiredStack::Unchanged;
 
@@ -325,7 +314,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
                 (Stack::None, Configuration::Provisioned(config))
                 | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
-                    info!("heading to provisioned with seq {}", config.sequence);
                     desired = DesiredStack::Provisioned(config);
                 }
                 _ => {
@@ -336,18 +324,20 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             match desired {
                 DesiredStack::Unchanged => { /*nothing*/ }
                 DesiredStack::Unprovisioned(config) => {
-                    info!("setting up unprovisioned stack");
                     *self.stack.borrow_mut() = Stack::Unprovisioned {
                         stack: UnprovisionedStack::new(self.storage.borrow().capabilities()),
                         uuid: config.uuid,
-                    }
+                    };
+                    self.network.reset();
+                    config.display(&composition);
                 }
                 DesiredStack::Provisioned(config) => {
-                    info!("setting up provisioned stack");
                     *self.stack.borrow_mut() = Stack::Provisioned {
                         sequence: Sequence::new(Seq::new(config.sequence())),
-                        stack: config.into(),
-                    }
+                        stack: (&config).into(),
+                    };
+                    self.network.reset();
+                    config.display(&composition);
                 }
             }
 
@@ -377,16 +367,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     }
                 }
 
-                let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
-                if let Some(config) = config {
-                    let current_hash = hash_of(&config);
-                    if let Some(previous_hash) = last_config_hash {
-                        if previous_hash != current_hash {
-                            self.storage.borrow().put(&config).await?;
-                            last_config_hash.replace(current_hash);
-                        }
-                    }
-                }
+                //let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
+                //if let Some(config) = config {
+                //self.storage.borrow().put(&config).await?;
+                //}
             }
         }
     }

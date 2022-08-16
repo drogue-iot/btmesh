@@ -128,13 +128,15 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
             let result = if let Some(next) = outer {
                 match next {
                     QueueEntry::Nonsegmented(inner) => {
+                        info!("xmit remaining {}", inner.num_retransmit);
                         inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
+                            info!("copmleteing token");
                             should_take = true;
-                            inner
-                                .completion_token
-                                .as_ref()
-                                .map(|token| token.complete());
+                            inner.completion_token.as_ref().map(|token| {
+                                info!("actually copmleting");
+                                token.complete()
+                            });
                         }
                         Some(inner.upper_pdu.clone())
                     }

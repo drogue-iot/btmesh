@@ -14,10 +14,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         NodeResetMessage::Reset => {
-            let result = ctx
-                .send_with_completion(NodeResetMessage::Status.into(), meta.reply(), &SIGNAL)
+            ctx.send_with_completion(NodeResetMessage::Status.into(), meta.reply(), &SIGNAL)
                 .await;
-            storage.reset().await?
+            storage.reset().await?;
         }
         _ => {
             // not applicable to server role

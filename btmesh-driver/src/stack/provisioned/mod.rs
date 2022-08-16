@@ -111,8 +111,8 @@ pub struct ProvisionedStack {
     beacon: Deadline,
 }
 
-impl From<ProvisionedConfiguration> for ProvisionedStack {
-    fn from(content: ProvisionedConfiguration) -> Self {
+impl From<&ProvisionedConfiguration> for ProvisionedStack {
+    fn from(content: &ProvisionedConfiguration) -> Self {
         Self {
             network_state: content.network_state(),
             secrets: content.secrets(),
@@ -252,14 +252,18 @@ impl ProvisionedStack {
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 
         if network_pdus.len() == 1 {
-            self.transmit_queue.add_nonsegmented(
+            info!("add non-segmented");
+            self.transmit_queue
+                .add_nonsegmented(upper_pdu, 3, completion_token)?;
+        } else if network_pdus.len() > 1 {
+            info!("add segmented");
+            self.transmit_queue.add_segmented(
                 upper_pdu,
                 network_pdus.len() as u8,
                 completion_token,
             )?;
-        } else if network_pdus.len() > 1 {
-            self.transmit_queue
-                .add_segmented(upper_pdu, 3, completion_token)?;
+        } else {
+            info!("nothing, dropping token?");
         }
 
         let network_pdus = network_pdus

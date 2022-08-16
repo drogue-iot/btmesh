@@ -13,7 +13,11 @@ pub struct UnprovisionedConfiguration {
 
 impl UnprovisionedConfiguration {
     pub fn display(&self, composition: &Composition) {
+        info!("========================================================================");
+        info!("=  Unprovisioned                                                       =");
+        info!("------------------------------------------------------------------------");
         info!("uuid: {}", self.uuid);
+        info!("========================================================================");
     }
 
     pub fn new<R: RngCore>(rng: &mut R) -> Self {

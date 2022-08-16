@@ -12,6 +12,7 @@ use btmesh_pdu::provisioning::advertising::AdvertisingPDU;
 use btmesh_pdu::provisioning::generic::{GenericProvisioningPDU, ProvisioningBearerControl};
 use btmesh_pdu::provisioning::ProvisioningPDU;
 use btmesh_pdu::{MESH_BEACON, MESH_MESSAGE, PB_ADV, PDU};
+use core::borrow::BorrowMut;
 use core::cell::Cell;
 use core::cell::RefCell;
 use core::iter::Iterator;
@@ -40,6 +41,14 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
             outbound_pdu: RefCell::new(None),
             outbound_transaction_number: Cell::new(0x80),
         }
+    }
+
+    pub fn reset(&self) {
+        self.link_id.take();
+        self.inbound_transaction_number.take();
+        self.acked_inbound_transaction_number.take();
+        self.outbound_pdu.borrow_mut().take();
+        self.outbound_transaction_number.replace(0x80);
     }
 
     pub async fn beacon(&self, beacon: Beacon) -> Result<(), BearerError> {
@@ -108,7 +117,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                     (
                         DeviceState::Unprovisioned {
                             uuid,
-                            in_progress,
+                            in_progress: _,
                         },
                         PB_ADV,
                     ) => {

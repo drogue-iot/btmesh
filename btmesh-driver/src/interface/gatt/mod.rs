@@ -21,6 +21,10 @@ impl<B: GattBearer<MTU>, const MTU: usize> GattBearerNetworkInterface<B, MTU> {
         Ok(())
     }
 
+    pub fn reset(&self) {
+        // nothing
+    }
+
     pub async fn receive(&self) -> Result<PDU, BearerError> {
         loop {
             let data = self.bearer.receive().await?;

@@ -55,17 +55,6 @@ pub enum Configuration {
     Provisioned(ProvisionedConfiguration),
 }
 
-impl Configuration {
-    pub fn display(&self, composition: &Composition) {
-        info!("========================================================================");
-        match self {
-            Configuration::Unprovisioned(config) => config.display(composition),
-            Configuration::Provisioned(config) => config.display(composition),
-        }
-        info!("========================================================================");
-    }
-}
-
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
     capabilities: RefCell<Option<Capabilities>>,
@@ -114,12 +103,12 @@ impl<B: BackingStore> Storage<B> {
 
     #[allow(clippy::await_holding_refcell_ref)]
     pub async fn put(&self, config: &Configuration) -> Result<(), StorageError> {
+        let mut locked_config = self.config.lock().await;
         if matches!(config, Configuration::Provisioned(_)) {
             // only write it back if it's provisioned.
             // unprovisioned config is ephemeral.
             self.backing_store.borrow_mut().store(config).await?;
         }
-        let mut locked_config = self.config.lock().await;
         locked_config.replace(config.clone());
         Ok(())
     }
@@ -142,10 +131,10 @@ impl<B: BackingStore> Storage<B> {
 
     #[allow(clippy::await_holding_refcell_ref)]
     async fn load_if_needed(&self) -> Result<(), StorageError> {
-        let mut config = self.config.lock().await;
-        if config.is_none() {
+        let mut locked_config = self.config.lock().await;
+        if locked_config.is_none() {
             let loaded_config = self.backing_store.borrow_mut().load().await?;
-            config.replace(loaded_config);
+            locked_config.replace(loaded_config);
         }
 
         Ok(())
@@ -170,7 +159,6 @@ impl<B: BackingStore> Storage<B> {
     pub async fn reset(&self) -> Result<(), StorageError> {
         let mut locked_config = self.config.lock().await;
         self.backing_store.borrow_mut().clear().await?;
-        debug!("node reset");
         locked_config.replace(self.default_config.clone());
         Ok(())
     }

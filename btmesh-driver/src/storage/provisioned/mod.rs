@@ -18,10 +18,14 @@ pub struct ProvisionedConfiguration {
 
 impl ProvisionedConfiguration {
     pub fn display(&self, composition: &Composition) {
+        info!("========================================================================");
+        info!("=  Provisioned                                                         =");
+        info!("------------------------------------------------------------------------");
         info!("seq: {}", self.sequence);
         self.device_info.display();
         self.network_state.display();
         self.secrets.display();
+        info!("========================================================================");
     }
 
     pub fn network_state(&self) -> NetworkState {
@@ -46,6 +50,18 @@ impl ProvisionedConfiguration {
 
     pub fn foundation_mut(&mut self) -> &mut Foundation {
         &mut self.foundation
+    }
+}
+
+impl From<(DeviceInfo, Secrets, NetworkState)> for ProvisionedConfiguration {
+    fn from(config: (DeviceInfo, Secrets, NetworkState)) -> Self {
+        Self {
+            sequence: 800,
+            network_state: config.2,
+            secrets: config.1,
+            device_info: config.0,
+            foundation: Default::default(),
+        }
     }
 }
 

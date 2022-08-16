@@ -173,7 +173,9 @@ impl CompletionToken {
 
 impl Drop for CompletionToken {
     fn drop(&mut self) {
-        self.incomplete()
+        if !self.signal.signaled() {
+            self.incomplete()
+        }
     }
 }
 

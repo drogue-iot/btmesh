@@ -189,10 +189,9 @@ impl PublicKey {
         if data.len() != 65 && data[0] != ProvisioningPDU::PUBLIC_KEY {
             Err(ParseError::InvalidPDUFormat)
         } else {
-            Ok(PublicKey {
-                x: data[1..33].try_into()?,
-                y: data[33..65].try_into()?,
-            })
+            let x = data[1..33].try_into()?;
+            let y = data[33..65].try_into()?;
+            Ok(PublicKey { x, y })
         }
     }
 
