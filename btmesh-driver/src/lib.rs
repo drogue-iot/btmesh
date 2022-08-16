@@ -338,7 +338,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         sequence: Sequence::new(Seq::new(config.sequence())),
                         stack: (&config).into(),
                     };
-                    self.network.reset();
                     config.display(&composition);
                 }
             }
