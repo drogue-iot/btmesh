@@ -53,6 +53,18 @@ where
     _server: SensorServer<C, NUM_SENSORS, NUM_COLUMNS>,
 }
 
+impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
+    SensorSetupServer<C, NUM_SENSORS, NUM_COLUMNS>
+where
+    C: SensorSetupConfig,
+{
+    pub fn new() -> Self {
+        Self {
+            _server: SensorServer::new(),
+        }
+    }
+}
+
 pub const SENSOR_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1100);
 pub const SENSOR_SETUP_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1101);
 pub const SENSOR_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1102);
