@@ -113,6 +113,10 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
         ))
     }
 
+    pub fn softdevice(&self) -> &'static Softdevice {
+        self.0.sd
+    }
+
     pub async fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Result<(), DriverError> {
         self.0.run(device).await
     }
