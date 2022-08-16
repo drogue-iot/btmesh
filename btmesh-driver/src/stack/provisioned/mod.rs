@@ -247,7 +247,7 @@ impl ProvisionedStack {
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
         completion_token: Option<CompletionToken>,
-    ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
+    ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 

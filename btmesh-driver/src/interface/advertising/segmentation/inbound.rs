@@ -4,7 +4,7 @@ use btmesh_pdu::provisioning::ProvisioningPDU;
 use heapless::Vec;
 
 pub struct InboundSegments {
-    segments: Vec<Option<Vec<u8, 64>>, 32>,
+    segments: Vec<Option<Vec<u8, 64>>, 8>,
 }
 
 impl InboundSegments {
@@ -39,7 +39,7 @@ impl InboundSegments {
         }
 
         if self.is_complete() {
-            let mut data: Vec<u8, 1024> = Vec::new();
+            let mut data: Vec<u8, 512> = Vec::new();
             self.fill(&mut data)?;
             let pdu = ProvisioningPDU::parse(&*data)?;
             Ok(Some(pdu))

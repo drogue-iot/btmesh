@@ -23,7 +23,7 @@ impl OutboundSegmentation {
         sequence: &Sequence,
         pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
-    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 8>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         let mut result = Vec::new();
 

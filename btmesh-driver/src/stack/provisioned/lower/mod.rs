@@ -75,7 +75,7 @@ impl ProvisionedStack {
         sequence: &Sequence,
         block_ack: BlockAck,
         meta: UpperMetadata,
-    ) -> Result<Vec<NetworkPDU, 32>, DriverError> {
+    ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         let network_pdus = self.process_outbound_upper_pdu(
             sequence,
             &block_ack_to_upper_pdu(block_ack, meta)?,
@@ -95,7 +95,7 @@ impl ProvisionedStack {
         sequence: &Sequence,
         upper_pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
-    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 32>, DriverError> {
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 8>, DriverError> {
         self.lower
             .outbound_segmentation
             .process(sequence, upper_pdu, is_retransmit)
