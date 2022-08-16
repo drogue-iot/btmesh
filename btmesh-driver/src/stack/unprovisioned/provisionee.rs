@@ -126,7 +126,7 @@ pub struct Invitation {
 #[derive(Default)]
 pub struct KeyExchange {
     auth_value: AuthValue,
-    shared_secret: Option<[u8; 32]>,
+    shared_secret: [u8; 32],
     random_provisioner: [u8; 16],
 }
 #[derive(Default)]
@@ -180,7 +180,7 @@ impl Phase<KeyExchange> {
         }?;
         let private = SecretKey::random(rng);
         let secret = &diffie_hellman(private.to_nonzero_scalar(), public.as_affine());
-        self.state.shared_secret = Some(secret.as_bytes()[0..].try_into()?);
+        self.state.shared_secret = secret.as_bytes()[0..].try_into()?;
         let pk = private.public_key().try_into()?;
         self.transcript.add_pubkey_provisioner(key)?;
         self.transcript.add_pubkey_device(&pk)?;
@@ -204,11 +204,13 @@ impl Phase<Authentication> {
     pub fn check(&mut self, value: &Random) -> Result<(), DriverError> {
         let confirmation = self.confirm(&value.random)?;
         match self.state.confirmation {
-            Some(v) if v == confirmation => (),
-            _ => return Err(DriverError::CryptoError),
+            Some(v) if v == confirmation => {
+                self.state.random_provisioner = value.random;
+                Ok(())
+            }
+            Some(_) => Err(DriverError::CryptoError),
+            None => Err(DriverError::InvalidState),
         }
-        self.state.random_provisioner = value.random;
-        Ok(())
     }
     fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
@@ -277,7 +279,7 @@ impl TryFrom<Phase<KeyExchange>> for Phase<Authentication> {
             response: p.response,
             state: Authentication {
                 auth_value: p.state.auth_value,
-                shared_secret: p.state.shared_secret.unwrap(),
+                shared_secret: p.state.shared_secret,
                 random_provisioner: p.state.random_provisioner,
                 ..Default::default()
             },
