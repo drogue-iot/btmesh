@@ -15,7 +15,7 @@ use crate::{
     sensor::{SENSOR_CLIENT, SENSOR_SERVER, SENSOR_SETUP_SERVER},
 };
 use btmesh_common::opcode::Opcode;
-use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
+pub use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
 //pub mod firmware;
