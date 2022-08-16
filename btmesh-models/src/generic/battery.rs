@@ -3,6 +3,7 @@ use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
+#[derive(Clone, Debug)]
 pub struct GenericBatteryServer;
 
 pub const GENERIC_BATTERY_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x100C);
