@@ -7,7 +7,6 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use regex::Regex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use syn::{Field, GenericParam, Type};
 
@@ -20,7 +19,7 @@ struct DeviceArgs {
 
 #[derive(FromMeta)]
 struct ElementArgs {
-    location: String,
+    location: syn::Lit,
 }
 
 #[proc_macro_attribute]
@@ -236,20 +235,25 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         }
     };
 
-    let location = args.location.to_uppercase();
     let mut location_arg = TokenStream2::new();
-
-    let re = Regex::new(r"^[0-9]+$").unwrap();
-    if re.is_match(&location) {
-        location_arg.extend(quote!(
-            ::btmesh_device::location::Location::numeric(#location)
-        ));
-    } else {
-        let location_const = format_ident!("{}", location);
-        location_arg.extend(quote!(
-            ::btmesh_device::location::#location_const
-        ));
-    };
+    match args.location {
+        syn::Lit::Int(l) => {
+            location_arg.extend(quote!(
+                ::btmesh_device::location::Location::numeric(#l)
+            ));
+        }
+        syn::Lit::Str(l) => {
+            let location = l.value().to_uppercase();
+            let location_const = format_ident!("{}", location);
+            location_arg.extend(quote!(
+                ::btmesh_device::location::#location_const
+            ));
+        }
+        l => panic!(
+            "Location must be numeric or a constant. Unsupported literal type: {:?}",
+            l
+        ),
+    }
 
     let struct_fields = match element_struct.fields.clone() {
         syn::Fields::Named(n) => n,
