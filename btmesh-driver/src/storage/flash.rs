@@ -185,9 +185,10 @@ mod test {
 
     #[test]
     pub fn should_writeback_from_unprovisioned_to_provisioned() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
-            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
-            secrets: Secrets::new(
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+            0,
+            NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            Secrets::new(
                 DeviceKey::new([
                     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
                     0xEE, 0xFF, 0x00,
@@ -195,10 +196,9 @@ mod test {
                 NetworkKeys::default(),
                 ApplicationKeys::default(),
             ),
-            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
-            sequence: 0,
-            foundation: Default::default(),
-        });
+            DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            Default::default(),
+        ));
 
         assert!(should_writeback(
             LatestLoad::Unprovisioned,
@@ -209,9 +209,10 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_unchanged() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
-            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
-            secrets: Secrets::new(
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+            100,
+            NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            Secrets::new(
                 DeviceKey::new([
                     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
                     0xEE, 0xFF, 0x00,
@@ -219,10 +220,9 @@ mod test {
                 NetworkKeys::default(),
                 ApplicationKeys::default(),
             ),
-            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
-            sequence: 100,
-            foundation: Default::default(),
-        });
+            DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            Default::default(),
+        ));
 
         let hash = hash_of(&provisioned_config);
 
@@ -238,9 +238,10 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_not_met() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
-            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
-            secrets: Secrets::new(
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+            199,
+            NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            Secrets::new(
                 DeviceKey::new([
                     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
                     0xEE, 0xFF, 0x00,
@@ -248,10 +249,9 @@ mod test {
                 NetworkKeys::default(),
                 ApplicationKeys::default(),
             ),
-            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
-            sequence: 199,
-            foundation: Default::default(),
-        });
+            DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            Default::default(),
+        ));
 
         assert!(!should_writeback(
             LatestLoad::Provisioned {
@@ -265,9 +265,10 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_is_met() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
-            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
-            secrets: Secrets::new(
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+            200,
+            NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            Secrets::new(
                 DeviceKey::new([
                     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
                     0xEE, 0xFF, 0x00,
@@ -275,10 +276,9 @@ mod test {
                 NetworkKeys::default(),
                 ApplicationKeys::default(),
             ),
-            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
-            sequence: 200,
-            foundation: Default::default(),
-        });
+            DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            Default::default(),
+        ));
 
         assert!(should_writeback(
             LatestLoad::Provisioned {
@@ -292,9 +292,10 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_is_met_skippingly() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration {
-            network_state: NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
-            secrets: Secrets::new(
+        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+            205,
+            NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
+            Secrets::new(
                 DeviceKey::new([
                     0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99, 0xAA, 0xBB, 0xCC, 0xDD,
                     0xEE, 0xFF, 0x00,
@@ -302,10 +303,9 @@ mod test {
                 NetworkKeys::default(),
                 ApplicationKeys::default(),
             ),
-            device_info: DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
-            sequence: 205,
-            foundation: Default::default(),
-        });
+            DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
+            Default::default(),
+        ));
 
         assert!(should_writeback(
             LatestLoad::Provisioned {
