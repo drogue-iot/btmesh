@@ -83,7 +83,7 @@ pub struct Tolerance(pub u16);
 
 #[cfg(feature = "defmt")]
 pub trait SensorConfig: defmt::Format + Clone {
-    type Data: SensorData + defmt::Format;
+    type Data: SensorData + defmt::Format + core::fmt::Debug;
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
