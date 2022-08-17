@@ -205,16 +205,16 @@ impl Status {
     }
 
     fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
-        if parameters.len() >= 10 {
+        if parameters.len() >= 8 {
             let battery_level = parameters[0];
 
             let time_to_discharge =
-                u32::from_be_bytes([parameters[1], parameters[2], parameters[3], parameters[4]]);
+                u32::from_be_bytes([0, parameters[1], parameters[2], parameters[3]]);
 
             let time_to_charge =
-                u32::from_be_bytes([parameters[5], parameters[6], parameters[7], parameters[8]]);
+                u32::from_be_bytes([0, parameters[4], parameters[5], parameters[6]]);
 
-            let flags = GenericBatteryFlags::parse(parameters[9]);
+            let flags = GenericBatteryFlags::parse(parameters[7]);
 
             Ok(Self {
                 battery_level,
