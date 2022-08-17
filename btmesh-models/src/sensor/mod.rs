@@ -69,13 +69,15 @@ pub const SENSOR_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1100);
 pub const SENSOR_SETUP_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1101);
 pub const SENSOR_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1102);
 
-#[derive(Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PropertyId(pub u16);
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RawValue(pub Vec<u8, 128>);
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Tolerance(pub u16);
 
@@ -87,7 +89,7 @@ pub trait SensorConfig: defmt::Format + Clone {
 
 #[cfg(not(feature = "defmt"))]
 pub trait SensorConfig: Clone {
-    type Data: SensorData;
+    type Data: SensorData + core::fmt::Debug;
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
@@ -105,6 +107,7 @@ pub trait SensorSetupConfig: SensorConfig {
     const SETTING_DESCRIPTORS: &'static [SettingDescriptor];
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SensorMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
@@ -120,17 +123,20 @@ where
     SeriesStatus(SeriesStatus<NUM_COLUMNS>),
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DescriptorGet {
     id: Option<PropertyId>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DescriptorStatus<const NUM_SENSORS: usize> {
     NotFound(PropertyId),
     Descriptors(Vec<SensorDescriptor, NUM_SENSORS>),
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorDescriptor {
     pub id: PropertyId,
@@ -143,12 +149,14 @@ pub struct SensorDescriptor {
     pub x_size: usize,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceDescriptor {
     id: PropertyId,
     size: usize,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingDescriptor {
     sensor: PropertyId,
@@ -156,6 +164,7 @@ pub struct SettingDescriptor {
     size: usize,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SamplingFunction {
     Unspecified,
@@ -168,11 +177,13 @@ pub enum SamplingFunction {
     Count,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorGet {
     id: Option<PropertyId>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorStatus<C>
 where
@@ -181,12 +192,14 @@ where
     pub data: C::Data,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ColumnGet {
     id: PropertyId,
     x: RawValue,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ColumnStatus {
     id: PropertyId,
@@ -194,18 +207,21 @@ pub struct ColumnStatus {
     values: Option<(RawValue, RawValue)>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SeriesGet {
     id: PropertyId,
     x: Option<(RawValue, RawValue)>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SeriesStatus<const NUM_COLUMNS: usize> {
     id: PropertyId,
     values: Vec<(RawValue, RawValue, RawValue), NUM_COLUMNS>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SensorSetupMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
@@ -224,11 +240,13 @@ where
     SettingStatus(SettingStatus),
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceGet {
     id: PropertyId,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceSet {
     id: PropertyId,
@@ -241,6 +259,7 @@ pub struct CadenceSet {
     fast_cadence_high: RawValue,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum StatusTriggerType {
     Property,
@@ -249,23 +268,27 @@ pub enum StatusTriggerType {
 
 pub type CadenceStatus = CadenceSet;
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingsGet {
     id: PropertyId,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingsStatus<const NUM_SENSORS: usize> {
     id: PropertyId,
     settings: Vec<PropertyId, NUM_SENSORS>,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingGet {
     id: PropertyId,
     setting: PropertyId,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingSet {
     id: PropertyId,
@@ -273,6 +296,7 @@ pub struct SettingSet {
     raw: RawValue,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingStatus {
     id: PropertyId,
@@ -281,6 +305,7 @@ pub struct SettingStatus {
     raw: RawValue,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SensorSettingAccess {
     Read,

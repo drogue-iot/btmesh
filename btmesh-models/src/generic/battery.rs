@@ -12,6 +12,7 @@ pub struct GenericBatteryClient;
 pub const GENERIC_BATTERY_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x100C);
 pub const GENERIC_BATTERY_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x100D);
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryMessage {
     Get,
@@ -66,6 +67,7 @@ impl Model for GenericBatteryServer {
 opcode!( GENERIC_BATTERY_GET 0x82, 0x23 );
 opcode!( GENERIC_BATTERY_STATUS 0x82, 0x24 );
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericBatteryFlags {
     pub presence: GenericBatteryFlagsPresence,
@@ -137,6 +139,7 @@ impl GenericBatteryFlags {
     }
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsPresence {
     NotPresent,
@@ -145,6 +148,7 @@ pub enum GenericBatteryFlagsPresence {
     Unknown,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsIndicator {
     LowCritical,
@@ -153,6 +157,7 @@ pub enum GenericBatteryFlagsIndicator {
     Unknown,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsCharging {
     NotChargeable,
@@ -161,6 +166,7 @@ pub enum GenericBatteryFlagsCharging {
     Unknown,
 }
 
+#[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Status {
     battery_level: u8,
