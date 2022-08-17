@@ -35,7 +35,7 @@ impl Opcode {
             None
         } else if data[0] & 0b10000000 == 0 {
             // one octet
-            Some((Opcode::OneOctet(data[0] & 0b00111111), &data[1..]))
+            Some((Opcode::OneOctet(data[0] & 0b01111111), &data[1..]))
         } else if data.len() >= 2 && data[0] & 0b11000000 == 0b10000000 {
             // two octet
             Some((Opcode::TwoOctet(data[0], data[1]), &data[2..]))
@@ -97,4 +97,26 @@ macro_rules! opcode {
     ($name:ident $o1:expr, $o2:expr, $o3:expr) => {
         pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::ThreeOctet($o1, $o2, $o3);
     };
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_opcode_codec() {
+        let opcodes = vec![
+            Opcode::OneOctet(0x52),
+            Opcode::TwoOctet(0x82, 0x31),
+            Opcode::ThreeOctet(0xC2, 0x31, 0x11),
+        ];
+
+        for opcode in opcodes.iter() {
+            let mut v: heapless::Vec<u8, 4> = Vec::new();
+            opcode.emit(&mut v).unwrap();
+
+            let (decoded, _) = Opcode::split(&v[..]).unwrap();
+            assert_eq!(decoded, *opcode);
+        }
+    }
 }
