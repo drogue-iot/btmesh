@@ -47,14 +47,9 @@ impl Provisionee {
             }
             Self::KeyExchange(_) => None,
             Self::Authentication(phase) => Some(ProvisioningPDU::PublicKey(phase.state.public_key)),
-            Self::Confirming(phase) => match phase.confirm(&phase.random_device) {
-                Ok(confirmation) => {
-                    Some(ProvisioningPDU::Confirmation(Confirmation { confirmation }))
-                }
-                Err(_) => Some(ProvisioningPDU::Failed(Failed {
-                    error_code: ErrorCode::UnexpectedError,
-                })),
-            },
+            Self::Confirming(phase) => Some(ProvisioningPDU::Confirmation(Confirmation {
+                confirmation: phase.state.confirmation_device,
+            })),
             Self::DataDistribution(phase) => Some(ProvisioningPDU::Random(Random {
                 random: phase.random_device,
             })),
@@ -100,8 +95,7 @@ impl Provisionee {
             // CONFIRMATION
             (Provisionee::Authentication(mut phase), ProvisioningPDU::Confirmation(value)) => {
                 let mut next: Phase<Confirming> = phase.try_into()?;
-                next.state.confirmation = value.confirmation;
-                rng.fill_bytes(&mut next.random_device);
+                next.confirm(value, rng)?;
                 Ok(Provisionee::Confirming(next))
             }
             // RANDOM
@@ -141,7 +135,7 @@ pub struct Phase<S> {
 }
 
 impl<S> Phase<S> {
-    fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
+    fn confirmation(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
         let key = prck(&self.shared_secret, &*salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
@@ -163,7 +157,8 @@ pub struct Authentication {
 }
 #[derive(Default)]
 pub struct Confirming {
-    confirmation: [u8; 16],
+    confirmation_provider: [u8; 16],
+    confirmation_device: [u8; 16],
 }
 #[derive(Default)]
 pub struct DataDistribution {}
@@ -249,12 +244,19 @@ impl TryFrom<Phase<Authentication>> for Phase<Confirming> {
 }
 
 impl Phase<Confirming> {
+    pub fn confirm<RNG: RngCore + CryptoRng>(
+        &mut self,
+        value: &Confirmation,
+        rng: &mut RNG,
+    ) -> Result<(), DriverError> {
+        self.state.confirmation_provider = value.confirmation;
+        rng.fill_bytes(&mut self.random_device);
+        self.state.confirmation_device = self.confirmation(&self.random_device)?;
+        Ok(())
+    }
     pub fn check(&mut self, value: &Random) -> Result<(), DriverError> {
-        if self.state.confirmation == [0; 16] {
-            return Err(DriverError::InvalidState);
-        }
-        let confirmation = self.confirm(&value.random)?;
-        if self.state.confirmation != confirmation {
+        let confirmation = self.confirmation(&value.random)?;
+        if self.state.confirmation_provider != confirmation {
             return Err(DriverError::CryptoError);
         }
         self.random_provisioner = value.random;
@@ -389,7 +391,7 @@ mod tests {
         let pdu = ProvisioningPDU::PublicKey(PublicKey::try_from(private.public_key()).unwrap());
         fsm = fsm.next(&pdu, &mut OsRng).unwrap();
         let confirmation = match &fsm {
-            Provisionee::Authentication(ref auth) => auth.confirm(random).unwrap(),
+            Provisionee::Authentication(auth) => auth.confirmation(random).unwrap(),
             _ => panic!("wrong state returned"),
         };
         let pdu = ProvisioningPDU::Confirmation(Confirmation { confirmation });
