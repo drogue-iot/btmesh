@@ -9,14 +9,30 @@ mod foundation;
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug)]
 pub struct ProvisionedConfiguration {
-    pub(crate) sequence: u32,
-    pub(crate) network_state: NetworkState,
-    pub(crate) secrets: Secrets,
-    pub(crate) device_info: DeviceInfo,
-    pub(crate) foundation: Foundation,
+    sequence: u32,
+    network_state: NetworkState,
+    secrets: Secrets,
+    device_info: DeviceInfo,
+    foundation: Foundation,
 }
 
 impl ProvisionedConfiguration {
+    pub(crate) fn new(
+        sequence: u32,
+        network_state: NetworkState,
+        secrets: Secrets,
+        device_info: DeviceInfo,
+        foundation: Foundation,
+    ) -> Self {
+        Self {
+            sequence,
+            network_state,
+            secrets,
+            device_info,
+            foundation,
+        }
+    }
+
     pub fn display(&self, _composition: &Composition) {
         info!("========================================================================");
         info!("=  Provisioned                                                         =");
@@ -28,27 +44,35 @@ impl ProvisionedConfiguration {
         info!("========================================================================");
     }
 
-    pub fn network_state(&self) -> NetworkState {
-        self.network_state
+    pub(crate) fn network_state(&self) -> &NetworkState {
+        &self.network_state
     }
 
-    pub fn secrets(&self) -> Secrets {
-        self.secrets.clone()
+    pub(crate) fn secrets(&self) -> &Secrets {
+        &self.secrets
     }
 
-    pub fn device_info(&self) -> DeviceInfo {
-        self.device_info
+    pub(crate) fn secrets_mut(&mut self) -> &mut Secrets {
+        &mut self.secrets
     }
 
-    pub fn sequence(&self) -> u32 {
+    pub(crate) fn device_info(&self) -> &DeviceInfo {
+        &self.device_info
+    }
+
+    pub(crate) fn sequence(&self) -> u32 {
         self.sequence as u32
     }
 
-    pub fn foundation(&self) -> &Foundation {
+    pub(crate) fn sequence_mut(&mut self) -> &mut u32 {
+        &mut self.sequence
+    }
+
+    pub(crate) fn foundation(&self) -> &Foundation {
         &self.foundation
     }
 
-    pub fn foundation_mut(&mut self) -> &mut Foundation {
+    pub(crate) fn foundation_mut(&mut self) -> &mut Foundation {
         &mut self.foundation
     }
 }

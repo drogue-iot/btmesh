@@ -113,11 +113,11 @@ pub struct ProvisionedStack {
 impl From<&ProvisionedConfiguration> for ProvisionedStack {
     fn from(content: &ProvisionedConfiguration) -> Self {
         Self {
-            network_state: content.network_state(),
-            secrets: content.secrets(),
+            network_state: content.network_state().clone(),
+            secrets: content.secrets().clone(),
             upper: Default::default(),
             lower: Default::default(),
-            network: NetworkDriver::new(content.device_info()),
+            network: NetworkDriver::new(content.device_info().clone()),
             transmit_queue: Default::default(),
             beacon: Deadline::new(Duration::from_secs(3), true),
         }
