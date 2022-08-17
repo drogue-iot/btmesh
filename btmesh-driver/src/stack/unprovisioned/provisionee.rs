@@ -69,7 +69,8 @@ impl Provisionee {
             // INVITE
             (Provisionee::Beaconing(mut phase), ProvisioningPDU::Invite(invite)) => {
                 phase.transcript.add_invite(invite)?;
-                Ok(Provisionee::Invitation(phase.try_into()?))
+                phase.transcript.add_capabilities(&phase.capabilities)?;
+                Ok(Provisionee::Invitation(phase.into()))
             }
             // START
             (Provisionee::Invitation(mut phase), ProvisioningPDU::Start(start)) => {
@@ -78,13 +79,13 @@ impl Provisionee {
                 phase.auth_value = determine_auth_value(rng, start)?;
                 // TODO: actually let the device/app/thingy know what
                 // it is so that it can blink/flash/accept input
-                Ok(Provisionee::KeyExchange(phase.try_into()?))
+                Ok(Provisionee::KeyExchange(phase.into()))
             }
             // PUBLIC KEY
             (Provisionee::KeyExchange(mut phase), ProvisioningPDU::PublicKey(peer_key)) => {
                 match phase.calculate_ecdh(peer_key, rng) {
                     Ok(pk) => {
-                        let mut next: Phase<Authentication> = phase.try_into()?;
+                        let mut next: Phase<Authentication> = phase.into();
                         next.state.public_key = pk;
                         Ok(Provisionee::Authentication(next))
                     }
@@ -94,14 +95,14 @@ impl Provisionee {
             }
             // CONFIRMATION
             (Provisionee::Authentication(mut phase), ProvisioningPDU::Confirmation(value)) => {
-                let mut next: Phase<Confirming> = phase.try_into()?;
+                let mut next: Phase<Confirming> = phase.into();
                 next.confirm(value, rng)?;
                 Ok(Provisionee::Confirming(next))
             }
             // RANDOM
             (Provisionee::Confirming(mut phase), ProvisioningPDU::Random(value)) => {
                 match phase.check(value) {
-                    Ok(_) => Ok(Provisionee::DataDistribution(phase.try_into()?)),
+                    Ok(_) => Ok(Provisionee::DataDistribution(phase.into())),
                     Err(_) => Provisionee::fail(ErrorCode::ConfirmationFailed),
                 }
             }
@@ -172,27 +173,24 @@ impl Phase<Beaconing> {
         }
     }
 }
-impl TryFrom<Phase<Beaconing>> for Phase<Invitation> {
-    type Error = DriverError;
-    fn try_from(mut p: Phase<Beaconing>) -> Result<Self, Self::Error> {
-        p.transcript.add_capabilities(&p.capabilities)?;
-        Ok(Phase {
+impl From<Phase<Beaconing>> for Phase<Invitation> {
+    fn from(mut p: Phase<Beaconing>) -> Self {
+        Phase {
             transcript: p.transcript,
             capabilities: p.capabilities,
             ..Default::default()
-        })
+        }
     }
 }
 
-impl TryFrom<Phase<Invitation>> for Phase<KeyExchange> {
-    type Error = DriverError;
-    fn try_from(p: Phase<Invitation>) -> Result<Self, Self::Error> {
-        Ok(Phase {
+impl From<Phase<Invitation>> for Phase<KeyExchange> {
+    fn from(p: Phase<Invitation>) -> Self {
+        Phase {
             transcript: p.transcript,
             auth_value: p.auth_value,
             state: KeyExchange {},
             ..Default::default()
-        })
+        }
     }
 }
 
@@ -215,31 +213,29 @@ impl Phase<KeyExchange> {
         Ok(pk)
     }
 }
-impl TryFrom<Phase<KeyExchange>> for Phase<Authentication> {
-    type Error = DriverError;
-    fn try_from(p: Phase<KeyExchange>) -> Result<Self, Self::Error> {
-        Ok(Phase {
+impl From<Phase<KeyExchange>> for Phase<Authentication> {
+    fn from(p: Phase<KeyExchange>) -> Self {
+        Phase {
             transcript: p.transcript,
             auth_value: p.auth_value,
             shared_secret: p.shared_secret,
             random_provisioner: p.random_provisioner,
             state: Authentication::default(),
             ..Default::default()
-        })
+        }
     }
 }
 
-impl TryFrom<Phase<Authentication>> for Phase<Confirming> {
-    type Error = DriverError;
-    fn try_from(p: Phase<Authentication>) -> Result<Self, Self::Error> {
-        Ok(Phase {
+impl From<Phase<Authentication>> for Phase<Confirming> {
+    fn from(p: Phase<Authentication>) -> Self {
+        Phase {
             transcript: p.transcript,
             auth_value: p.auth_value,
             shared_secret: p.shared_secret,
             random_provisioner: p.random_provisioner,
             state: Confirming::default(),
             ..Default::default()
-        })
+        }
     }
 }
 
@@ -263,17 +259,16 @@ impl Phase<Confirming> {
         Ok(())
     }
 }
-impl TryFrom<Phase<Confirming>> for Phase<DataDistribution> {
-    type Error = DriverError;
-    fn try_from(p: Phase<Confirming>) -> Result<Self, Self::Error> {
-        Ok(Phase {
+impl From<Phase<Confirming>> for Phase<DataDistribution> {
+    fn from(p: Phase<Confirming>) -> Self {
+        Phase {
             transcript: p.transcript,
             shared_secret: p.shared_secret,
             random_provisioner: p.random_provisioner,
             random_device: p.random_device,
             state: DataDistribution {},
             ..Default::default()
-        })
+        }
     }
 }
 
