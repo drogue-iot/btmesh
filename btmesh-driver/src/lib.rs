@@ -148,7 +148,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let pdu = pdu.into();
                             debug!("sending provisioning complete response");
                             for retransmit in 0..5 {
-                                self.network.transmit(&pdu, (retransmit != 0)).await?;
+                                self.network.transmit(&pdu, retransmit != 0).await?;
                                 Timer::after(Duration::from_millis(100)).await;
                             }
                             debug!("adjusting into fully provisioned state");
@@ -384,7 +384,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         self.retransmit().await?;
                     }
                     Either4::Fourth(Some(expiration)) => {
-                        self.handle_watchdog_event(expiration.take()).await;
+                        self.handle_watchdog_event(expiration.take()).await?;
                     }
                     Either4::Fourth(None) => {
                         // nothing?
@@ -394,7 +394,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
-    async fn handle_watchdog_event(&self, event: WatchdogEvent) {
+    async fn handle_watchdog_event(&self, event: WatchdogEvent) -> Result<(), DriverError> {
         match event {
             WatchdogEvent::LinkOpenTimeout => {
                 self.network.close_link(Reason::Timeout).await;
@@ -405,7 +405,21 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack.outbound_expiration(seq_zero);
                 }
             }
+            WatchdogEvent::InboundExpiration(seq_zero) => {
+                if let Stack::Provisioned {
+                    stack, sequence, ..
+                } = &mut *self.stack.borrow_mut()
+                {
+                    for network_pdu in
+                        stack.inbound_expiration(sequence, seq_zero, &self.watchdog)?
+                    {
+                        self.network.transmit(&network_pdu.into(), false).await.ok();
+                    }
+                }
+            }
         }
+
+        Ok(())
     }
 
     async fn run<'r, D: BluetoothMeshDevice>(

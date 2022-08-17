@@ -1,7 +1,9 @@
+use embassy_executor::time::{Duration, Instant};
 use heapless::FnvIndexMap;
 
-use crate::stack::provisioned::system::UpperMetadata;
+use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
+use crate::Watchdog;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::SeqZero;
@@ -31,6 +33,25 @@ pub struct SegmentationResult {
 }
 
 impl<const N: usize> InboundSegmentation<N> {
+    pub fn expire_inbound(
+        &self,
+        seq_zero: SeqZero,
+        watchdog: &Watchdog,
+    ) -> Option<(BlockAck, UpperMetadata)> {
+        let result = if let Some(in_flight) = self.current.values().find(|e| e.seq_zero == seq_zero)
+        {
+            Some((in_flight.blocks.block_ack, in_flight.meta.clone()))
+        } else {
+            None
+        };
+
+        for e in self.current.values() {
+            e.set_watchdog_expiration(watchdog);
+        }
+
+        result
+    }
+
     /// Accept an inbound segmented `LowerPDU`, and attempt to reassemble
     /// into an `UpperPDU`. If processed without error, will return a tuple
     /// containing the current `BlockAck` set and optionally the completely
@@ -38,12 +59,14 @@ impl<const N: usize> InboundSegmentation<N> {
     pub fn process(
         &mut self,
         pdu: &SegmentedLowerPDU<ProvisionedStack>,
+        watchdog: &Watchdog,
     ) -> Result<SegmentationResult, DriverError> {
         let src = pdu.meta().src();
         let in_flight = if let Some(current) = self.current.get_mut(&src) {
             current
         } else {
             let in_flight = InFlight::new(pdu);
+            in_flight.set_watchdog_expiration(watchdog);
             self.current
                 .insert(src, in_flight)
                 .map_err(|_| DriverError::InsufficientSpace)?;
@@ -134,35 +157,47 @@ struct InFlight {
     seq_zero: SeqZero,
     blocks: Blocks,
     reassembly: Reassembly,
+    meta: UpperMetadata,
+    last_ack: Instant,
 }
 
 impl InFlight {
     /// Construct a new `InFlight` initialized with expected number of segments
     /// and other access- or control-specific details, such as `SzMic` or `UpperControlOpcode`.
     fn new(pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Self {
+        let meta = UpperMetadata::from_segmented_lower_pdu(pdu);
         match pdu {
-            SegmentedLowerPDU::Access(pdu) => {
-                Self::new_access(pdu.seq_zero(), pdu.seg_n(), pdu.szmic())
+            SegmentedLowerPDU::Access(inner) => {
+                Self::new_access(inner.seq_zero(), inner.seg_n(), inner.szmic(), meta)
             }
-            SegmentedLowerPDU::Control(pdu) => {
-                Self::new_control(pdu.seq_zero(), pdu.seg_n(), pdu.opcode())
+            SegmentedLowerPDU::Control(inner) => {
+                Self::new_control(inner.seq_zero(), inner.seg_n(), inner.opcode(), meta)
             }
         }
     }
 
-    fn new_access(seq_zero: SeqZero, seg_n: u8, szmic: SzMic) -> Self {
+    fn new_access(seq_zero: SeqZero, seg_n: u8, szmic: SzMic, meta: UpperMetadata) -> Self {
         Self {
             seq_zero,
             blocks: Blocks::new(seq_zero, seg_n),
             reassembly: Reassembly::new_access(szmic),
+            meta,
+            last_ack: Instant::now(),
         }
     }
 
-    fn new_control(seq_zero: SeqZero, seg_n: u8, opcode: ControlOpcode) -> Self {
+    fn new_control(
+        seq_zero: SeqZero,
+        seg_n: u8,
+        opcode: ControlOpcode,
+        meta: UpperMetadata,
+    ) -> Self {
         Self {
             seq_zero,
             blocks: Blocks::new(seq_zero, seg_n),
             reassembly: Reassembly::new_control(opcode),
+            meta,
+            last_ack: Instant::now(),
         }
     }
 
@@ -207,9 +242,17 @@ impl InFlight {
         if !self.is_valid(pdu) {
             return Err(DriverError::InvalidPDU);
         }
+        self.last_ack = Instant::now();
         self.reassembly.ingest(pdu)?;
         self.blocks.ack(pdu.seg_o())?;
         Ok(())
+    }
+
+    fn set_watchdog_expiration(&self, watchdog: &Watchdog) {
+        watchdog.inbound_expiration((
+            self.last_ack + Duration::from_millis(150 + (50 * self.meta.ttl().value() as u64)),
+            self.seq_zero,
+        ))
     }
 
     /// Determine if all expected blocks have been processed.
@@ -315,7 +358,7 @@ mod tests {
     use crate::stack::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
     use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
     use crate::stack::provisioned::{DriverError, ProvisionedStack};
-    use btmesh_common::address::UnicastAddress;
+    use btmesh_common::address::{Address, UnicastAddress};
     use btmesh_common::crypto::network::Nid;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};
@@ -332,7 +375,6 @@ mod tests {
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
-        let in_flight = InFlight::new_access(seq_zero, seg_n, szmic);
 
         let pdu = SegmentedLowerAccessPDU::new(
             None,
@@ -353,6 +395,10 @@ mod tests {
         .unwrap();
 
         let pdu = SegmentedLowerPDU::Access(pdu);
+
+        let meta = UpperMetadata::from_segmented_lower_pdu(&pdu);
+
+        let in_flight = InFlight::new_access(seq_zero, seg_n, szmic, meta);
 
         assert!(in_flight.is_valid(&pdu));
 
@@ -386,7 +432,6 @@ mod tests {
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
-        let in_flight = InFlight::new_control(seq_zero, seg_n, ControlOpcode::FriendPoll);
 
         let pdu = SegmentedLowerAccessPDU::new(
             None,
@@ -408,9 +453,15 @@ mod tests {
 
         let pdu = SegmentedLowerPDU::Access(pdu);
 
+        let meta = UpperMetadata::from_segmented_lower_pdu(&pdu);
+
+        let in_flight = InFlight::new_control(seq_zero, seg_n, ControlOpcode::FriendPoll, meta);
+
         assert!(!in_flight.is_valid(&pdu));
 
-        let in_flight = InFlight::new_access(seq_zero, seg_n, SzMic::Bit32);
+        let meta = UpperMetadata::from_segmented_lower_pdu(&pdu);
+
+        let in_flight = InFlight::new_access(seq_zero, seg_n, SzMic::Bit32, meta);
 
         let pdu = SegmentedLowerControlPDU::new(
             ControlOpcode::FriendPoll,

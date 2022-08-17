@@ -1,5 +1,5 @@
 use crate::stack::provisioned::ProvisionedStack;
-use crate::{DriverError, Watchdog};
+use crate::{DriverError, UpperMetadata, Watchdog};
 use btmesh_common::{InsufficientBuffer, Seq, SeqZero, Ttl};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
@@ -104,7 +104,7 @@ impl<const N: usize> TransmitQueue<N> {
         }
     }
 
-    pub fn expire(&mut self, seq_zero: SeqZero) {
+    pub fn expire_outbound(&mut self, seq_zero: SeqZero) {
         for outer in self.queue.iter_mut() {
             if let Some(slot) = outer {
                 if let QueueEntry::Segmented(entry) = slot {

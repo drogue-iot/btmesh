@@ -6,9 +6,9 @@ use crate::stack::provisioned::lower::outbound_segmentation::OutboundSegmentatio
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
-use crate::DriverError;
+use crate::{DriverError, Watchdog};
 use btmesh_common::mic::SzMic;
-use btmesh_common::InsufficientBuffer;
+use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
@@ -22,6 +22,16 @@ pub struct LowerDriver {
     outbound_segmentation: OutboundSegmentation,
 }
 
+impl LowerDriver {
+    pub fn expire_inbound(
+        &self,
+        seq_zero: SeqZero,
+        watchdog: &Watchdog,
+    ) -> Option<(BlockAck, UpperMetadata)> {
+        self.inbound_segmentation.expire_inbound(seq_zero, watchdog)
+    }
+}
+
 impl ProvisionedStack {
     /// Process a *cleartext* `NetworkPDU`, through hidden `LowerPDU`s, accommodating segmentation & reassembly,
     /// to produce an `UpperPDU` if sufficiently unsegmented or re-assembled.
@@ -29,6 +39,7 @@ impl ProvisionedStack {
     pub fn process_inbound_cleartext_network_pdu(
         &mut self,
         network_pdu: &CleartextNetworkPDU<ProvisionedStack>,
+        watchdog: &Watchdog,
     ) -> Result<
         (
             Option<(BlockAck, UpperMetadata)>,
@@ -64,7 +75,7 @@ impl ProvisionedStack {
                 )),
             },
             LowerPDU::Segmented(inner) => {
-                let result = self.lower.inbound_segmentation.process(inner)?;
+                let result = self.lower.inbound_segmentation.process(inner, watchdog)?;
                 Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
             }
         }

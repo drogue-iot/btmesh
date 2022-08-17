@@ -7,12 +7,14 @@ use embassy_executor::time::{Instant, Timer};
 pub enum WatchdogEvent {
     LinkOpenTimeout,
     OutboundExpiration(SeqZero),
+    InboundExpiration(SeqZero),
 }
 
 #[derive(Default)]
 pub struct Watchdog {
     link_opening_timeout: Cell<Option<(Instant, WatchdogEvent)>>,
     outbound_expiration: Cell<Option<(Instant, WatchdogEvent)>>,
+    inbound_expiration: Cell<Option<(Instant, WatchdogEvent)>>,
 }
 
 impl Watchdog {
@@ -32,7 +34,10 @@ impl Watchdog {
     pub async fn next(&self) -> Option<Expiration<'_>> {
         let next = Self::earliest(
             Self::earliest(None, self.link_opening_timeout.get()),
-            self.outbound_expiration.get(),
+            Self::earliest(
+                self.outbound_expiration.get(),
+                self.inbound_expiration.get(),
+            ),
         );
 
         if let Some(next) = next {
@@ -79,6 +84,23 @@ impl Watchdog {
             }
         }
     }
+
+    pub fn inbound_expiration(&self, expiration: (Instant, SeqZero)) {
+        if let Some(current) = self.inbound_expiration.get() {
+            if current.0 < expiration.0 {
+                return;
+            }
+            self.inbound_expiration.replace(Some((
+                expiration.0,
+                WatchdogEvent::InboundExpiration(expiration.1),
+            )));
+        } else {
+            self.inbound_expiration.replace(Some((
+                expiration.0,
+                WatchdogEvent::InboundExpiration(expiration.1),
+            )));
+        }
+    }
 }
 
 pub struct Expiration<'w> {
@@ -99,6 +121,7 @@ impl<'w> Expiration<'w> {
             WatchdogEvent::OutboundExpiration(seq_zero) => {
                 self.watchdog.clear_outbound_expiration(seq_zero);
             }
+            WatchdogEvent::InboundExpiration(seq_zero) => {}
         }
 
         self.event

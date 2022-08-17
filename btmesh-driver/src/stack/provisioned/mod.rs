@@ -213,7 +213,7 @@ impl ProvisionedStack {
 
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
             let (block_ack_meta, upper_pdu) =
-                self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu)?;
+                self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu, watchdog)?;
 
             let message = if let Some(upper_pdu) = upper_pdu {
                 Some(self.process_inbound_upper_pdu(upper_pdu)?)
@@ -278,6 +278,19 @@ impl ProvisionedStack {
     }
 
     pub fn outbound_expiration(&mut self, seq_zero: SeqZero) {
-        self.transmit_queue.expire(seq_zero);
+        self.transmit_queue.expire_outbound(seq_zero);
+    }
+
+    pub fn inbound_expiration(
+        &mut self,
+        sequence: &Sequence,
+        seq_zero: SeqZero,
+        watchdog: &Watchdog,
+    ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
+        if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
+            self.process_outbound_block_ack(sequence, block_ack, meta)
+        } else {
+            Ok(Vec::new())
+        }
     }
 }

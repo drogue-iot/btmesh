@@ -31,14 +31,12 @@ defmt = { version = "0.3", optional = true }
 
 [dev-dependencies]
 rand_core = { version = "0.6.2", default-features = false, features = ["getrandom"] }
-embassy-executor = { version = "0.1.0", default-features = false, features = ["time", "time-tick-1000hz" ] }
-
+embassy-executor = { version = "0.1.0", default-features = false, features = ["time", "std" ] }
 
 [features]
 default = [
     "flash",
     "memory",
-    "embassy-executor/time-tick-1000hz",
 ]
 flash = [
     "embedded-storage",
