@@ -11,6 +11,7 @@ use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
+use core::cmp::Ordering;
 use core::future::Future;
 use embassy_executor::time::{Duration, Timer};
 use heapless::Vec;
@@ -230,19 +231,23 @@ impl ProvisionedStack {
         &self.secrets
     }
 
+    // todo: remove this once we match more control messages.
+    #[allow(clippy::single_match)]
     pub fn process_inbound_control(
         &mut self,
         message: &ControlMessage<ProvisionedStack>,
         watchdog: &Watchdog,
-    ) {
+    ) -> Result<(), DriverError> {
         match message.opcode() {
             ControlOpcode::SegmentAcknowledgement => {
                 if let Ok(block_ack) = message.try_into() {
-                    self.transmit_queue.receive_ack(block_ack, watchdog);
+                    self.transmit_queue.receive_ack(block_ack, watchdog)?;
                 }
             }
             _ => {}
         }
+
+        Ok(())
     }
 
     pub fn process_outbound(
@@ -255,16 +260,20 @@ impl ProvisionedStack {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
 
-        if network_pdus.len() == 1 {
-            self.transmit_queue
-                .add_nonsegmented(upper_pdu, 3, completion_token)?;
-        } else if network_pdus.len() > 1 {
-            self.transmit_queue.add_segmented(
-                upper_pdu,
-                network_pdus.len() as u8,
-                completion_token,
-                watchdog,
-            )?;
+        match network_pdus.len().cmp(&1) {
+            Ordering::Less => { /* nothing */ }
+            Ordering::Equal => {
+                self.transmit_queue
+                    .add_nonsegmented(upper_pdu, 3, completion_token)?;
+            }
+            Ordering::Greater => {
+                self.transmit_queue.add_segmented(
+                    upper_pdu,
+                    network_pdus.len() as u8,
+                    completion_token,
+                    watchdog,
+                )?;
+            }
         }
 
         let network_pdus = network_pdus

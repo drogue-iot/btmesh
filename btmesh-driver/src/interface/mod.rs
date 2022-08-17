@@ -141,8 +141,10 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
         async move {
             let gatt_fut = async {
                 if !is_retransmit {
-                    self.gatt_interface.transmit(pdu).await;
+                    self.gatt_interface.transmit(pdu).await?;
                 }
+
+                Result::<(), NetworkError>::Ok(())
             };
             let adv_fut = self.advertising_interface.transmit(pdu);
 

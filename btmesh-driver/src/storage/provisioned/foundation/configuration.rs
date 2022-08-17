@@ -1,5 +1,5 @@
 use btmesh_common::Ttl;
-use btmesh_models::foundation::configuration::relay::{Relay, RelayConfig};
+use btmesh_models::foundation::configuration::relay::RelayConfig;
 
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]

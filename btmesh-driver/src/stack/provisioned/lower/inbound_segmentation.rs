@@ -38,12 +38,11 @@ impl<const N: usize> InboundSegmentation<N> {
         seq_zero: SeqZero,
         watchdog: &Watchdog,
     ) -> Option<(BlockAck, UpperMetadata)> {
-        let result = if let Some(in_flight) = self.current.values().find(|e| e.seq_zero == seq_zero)
-        {
-            Some((in_flight.blocks.block_ack, in_flight.meta.clone()))
-        } else {
-            None
-        };
+        let result = self
+            .current
+            .values()
+            .find(|e| e.seq_zero == seq_zero)
+            .map(|in_flight| (in_flight.blocks.block_ack, in_flight.meta.clone()));
 
         for e in self.current.values() {
             e.set_watchdog_expiration(watchdog);

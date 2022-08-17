@@ -152,7 +152,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                 transaction_number: 0,
                 pdu: pdu.into(),
             };
-            self.transmit_advertising_pdu(&pdu.into()).await?;
+            self.transmit_advertising_pdu(&pdu).await?;
         }
         Ok(())
     }

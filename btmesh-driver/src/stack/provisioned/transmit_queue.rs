@@ -34,7 +34,7 @@ struct SegmentedQueueEntry {
 impl<const N: usize> Default for TransmitQueue<N> {
     fn default() -> Self {
         let mut queue = Vec::new();
-        queue.resize(N, None);
+        queue.resize(N, None).ok();
         Self { queue }
     }
 }
@@ -62,15 +62,13 @@ impl<const N: usize> TransmitQueue<N> {
             warn!("no space in retransmit queue");
         }
 
-        for slot in self.queue.iter() {
-            if let Some(slot) = slot {
-                if let QueueEntry::Segmented(slot) = slot {
-                    let timeout = Instant::now()
-                        + Duration::from_millis(
-                            200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
-                        );
-                    watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
-                }
+        for slot in self.queue.iter().flatten() {
+            if let QueueEntry::Segmented(slot) = slot {
+                let timeout = Instant::now()
+                    + Duration::from_millis(
+                        200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
+                    );
+                watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
             }
         }
 
@@ -105,12 +103,10 @@ impl<const N: usize> TransmitQueue<N> {
     }
 
     pub fn expire_outbound(&mut self, seq_zero: SeqZero) {
-        for outer in self.queue.iter_mut() {
-            if let Some(slot) = outer {
-                if let QueueEntry::Segmented(entry) = slot {
-                    if SeqZero::from(entry.upper_pdu.meta().seq()) == seq_zero {
-                        outer.take();
-                    }
+        for slot in self.queue.iter_mut() {
+            if let Some(QueueEntry::Segmented(entry)) = slot {
+                if SeqZero::from(entry.upper_pdu.meta().seq()) == seq_zero {
+                    slot.take();
                 }
             }
         }
@@ -133,23 +129,21 @@ impl<const N: usize> TransmitQueue<N> {
                 let fully_acked = entry.acked.ack(block_ack, watchdog)?;
                 if fully_acked {
                     watchdog.clear_outbound_expiration(entry.upper_pdu.meta().seq().into());
-                    entry.completion_token.as_ref().map(|token| {
+                    if let Some(token) = entry.completion_token.as_ref() {
                         token.complete();
-                    });
+                    };
                     slot.take();
                 }
             }
         }
 
-        for slot in self.queue.iter() {
-            if let Some(slot) = slot {
-                if let QueueEntry::Segmented(slot) = slot {
-                    let timeout = Instant::now()
-                        + Duration::from_millis(
-                            200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
-                        );
-                    watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
-                }
+        for slot in self.queue.iter().flatten() {
+            if let QueueEntry::Segmented(slot) = slot {
+                let timeout = Instant::now()
+                    + Duration::from_millis(
+                        200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
+                    );
+                watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
             }
         }
         Ok(())
@@ -173,10 +167,9 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
                         inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
                             should_take = true;
-                            inner
-                                .completion_token
-                                .as_ref()
-                                .map(|token| token.complete());
+                            if let Some(token) = inner.completion_token.as_ref() {
+                                token.complete();
+                            }
                         }
                         Some(inner.upper_pdu.clone())
                     }

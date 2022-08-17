@@ -175,10 +175,7 @@ impl Model for ConfigurationClient {
     const SUPPORTS_PUBLICATION: bool = false;
     type Message = ConfigurationMessage;
 
-    fn parse<'m>(
-        _opcode: Opcode,
-        _parameters: &'m [u8],
-    ) -> Result<Option<Self::Message>, ParseError> {
+    fn parse(_opcode: Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         todo!();
     }
 }

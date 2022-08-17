@@ -155,7 +155,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let provisioned_config: ProvisionedConfiguration =
                                 (device_info, secrets, network_state).into();
                             self.storage
-                                .put(&Configuration::Provisioned(provisioned_config.into()))
+                                .put(&Configuration::Provisioned(provisioned_config))
                                 .await?;
                         }
                     }
@@ -185,7 +185,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                 self.dispatcher.dispatch(message).await?;
                             }
                             Message::Control(message) => {
-                                stack.process_inbound_control(&message, &self.watchdog)
+                                stack.process_inbound_control(&message, &self.watchdog)?;
                             }
                         }
                     }
@@ -242,7 +242,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             Stack::Provisioned { stack, sequence } => {
-                for pdu in stack.retransmit(&sequence)? {
+                for pdu in stack.retransmit(sequence)? {
                     self.network.transmit(&(pdu.into()), true).await?;
                 }
             }
