@@ -1,9 +1,10 @@
 use crate::stack::provisioned::ProvisionedStack;
-use crate::DriverError;
-use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
+use crate::{DriverError, Watchdog};
+use btmesh_common::{InsufficientBuffer, Seq, SeqZero, Ttl};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
+use embassy_executor::time::{Duration, Instant};
 use heapless::Vec;
 
 pub struct TransmitQueue<const N: usize = 5> {
@@ -44,6 +45,7 @@ impl<const N: usize> TransmitQueue<N> {
         upper_pdu: UpperPDU<ProvisionedStack>,
         num_segments: u8,
         completion_token: Option<CompletionToken>,
+        watchdog: &Watchdog,
     ) -> Result<(), InsufficientBuffer> {
         let slot = self.queue.iter_mut().find(|e| e.is_none());
 
@@ -58,6 +60,18 @@ impl<const N: usize> TransmitQueue<N> {
             }));
         } else {
             warn!("no space in retransmit queue");
+        }
+
+        for slot in self.queue.iter() {
+            if let Some(slot) = slot {
+                if let QueueEntry::Segmented(slot) = slot {
+                    let timeout = Instant::now()
+                        + Duration::from_millis(
+                            200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
+                        );
+                    watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
+                }
+            }
         }
 
         Ok(())
@@ -90,7 +104,23 @@ impl<const N: usize> TransmitQueue<N> {
         }
     }
 
-    pub fn receive_ack(&mut self, block_ack: BlockAck) -> Result<(), DriverError> {
+    pub fn expire(&mut self, seq_zero: SeqZero) {
+        for outer in self.queue.iter_mut() {
+            if let Some(slot) = outer {
+                if let QueueEntry::Segmented(entry) = slot {
+                    if SeqZero::from(entry.upper_pdu.meta().seq()) == seq_zero {
+                        outer.take();
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn receive_ack(
+        &mut self,
+        block_ack: BlockAck,
+        watchdog: &Watchdog,
+    ) -> Result<(), DriverError> {
         if let Some(slot) = self.queue.iter_mut().find(|e| {
             if let Some(QueueEntry::Segmented(entry)) = e {
                 let seq_zero: SeqZero = entry.upper_pdu.meta().seq().into();
@@ -100,12 +130,25 @@ impl<const N: usize> TransmitQueue<N> {
             }
         }) {
             if let Some(QueueEntry::Segmented(entry)) = slot {
-                let fully_acked = entry.acked.ack(block_ack)?;
+                let fully_acked = entry.acked.ack(block_ack, watchdog)?;
                 if fully_acked {
+                    watchdog.clear_outbound_expiration(entry.upper_pdu.meta().seq().into());
                     entry.completion_token.as_ref().map(|token| {
                         token.complete();
                     });
                     slot.take();
+                }
+            }
+        }
+
+        for slot in self.queue.iter() {
+            if let Some(slot) = slot {
+                if let QueueEntry::Segmented(slot) = slot {
+                    let timeout = Instant::now()
+                        + Duration::from_millis(
+                            200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
+                        );
+                    watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
                 }
             }
         }
@@ -168,7 +211,7 @@ impl Acked {
         }
     }
 
-    fn ack(&mut self, block_ack: BlockAck) -> Result<bool, InvalidBlock> {
+    fn ack(&mut self, block_ack: BlockAck, watchdog: &Watchdog) -> Result<bool, InvalidBlock> {
         for ack in block_ack.acked_iter() {
             self.block_ack.ack(ack)?;
         }

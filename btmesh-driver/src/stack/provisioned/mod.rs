@@ -5,8 +5,8 @@ use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::storage::provisioned::ProvisionedConfiguration;
-use crate::{DriverError, UpperMetadata};
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq};
+use crate::{DriverError, UpperMetadata, Watchdog};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
@@ -204,6 +204,7 @@ impl ProvisionedStack {
     pub fn process_inbound_network_pdu(
         &mut self,
         network_pdu: &NetworkPDU,
+        watchdog: &Watchdog,
     ) -> Result<Option<ReceiveResult>, DriverError> {
         let iv_index = self
             .network_state
@@ -231,11 +232,15 @@ impl ProvisionedStack {
         &self.secrets
     }
 
-    pub fn process_inbound_control(&mut self, message: &ControlMessage<ProvisionedStack>) {
+    pub fn process_inbound_control(
+        &mut self,
+        message: &ControlMessage<ProvisionedStack>,
+        watchdog: &Watchdog,
+    ) {
         match message.opcode() {
             ControlOpcode::SegmentAcknowledgement => {
                 if let Ok(block_ack) = message.try_into() {
-                    self.transmit_queue.receive_ack(block_ack);
+                    self.transmit_queue.receive_ack(block_ack, watchdog);
                 }
             }
             _ => {}
@@ -247,6 +252,7 @@ impl ProvisionedStack {
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
         completion_token: Option<CompletionToken>,
+        watchdog: &Watchdog,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
@@ -259,6 +265,7 @@ impl ProvisionedStack {
                 upper_pdu,
                 network_pdus.len() as u8,
                 completion_token,
+                watchdog,
             )?;
         }
 
@@ -268,5 +275,9 @@ impl ProvisionedStack {
             .collect();
 
         Ok(network_pdus)
+    }
+
+    pub fn outbound_expiration(&mut self, seq_zero: SeqZero) {
+        self.transmit_queue.expire(seq_zero);
     }
 }

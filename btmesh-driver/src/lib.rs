@@ -14,13 +14,14 @@ use btmesh_device::{
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
 use btmesh_pdu::provisioned::access::AccessMessage;
 use btmesh_pdu::provisioned::Message;
+use btmesh_pdu::provisioning::generic::Reason;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
 use core::borrow::{Borrow, BorrowMut};
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_executor::time::{Duration, Timer};
-use embassy_util::{select, select3, select4, Either3, Either4};
+use embassy_util::{select, select3, select4, Either, Either3, Either4};
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -33,6 +34,7 @@ pub(crate) mod dispatch;
 mod models;
 pub mod storage;
 mod util;
+mod watchdog;
 
 use crate::device::DeviceContext;
 use crate::dispatch::Dispatcher;
@@ -49,6 +51,7 @@ use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
 use crate::util::hash::hash_of;
+use crate::watchdog::{Watchdog, WatchdogEvent};
 pub use error::DriverError;
 
 #[allow(clippy::large_enum_variant)]
@@ -96,6 +99,7 @@ pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: Back
     rng: RefCell<R>,
     storage: &'s Storage<B>,
     dispatcher: Dispatcher,
+    watchdog: Watchdog,
 }
 
 impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDriver<'s, N, R, B> {
@@ -106,6 +110,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             rng: RefCell::new(rng),
             storage,
             dispatcher: Dispatcher::new(FOUNDATION_INBOUND.sender(), DEVICE_INBOUND.sender()),
+            watchdog: Default::default(),
         }
     }
 
@@ -159,7 +164,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
                 debug!("inbound network pdu: {}", pdu);
-                if let Some(result) = stack.process_inbound_network_pdu(pdu)? {
+                if let Some(result) = stack.process_inbound_network_pdu(pdu, &self.watchdog)? {
                     if let Some((block_ack, meta)) = result.block_ack {
                         // send outbound block-ack
                         for network_pdu in
@@ -180,7 +185,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             Message::Access(message) => {
                                 self.dispatcher.dispatch(message).await?;
                             }
-                            Message::Control(message) => stack.process_inbound_control(&message),
+                            Message::Control(message) => {
+                                stack.process_inbound_control(&message, &self.watchdog)
+                            }
                         }
                     }
                 }
@@ -211,8 +218,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             );
 
             if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
-                let network_pdus =
-                    stack.process_outbound(sequence, &(message.into()), outbound_payload.4);
+                let network_pdus = stack.process_outbound(
+                    sequence,
+                    &(message.into()),
+                    outbound_payload.4,
+                    &self.watchdog,
+                );
                 for pdu in network_pdus? {
                     debug!("outbound network pdu: {}", pdu);
                     self.network.transmit(&(pdu.into()), false).await?;
@@ -345,33 +356,54 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let device_state = self.stack.borrow().device_state();
 
             if let Some(device_state) = device_state {
-                let receive_fut = self.network.receive(&device_state);
+                let receive_fut = self.network.receive(&device_state, &self.watchdog);
                 let transmit_fut = OUTBOUND.recv();
+                let io_fut = select(receive_fut, transmit_fut);
+
                 let beacon_fut = self.next_beacon();
                 let retransmit_fut = self.next_retransmit();
 
-                match select4(receive_fut, transmit_fut, beacon_fut, retransmit_fut).await {
-                    Either4::First(Ok(pdu)) => {
-                        self.receive_pdu(&pdu).await?;
-                    }
-                    Either4::First(Err(err)) => {
-                        return Err(err.into());
-                    }
-                    Either4::Second(outbound_payload) => {
-                        self.process_outbound_payload(outbound_payload).await?;
-                    }
-                    Either4::Third(_) => {
+                let watchdog_fut = self.watchdog.next();
+
+                match select4(io_fut, beacon_fut, retransmit_fut, watchdog_fut).await {
+                    Either4::First(inner) => match inner {
+                        Either::First(Ok(pdu)) => {
+                            self.receive_pdu(&pdu).await?;
+                        }
+                        Either::First(Err(err)) => {
+                            return Err(err.into());
+                        }
+                        Either::Second(outbound_payload) => {
+                            self.process_outbound_payload(outbound_payload).await?;
+                        }
+                    },
+                    Either4::Second(_) => {
                         self.send_beacon().await?;
                     }
-                    Either4::Fourth(_) => {
+                    Either4::Third(_) => {
                         self.retransmit().await?;
                     }
+                    Either4::Fourth(Some(expiration)) => {
+                        self.handle_watchdog_event(expiration.take()).await;
+                    }
+                    Either4::Fourth(None) => {
+                        // nothing?
+                    }
                 }
+            }
+        }
+    }
 
-                //let config: Option<Configuration> = (&*self.stack.borrow()).try_into().ok();
-                //if let Some(config) = config {
-                //self.storage.borrow().put(&config).await?;
-                //}
+    async fn handle_watchdog_event(&self, event: WatchdogEvent) {
+        match event {
+            WatchdogEvent::LinkOpenTimeout => {
+                self.network.close_link(Reason::Timeout).await;
+                *self.stack.borrow_mut() = Stack::None;
+            }
+            WatchdogEvent::OutboundExpiration(seq_zero) => {
+                if let Stack::Provisioned { stack, .. } = &mut *self.stack.borrow_mut() {
+                    stack.outbound_expiration(seq_zero);
+                }
             }
         }
     }

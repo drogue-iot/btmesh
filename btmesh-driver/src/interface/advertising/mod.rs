@@ -2,20 +2,23 @@ use crate::interface::advertising::segmentation::outbound::{
     OutboundSegments, OutboundSegmentsIter,
 };
 use crate::interface::advertising::segmentation::Segmentation;
-use crate::DeviceState;
+use crate::{DeviceState, Watchdog};
 use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::PB_ADV_MTU;
 use btmesh_bearer::{AdvertisingBearer, BearerError};
 use btmesh_common::Uuid;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioning::advertising::AdvertisingPDU;
-use btmesh_pdu::provisioning::generic::{GenericProvisioningPDU, ProvisioningBearerControl};
+use btmesh_pdu::provisioning::generic::{
+    GenericProvisioningPDU, ProvisioningBearerControl, Reason,
+};
 use btmesh_pdu::provisioning::ProvisioningPDU;
 use btmesh_pdu::{MESH_BEACON, MESH_MESSAGE, PB_ADV, PDU};
 use core::borrow::BorrowMut;
 use core::cell::Cell;
 use core::cell::RefCell;
 use core::iter::Iterator;
+use embassy_executor::time::{Duration, Instant};
 use heapless::Vec;
 
 mod segmentation;
@@ -109,7 +112,11 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
         Ok(())
     }
 
-    pub async fn receive(&self, state: &DeviceState) -> Result<PDU, BearerError> {
+    pub async fn receive(
+        &self,
+        state: &DeviceState,
+        watchdog: &Watchdog,
+    ) -> Result<PDU, BearerError> {
         loop {
             let data = self.bearer.receive().await?;
             if data.len() >= 2 {
@@ -121,7 +128,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                         },
                         PB_ADV,
                     ) => {
-                        if let Some(pdu) = self.receive_pb_adv(&data, uuid).await? {
+                        if let Some(pdu) = self.receive_pb_adv(&data, uuid, watchdog).await? {
                             return Ok(PDU::Provisioning(pdu));
                         }
                     }
@@ -138,10 +145,24 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
         }
     }
 
+    pub async fn close_link(&self, reason: Reason) -> Result<(), BearerError> {
+        if let Some(link_id) = self.link_id.get() {
+            let pdu = ProvisioningBearerControl::LinkClose(reason);
+            let pdu = AdvertisingPDU {
+                link_id,
+                transaction_number: 0,
+                pdu: pdu.into(),
+            };
+            self.transmit_advertising_pdu(&pdu.into());
+        }
+        Ok(())
+    }
+
     async fn receive_pb_adv(
         &self,
         data: &Vec<u8, PB_ADV_MTU>,
         device_uuid: &Uuid,
+        watchdog: &Watchdog,
     ) -> Result<Option<ProvisioningPDU>, BearerError> {
         if let Ok(pdu) = AdvertisingPDU::parse(data) {
             match &pdu.pdu {
@@ -150,6 +171,9 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                         ProvisioningBearerControl::LinkOpen(uuid) => {
                             if *uuid == *device_uuid {
                                 if self.link_id.get().is_none() {
+                                    watchdog.link_opening_timeout(
+                                        Instant::now() + Duration::from_secs(60),
+                                    );
                                     self.inbound_transaction_number
                                         .replace(Some(pdu.transaction_number));
                                     self.link_id.replace(Some(pdu.link_id));
@@ -190,6 +214,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                             Ok(None)
                         }
                         ProvisioningBearerControl::LinkClose(_reason) => {
+                            watchdog.clear_link_open_timeout();
                             self.link_id.take();
                             self.inbound_transaction_number.take();
                             //Ok(Some(BearerMessage::Close(*reason)))
@@ -199,6 +224,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                 }
                 GenericProvisioningPDU::TransactionStart(_)
                 | GenericProvisioningPDU::TransactionContinuation(_) => {
+                    watchdog.clear_link_open_timeout();
                     if self.should_process_transaction(pdu.transaction_number) {
                         let result = self.segmentation.process_inbound(&pdu.pdu);
                         if let Ok(Some(result)) = result {
@@ -215,6 +241,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                     }
                 }
                 GenericProvisioningPDU::TransactionAck => {
+                    watchdog.clear_link_open_timeout();
                     let mut borrowed_pdu = self.outbound_pdu.borrow_mut();
                     if let Some(outbound) = &*borrowed_pdu {
                         if outbound.transaction_number == pdu.transaction_number {

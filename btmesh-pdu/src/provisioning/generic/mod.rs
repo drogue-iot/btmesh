@@ -139,6 +139,12 @@ pub enum ProvisioningBearerControl {
     LinkClose(Reason),
 }
 
+impl From<ProvisioningBearerControl> for GenericProvisioningPDU {
+    fn from(inner: ProvisioningBearerControl) -> Self {
+        GenericProvisioningPDU::ProvisioningBearerControl(inner)
+    }
+}
+
 impl ProvisioningBearerControl {
     pub fn parse(data: &[u8]) -> Result<Self, GenericProvisioningError> {
         match (data[0] & 0b111111) >> 2 {

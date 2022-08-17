@@ -1,9 +1,10 @@
 use crate::interface::advertising::AdvertisingBearerNetworkInterface;
 use crate::interface::gatt::GattBearerNetworkInterface;
-use crate::DeviceState;
+use crate::{DeviceState, Watchdog};
 use btmesh_bearer::beacon::Beacon;
 use btmesh_bearer::{AdvertisingBearer, BearerError, GattBearer};
 use btmesh_device::join;
+use btmesh_pdu::provisioning::generic::Reason;
 use btmesh_pdu::PDU;
 use core::future::Future;
 use core::pin::Pin;
@@ -30,7 +31,11 @@ pub trait NetworkInterfaces {
         Self: 'm;
 
     /// Receive data from any of the network interfaces.
-    fn receive<'m>(&'m self, state: &'m DeviceState) -> Self::ReceiveFuture<'m>;
+    fn receive<'m>(
+        &'m self,
+        state: &'m DeviceState,
+        watchdog: &'m Watchdog,
+    ) -> Self::ReceiveFuture<'m>;
 
     type TransmitFuture<'m>: Future<Output = Result<(), NetworkError>> + 'm
     where
@@ -52,6 +57,12 @@ pub trait NetworkInterfaces {
 
     /// Perform beaconing on all of the network interfaces.
     fn beacon(&self, beacon: Beacon) -> Self::BeaconFuture<'_>;
+
+    type CloseLinkFuture<'m>: Future<Output = Result<(), NetworkError>> + 'm
+    where
+        Self: 'm;
+
+    fn close_link(&self, reason: Reason) -> Self::CloseLinkFuture<'_>;
 
     fn reset(&self);
 }
@@ -106,9 +117,13 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
     where
     Self: 'm;
 
-    fn receive<'m>(&'m self, state: &'m DeviceState) -> Self::ReceiveFuture<'m> {
+    fn receive<'m>(
+        &'m self,
+        state: &'m DeviceState,
+        watchdog: &'m Watchdog,
+    ) -> Self::ReceiveFuture<'m> {
         async move {
-            let adv_fut = self.advertising_interface.receive(state);
+            let adv_fut = self.advertising_interface.receive(state, watchdog);
             let gatt_fut = self.gatt_interface.receive();
             let result = select(adv_fut, gatt_fut).await;
 
@@ -156,6 +171,17 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
         }
     }
 
+    type CloseLinkFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm
+    where
+    Self: 'm;
+
+    fn close_link(&self, reason: Reason) -> Self::CloseLinkFuture<'_> {
+        async move {
+            self.advertising_interface.close_link(reason).await?;
+            Ok(())
+        }
+    }
+
     fn reset(&self) {
         self.advertising_interface.reset();
         self.gatt_interface.reset();
@@ -195,8 +221,12 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
     where
     Self: 'm;
 
-    fn receive<'m>(&'m self, state: &'m DeviceState) -> Self::ReceiveFuture<'m> {
-        async move { Ok(self.interface.receive(state).await?) }
+    fn receive<'m>(
+        &'m self,
+        state: &'m DeviceState,
+        watchdog: &'m Watchdog,
+    ) -> Self::ReceiveFuture<'m> {
+        async move { Ok(self.interface.receive(state, watchdog).await?) }
     }
 
     type TransmitFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm
@@ -221,6 +251,17 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
 
     fn beacon(&self, beacon: Beacon) -> Self::BeaconFuture<'_> {
         async move { Ok(self.interface.beacon(beacon).await?) }
+    }
+
+    type CloseLinkFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm
+    where
+    Self: 'm;
+
+    fn close_link(&self, reason: Reason) -> Self::CloseLinkFuture<'_> {
+        async move {
+            self.interface.close_link(reason).await?;
+            Ok(())
+        }
     }
 
     fn reset(&self) {
