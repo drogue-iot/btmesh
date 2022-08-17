@@ -37,6 +37,7 @@ embassy-executor = { version = "0.1.0", default-features = false, features = ["t
 default = [
     "flash",
     "memory",
+    "embassy-executor/std",
 ]
 flash = [
     "embedded-storage",
