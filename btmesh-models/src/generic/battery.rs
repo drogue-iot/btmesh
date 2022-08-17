@@ -6,6 +6,9 @@ use heapless::Vec;
 #[derive(Clone, Debug)]
 pub struct GenericBatteryServer;
 
+#[derive(Clone, Debug)]
+pub struct GenericBatteryClient;
+
 pub const GENERIC_BATTERY_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x100C);
 pub const GENERIC_BATTERY_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x100D);
 
@@ -30,6 +33,20 @@ impl Message for GenericBatteryMessage {
         match self {
             Self::Get => Ok(()),
             Self::Status(inner) => inner.emit_parameters(xmit),
+        }
+    }
+}
+
+impl Model for GenericBatteryClient {
+    const IDENTIFIER: ModelIdentifier = GENERIC_BATTERY_CLIENT;
+    type Message = GenericBatteryMessage;
+
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match opcode {
+            GENERIC_BATTERY_STATUS => Ok(Some(GenericBatteryMessage::Status(Status::parse(
+                parameters,
+            )?))),
+            _ => Ok(None),
         }
     }
 }
@@ -85,6 +102,38 @@ impl GenericBatteryFlags {
 
         xmit.push(value).map_err(|_| InsufficientBuffer)?;
         Ok(())
+    }
+
+    fn parse(v: u8) -> Self {
+        let charging = match v & 0b11 {
+            0b00 => GenericBatteryFlagsCharging::NotChargeable,
+            0b01 => GenericBatteryFlagsCharging::ChargeableNotCharging,
+            0b10 => GenericBatteryFlagsCharging::ChargeableCharging,
+            0b11 => GenericBatteryFlagsCharging::Unknown,
+            _ => panic!("impossible!"),
+        };
+
+        let indicator = match (v >> 2) & 0b11 {
+            0b00 => GenericBatteryFlagsIndicator::LowCritical,
+            0b01 => GenericBatteryFlagsIndicator::Low,
+            0b10 => GenericBatteryFlagsIndicator::Good,
+            0b11 => GenericBatteryFlagsIndicator::Unknown,
+            _ => panic!("impossible!"),
+        };
+
+        let presence = match (v >> 2) & 0b11 {
+            0b00 => GenericBatteryFlagsPresence::NotPresent,
+            0b01 => GenericBatteryFlagsPresence::PresentRemovable,
+            0b10 => GenericBatteryFlagsPresence::PresentNotRemovable,
+            0b11 => GenericBatteryFlagsPresence::Unknown,
+            _ => panic!("impossible!"),
+        };
+
+        Self {
+            charging,
+            indicator,
+            presence,
+        }
     }
 }
 
@@ -147,5 +196,28 @@ impl Status {
             .map_err(|_| InsufficientBuffer)?;
         self.flags.emit_parameters(xmit)?;
         Ok(())
+    }
+
+    fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() >= 10 {
+            let battery_level = parameters[0];
+
+            let time_to_discharge =
+                u32::from_be_bytes([parameters[1], parameters[2], parameters[3], parameters[4]]);
+
+            let time_to_charge =
+                u32::from_be_bytes([parameters[5], parameters[6], parameters[7], parameters[8]]);
+
+            let flags = GenericBatteryFlags::parse(parameters[9]);
+
+            Ok(Self {
+                battery_level,
+                time_to_discharge,
+                time_to_charge,
+                flags,
+            })
+        } else {
+            Err(ParseError::InvalidLength)
+        }
     }
 }
