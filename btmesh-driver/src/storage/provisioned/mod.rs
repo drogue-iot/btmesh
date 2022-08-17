@@ -17,7 +17,7 @@ pub struct ProvisionedConfiguration {
 }
 
 impl ProvisionedConfiguration {
-    pub fn display(&self, composition: &Composition) {
+    pub fn display(&self, _composition: &Composition) {
         info!("========================================================================");
         info!("=  Provisioned                                                         =");
         info!("------------------------------------------------------------------------");

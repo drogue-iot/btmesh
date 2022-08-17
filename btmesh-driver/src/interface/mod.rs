@@ -203,7 +203,7 @@ impl<B: AdvertisingBearer> AdvertisingOnlyNetworkInterfaces<B> {
 struct NeverEnding;
 impl Future for NeverEnding {
     type Output = Result<(), NetworkError>;
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<Self::Output> {
         Poll::Pending
     }
 }
@@ -233,7 +233,7 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
     where
     Self: 'm;
 
-    fn transmit<'m>(&'m self, pdu: &'m PDU, is_retransmit: bool) -> Self::TransmitFuture<'m> {
+    fn transmit<'m>(&'m self, pdu: &'m PDU, _is_retransmit: bool) -> Self::TransmitFuture<'m> {
         async move { Ok(self.interface.transmit(pdu).await?) }
     }
 

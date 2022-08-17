@@ -144,8 +144,6 @@ impl BlockAck {
         if parameters.len() != 6 {
             Err(ParseError::InvalidLength)
         } else {
-            let obo = (parameters[0] & 0b10000000) != 0;
-
             let seq_zero = SeqZero::parse(
                 ((parameters[0] as u16 & 0b01111111) << 6)
                     | ((parameters[1] as u16 & 0b11111100) >> 2),
@@ -172,7 +170,7 @@ impl BlockAck {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn is_acked(&self, seg_o: u8) -> Result<bool, InvalidBlock> {

@@ -48,7 +48,7 @@ pub struct UpperControlPDU<S: System> {
 impl<S: System> Clone for UpperControlPDU<S> {
     fn clone(&self) -> Self {
         Self {
-            opcode: self.opcode.clone(),
+            opcode: self.opcode,
             parameters: self.parameters.clone(),
             meta: self.meta.clone(),
         }

@@ -16,7 +16,7 @@ impl<S: System> Clone for UpperAccessPDU<S> {
     fn clone(&self) -> Self {
         Self {
             payload: self.payload.clone(),
-            transmic: self.transmic.clone(),
+            transmic: self.transmic,
             meta: self.meta.clone(),
         }
     }

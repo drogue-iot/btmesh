@@ -1,7 +1,7 @@
 use embassy_executor::time::{Duration, Instant};
 use heapless::FnvIndexMap;
 
-use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
+use crate::stack::provisioned::system::UpperMetadata;
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use crate::Watchdog;
 use btmesh_common::address::UnicastAddress;
@@ -358,7 +358,7 @@ mod tests {
     use crate::stack::provisioned::lower::inbound_segmentation::{Blocks, InFlight, Reassembly};
     use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
     use crate::stack::provisioned::{DriverError, ProvisionedStack};
-    use btmesh_common::address::{Address, UnicastAddress};
+    use btmesh_common::address::UnicastAddress;
     use btmesh_common::crypto::network::Nid;
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};

@@ -6,7 +6,7 @@ use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::{DriverError, UpperMetadata, Watchdog};
-use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, Seq, SeqZero};
+use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, SeqZero};
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
@@ -16,12 +16,10 @@ use embassy_executor::time::{Duration, Timer};
 use heapless::Vec;
 use secrets::Secrets;
 
-use crate::stack::provisioned::system::ControlMetadata;
 use crate::util::deadline::{Deadline, DeadlineFuture};
-use crate::DeviceState::Provisioned;
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::control::ControlMessage;
-use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
+use btmesh_pdu::provisioned::upper::control::ControlOpcode;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -194,10 +192,10 @@ impl ProvisionedStack {
                 .iter()
                 .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
             {
-                pdus.push(network_pdu);
+                pdus.push(network_pdu)
+                    .map_err(|_| DriverError::InsufficientSpace)?;
             }
         }
-
         Ok(pdus)
     }
 

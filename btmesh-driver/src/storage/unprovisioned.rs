@@ -12,7 +12,7 @@ pub struct UnprovisionedConfiguration {
 }
 
 impl UnprovisionedConfiguration {
-    pub fn display(&self, composition: &Composition) {
+    pub fn display(&self, _composition: &Composition) {
         info!("========================================================================");
         info!("=  Unprovisioned                                                       =");
         info!("------------------------------------------------------------------------");

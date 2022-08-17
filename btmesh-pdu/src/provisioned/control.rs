@@ -1,7 +1,7 @@
 use crate::provisioned::lower::BlockAck;
 use crate::provisioned::upper::control::ControlOpcode;
 use crate::provisioned::{Message, System};
-use btmesh_common::{InsufficientBuffer, ParseError, SeqZero};
+use btmesh_common::{InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]

@@ -121,7 +121,7 @@ impl<'w> Expiration<'w> {
             WatchdogEvent::OutboundExpiration(seq_zero) => {
                 self.watchdog.clear_outbound_expiration(seq_zero);
             }
-            WatchdogEvent::InboundExpiration(seq_zero) => {}
+            WatchdogEvent::InboundExpiration(_seq_zero) => {}
         }
 
         self.event

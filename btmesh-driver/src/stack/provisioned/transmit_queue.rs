@@ -1,6 +1,6 @@
 use crate::stack::provisioned::ProvisionedStack;
-use crate::{DriverError, UpperMetadata, Watchdog};
-use btmesh_common::{InsufficientBuffer, Seq, SeqZero, Ttl};
+use crate::{DriverError, Watchdog};
+use btmesh_common::{InsufficientBuffer, SeqZero};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
@@ -211,7 +211,7 @@ impl Acked {
         }
     }
 
-    fn ack(&mut self, block_ack: BlockAck, watchdog: &Watchdog) -> Result<bool, InvalidBlock> {
+    fn ack(&mut self, block_ack: BlockAck, _watchdog: &Watchdog) -> Result<bool, InvalidBlock> {
         for ack in block_ack.acked_iter() {
             self.block_ack.ack(ack)?;
         }

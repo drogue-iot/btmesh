@@ -17,7 +17,7 @@ use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::generic::Reason;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
-use core::borrow::{Borrow, BorrowMut};
+use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_executor::time::{Duration, Timer};
@@ -50,7 +50,6 @@ use crate::stack::Stack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
-use crate::util::hash::hash_of;
 use crate::watchdog::{Watchdog, WatchdogEvent};
 pub use error::DriverError;
 
@@ -244,11 +243,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             }
             Stack::Provisioned { stack, sequence } => {
                 for pdu in stack.retransmit(&sequence)? {
-                    self.network.transmit(&(pdu.into()), true).await;
+                    self.network.transmit(&(pdu.into()), true).await?;
                 }
             }
         }
-
         Ok(())
     }
 
@@ -308,7 +306,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             ..Default::default()
         };
 
-        let composition = enhance_composition(composition);
+        let composition = enhance_composition(composition)?;
 
         self.storage.set_composition(composition.clone());
         self.storage.set_capabilities(capabilities);
@@ -397,7 +395,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
     async fn handle_watchdog_event(&self, event: WatchdogEvent) -> Result<(), DriverError> {
         match event {
             WatchdogEvent::LinkOpenTimeout => {
-                self.network.close_link(Reason::Timeout).await;
+                self.network.close_link(Reason::Timeout).await?;
                 *self.stack.borrow_mut() = Stack::None;
             }
             WatchdogEvent::OutboundExpiration(seq_zero) => {
@@ -418,7 +416,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
         }
-
         Ok(())
     }
 
@@ -503,7 +500,7 @@ static DEVICE_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
 
 static OUTBOUND: OutboundChannelImpl = OutboundChannelImpl::new();
 
-fn enhance_composition(composition: Composition) -> Composition {
+fn enhance_composition(composition: Composition) -> Result<Composition, DriverError> {
     let mut enhanced = Composition::new(composition.cid(), composition.pid(), composition.vid());
 
     for (i, element) in composition.elements_iter().enumerate() {
@@ -511,8 +508,9 @@ fn enhance_composition(composition: Composition) -> Composition {
         if i == 0 {
             element.add_model(CONFIGURATION_SERVER);
         }
-        enhanced.add_element(element);
+        enhanced
+            .add_element(element)
+            .map_err(|_| DriverError::InsufficientSpace)?;
     }
-
-    enhanced
+    Ok(enhanced)
 }

@@ -1,6 +1,5 @@
 use crate::{BackingStore, Configuration, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
-use btmesh_models::foundation::configuration::beacon::BeaconMessage;
 use btmesh_models::foundation::configuration::default_ttl::DefaultTTLMessage;
 use btmesh_models::foundation::configuration::ConfigurationServer;
 

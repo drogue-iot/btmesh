@@ -14,7 +14,6 @@ use btmesh_pdu::provisioning::generic::{
 };
 use btmesh_pdu::provisioning::ProvisioningPDU;
 use btmesh_pdu::{MESH_BEACON, MESH_MESSAGE, PB_ADV, PDU};
-use core::borrow::BorrowMut;
 use core::cell::Cell;
 use core::cell::RefCell;
 use core::iter::Iterator;
@@ -153,7 +152,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
                 transaction_number: 0,
                 pdu: pdu.into(),
             };
-            self.transmit_advertising_pdu(&pdu.into());
+            self.transmit_advertising_pdu(&pdu.into()).await?;
         }
         Ok(())
     }

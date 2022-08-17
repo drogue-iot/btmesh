@@ -37,7 +37,9 @@ impl OutboundSegmentation {
                         UnsegmentedLowerAccessPDU::<()>::new(inner.meta().aid(), &*payload, ())?;
 
                     let mut transport_pdu = Vec::<_, 16>::new();
-                    lower_pdu.emit(&mut transport_pdu);
+                    lower_pdu
+                        .emit(&mut transport_pdu)
+                        .map_err(|_| DriverError::InsufficientSpace)?;
 
                     result
                         .push(CleartextNetworkPDU::new(

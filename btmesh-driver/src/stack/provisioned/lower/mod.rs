@@ -8,7 +8,7 @@ use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
 use crate::{DriverError, Watchdog};
 use btmesh_common::mic::SzMic;
-use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
+use btmesh_common::{InsufficientBuffer, SeqZero};
 use btmesh_pdu::provisioned::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;

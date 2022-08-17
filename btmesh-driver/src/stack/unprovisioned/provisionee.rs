@@ -8,8 +8,8 @@ use btmesh_common::crypto::{
     s1,
 };
 use btmesh_pdu::provisioning::{
-    Capabilities, Confirmation, Data, ErrorCode, Failed, Invite, ProvisioningData, ProvisioningPDU,
-    PublicKey, Random, Start,
+    Capabilities, Confirmation, Data, ErrorCode, Failed, ProvisioningData, ProvisioningPDU,
+    PublicKey, Random,
 };
 use heapless::Vec;
 use p256::elliptic_curve::ecdh::diffie_hellman;
@@ -94,7 +94,7 @@ impl Provisionee {
                 }
             }
             // CONFIRMATION
-            (Provisionee::Authentication(mut phase), ProvisioningPDU::Confirmation(value)) => {
+            (Provisionee::Authentication(phase), ProvisioningPDU::Confirmation(value)) => {
                 let mut next: Phase<Confirming> = phase.into();
                 next.confirm(value, rng)?;
                 Ok(Provisionee::Confirming(next))
@@ -174,7 +174,7 @@ impl Phase<Beaconing> {
     }
 }
 impl From<Phase<Beaconing>> for Phase<Invitation> {
-    fn from(mut p: Phase<Beaconing>) -> Self {
+    fn from(p: Phase<Beaconing>) -> Self {
         Phase {
             transcript: p.transcript,
             capabilities: p.capabilities,

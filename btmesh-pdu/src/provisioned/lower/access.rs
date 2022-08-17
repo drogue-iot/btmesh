@@ -103,7 +103,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             Some(aid) => aid.emit(xmit)?,
         }
         // set the SEGMENTED bit.
-        xmit[cur] = 0b10000000 | xmit[cur];
+        xmit[cur] |= 0b10000000;
 
         let mut header = [0; 3];
         match self.szmic {
