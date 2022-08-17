@@ -1,13 +1,14 @@
-use crate::opcode::Opcode;
-use crate::{opcode, Message};
-use btmesh_common::{InsufficientBuffer, ParseError};
+use crate::foundation::configuration::ConfigurationMessage;
+use crate::Message;
+use btmesh_common::opcode::Opcode;
+use btmesh_common::{opcode, InsufficientBuffer, ParseError};
 use heapless::Vec;
 
 opcode!( CONFIG_RELAY_GET 0x80, 0x26);
 opcode!( CONFIG_RELAY_SET 0x80, 0x27);
 opcode!( CONFIG_RELAY_STATUS 0x80, 0x28);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Relay {
@@ -32,13 +33,13 @@ impl Relay {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RelayConfig {
-    pub relay: Relay,
-    pub relay_retransmit_count: u8,
-    pub relay_retransmit_interval_steps: u8,
+    relay: Relay,
+    relay_retransmit_count: u8,
+    relay_retransmit_interval_steps: u8,
 }
 
 impl Default for RelayConfig {
@@ -52,6 +53,13 @@ impl Default for RelayConfig {
 }
 
 impl RelayConfig {
+    pub fn not_supported() -> Self {
+        Self {
+            relay: Relay::NotSupported,
+            relay_retransmit_count: 0,
+            relay_retransmit_interval_steps: 0,
+        }
+    }
     pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() < 2 {
             Err(ParseError::InvalidLength)
@@ -79,6 +87,18 @@ impl RelayConfig {
 
         Ok(())
     }
+
+    pub fn relay(&self) -> Relay {
+        self.relay
+    }
+
+    pub fn retransmit_count(&self) -> u8 {
+        self.relay_retransmit_count
+    }
+
+    pub fn retransmit_interval_steps(&self) -> u8 {
+        self.relay_retransmit_interval_steps
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -86,6 +106,12 @@ pub enum RelayMessage {
     Get,
     Set(RelayConfig),
     Status(RelayConfig),
+}
+
+impl From<RelayMessage> for ConfigurationMessage {
+    fn from(inner: RelayMessage) -> Self {
+        ConfigurationMessage::Relay(inner)
+    }
 }
 
 impl Message for RelayMessage {

@@ -25,7 +25,6 @@ use crate::foundation::configuration::model_subscription::{
 
 use crate::foundation::configuration::node_reset::{NodeResetMessage, CONFIG_NODE_RESET};
 
-#[cfg(feature = "relay")]
 use crate::foundation::configuration::relay::{RelayMessage, CONFIG_RELAY_GET, CONFIG_RELAY_SET};
 
 use crate::{Message, Model};
@@ -43,8 +42,6 @@ pub mod model_publication;
 pub mod model_subscription;
 pub mod network_transmit;
 pub mod node_reset;
-
-#[cfg(feature = "relay")]
 pub mod relay;
 
 pub const CONFIGURATION_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x0000);
@@ -60,7 +57,6 @@ pub enum ConfigurationMessage {
     ModelApp(ModelAppMessage),
     ModelPublication(ModelPublicationMessage),
     ModelSubscription(ModelSubscriptionMessage),
-    #[cfg(feature = "relay")]
     Relay(RelayMessage),
 }
 
@@ -75,7 +71,6 @@ impl Message for ConfigurationMessage {
             ConfigurationMessage::ModelApp(inner) => inner.opcode(),
             ConfigurationMessage::ModelPublication(inner) => inner.opcode(),
             ConfigurationMessage::ModelSubscription(inner) => inner.opcode(),
-            #[cfg(feature = "relay")]
             ConfigurationMessage::Relay(inner) => inner.opcode(),
         }
     }
@@ -93,7 +88,6 @@ impl Message for ConfigurationMessage {
             ConfigurationMessage::ModelApp(inner) => inner.emit_parameters(xmit),
             ConfigurationMessage::ModelPublication(inner) => inner.emit_parameters(xmit),
             ConfigurationMessage::ModelSubscription(inner) => inner.emit_parameters(xmit),
-            #[cfg(feature = "relay")]
             ConfigurationMessage::Relay(inner) => inner.emit_parameters(xmit),
         }
     }
@@ -161,11 +155,9 @@ impl Model for ConfigurationServer {
                 )))
             }
             // Relay
-            #[cfg(feature = "relay")]
             CONFIG_RELAY_GET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_get(
                 parameters,
             )?))),
-            #[cfg(feature = "relay")]
             CONFIG_RELAY_SET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_set(
                 parameters,
             )?))),

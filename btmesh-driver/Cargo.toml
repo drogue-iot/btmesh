@@ -10,7 +10,7 @@ btmesh-common = { path = "../btmesh-common" }
 btmesh-pdu = { path = "../btmesh-pdu" }
 btmesh-bearer = { path = "../btmesh-bearer" }
 btmesh-device = { path = "../btmesh-device" }
-btmesh-models = { path = "../btmesh-models"}
+btmesh-models = { path = "../btmesh-models", features = [ "serde" ] }
 btmesh-macro = { path = "../btmesh-macro"}
 embassy-executor = { version = "0.1.0", default-features = false, features = ["nightly", "time"] }
 embassy-util = { version = "0.1.0", default-features = false, features = ["nightly"] }
@@ -38,6 +38,7 @@ default = [
     "flash",
     "memory",
     "embassy-executor/std",
+    "relay",
 ]
 flash = [
     "embedded-storage",
@@ -62,6 +63,7 @@ defmt = [
 
 relay = [
     "btmesh-common/relay",
+    "btmesh-models/relay",
 ]
 proxy = [
     "btmesh-common/proxy",

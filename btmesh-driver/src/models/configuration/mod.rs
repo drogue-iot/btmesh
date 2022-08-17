@@ -8,6 +8,7 @@ pub mod beacon;
 pub mod composition_data;
 pub mod default_ttl;
 pub mod node_reset;
+pub mod relay;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
     storage: &'s Storage<B>,
@@ -39,6 +40,11 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                     }
                     ConfigurationMessage::DefaultTTL(default_ttl) => {
                         default_ttl::dispatch(&ctx, self.storage, default_ttl, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
+                    ConfigurationMessage::Relay(relay) => {
+                        relay::dispatch(&ctx, self.storage, relay, meta)
                             .await
                             .map_err(|_| ())?;
                     }
