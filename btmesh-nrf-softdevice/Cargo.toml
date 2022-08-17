@@ -54,6 +54,7 @@ gatt = [
 
 relay = [
     "btmesh-common/relay",
+    "btmesh-driver/relay",
 ]
 proxy = [
     "btmesh-common/proxy",
