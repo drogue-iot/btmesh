@@ -1,4 +1,4 @@
-use embassy_executor::time::{Duration, Instant};
+use embassy_time::{Duration, Instant};
 use heapless::FnvIndexMap;
 
 use crate::stack::provisioned::system::UpperMetadata;

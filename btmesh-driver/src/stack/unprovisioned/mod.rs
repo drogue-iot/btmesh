@@ -6,7 +6,7 @@ use btmesh_common::crypto::device::DeviceKey;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningData, ProvisioningPDU};
 use core::future::Future;
 use core::hash::{Hash, Hasher};
-use embassy_executor::time::{Duration, Timer};
+use embassy_time::{Duration, Timer};
 use rand_core::{CryptoRng, RngCore};
 
 mod auth_value;

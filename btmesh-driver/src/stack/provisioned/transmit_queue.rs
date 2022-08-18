@@ -4,7 +4,7 @@ use btmesh_common::{InsufficientBuffer, SeqZero};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
-use embassy_executor::time::{Duration, Instant};
+use embassy_time::{Duration, Instant};
 use heapless::Vec;
 
 pub struct TransmitQueue<const N: usize = 5> {

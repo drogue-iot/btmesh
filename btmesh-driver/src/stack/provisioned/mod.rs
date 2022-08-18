@@ -13,7 +13,7 @@ use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
 use core::cmp::Ordering;
 use core::future::Future;
-use embassy_executor::time::{Duration, Timer};
+use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use secrets::Secrets;
 

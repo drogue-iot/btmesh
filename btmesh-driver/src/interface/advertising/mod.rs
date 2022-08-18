@@ -17,7 +17,7 @@ use btmesh_pdu::{MESH_BEACON, MESH_MESSAGE, PB_ADV, PDU};
 use core::cell::Cell;
 use core::cell::RefCell;
 use core::iter::Iterator;
-use embassy_executor::time::{Duration, Instant};
+use embassy_time::{Duration, Instant};
 use heapless::Vec;
 
 mod segmentation;

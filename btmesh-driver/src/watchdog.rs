@@ -1,7 +1,7 @@
 use btmesh_common::SeqZero;
 use core::cell::Cell;
 use core::future::pending;
-use embassy_executor::time::{Instant, Timer};
+use embassy_time::{Instant, Timer};
 
 #[derive(Copy, Clone)]
 pub enum WatchdogEvent {
