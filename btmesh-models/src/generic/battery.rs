@@ -169,10 +169,10 @@ pub enum GenericBatteryFlagsCharging {
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Status {
-    battery_level: u8,
-    time_to_discharge: u32,
-    time_to_charge: u32,
-    flags: GenericBatteryFlags,
+    pub battery_level: u8,
+    pub time_to_discharge: u32,
+    pub time_to_charge: u32,
+    pub flags: GenericBatteryFlags,
 }
 
 impl Status {
