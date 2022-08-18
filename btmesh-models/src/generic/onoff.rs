@@ -67,9 +67,11 @@ impl Model for GenericOnOffClient {
     const IDENTIFIER: ModelIdentifier = GENERIC_ONOFF_CLIENT;
     type Message = GenericOnOffMessage;
 
-    fn parse(opcode: Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
-            GENERIC_ON_OFF_STATUS => Ok(None),
+            GENERIC_ON_OFF_STATUS => Ok(Some(GenericOnOffMessage::Status(Status::parse(
+                parameters,
+            )?))),
             _ => {
                 // not applicable to this role
                 Ok(None)
@@ -138,9 +140,9 @@ impl Set {
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Status {
-    present_on_off: u8,
-    target_on_off: u8,
-    remaining_time: u8,
+    pub present_on_off: u8,
+    pub target_on_off: u8,
+    pub remaining_time: u8,
 }
 
 impl Status {
@@ -155,5 +157,20 @@ impl Status {
         xmit.push(self.remaining_time)
             .map_err(|_| InsufficientBuffer)?;
         Ok(())
+    }
+
+    fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() >= 3 {
+            let present_on_off = parameters[0];
+            let target_on_off = parameters[1];
+            let remaining_time = parameters[2];
+            Ok(Self {
+                present_on_off,
+                target_on_off,
+                remaining_time,
+            })
+        } else {
+            Err(ParseError::InvalidLength)
+        }
     }
 }
