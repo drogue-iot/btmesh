@@ -19,6 +19,7 @@ pub enum DriverError {
     InvalidKeyHandle,
     InvalidNetKeyIndex,
     InvalidAppKeyIndex,
+    InvalidModel,
     NetKeyIndexAlreadyStored,
     AppKeyIndexAlreadyStored,
     InvalidPDU,

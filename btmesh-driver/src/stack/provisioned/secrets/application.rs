@@ -34,6 +34,13 @@ impl<const N: usize> ApplicationKeys<N> {
         }
     }
 
+    pub(crate) fn has_key(&self, app_key_index: AppKeyIndex) -> bool {
+        if usize::from(app_key_index) >= N {
+            return false;
+        }
+        self.keys[usize::from(app_key_index)].is_some()
+    }
+
     pub(crate) fn by_aid_iter(&self, aid: Aid) -> impl Iterator<Item = ApplicationKeyHandle> + '_ {
         self.keys
             .iter()

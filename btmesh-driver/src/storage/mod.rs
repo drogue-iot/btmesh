@@ -73,6 +73,15 @@ pub enum Configuration {
     Provisioned(ProvisionedConfiguration),
 }
 
+impl Configuration {
+    pub fn display(&self, composition: &Composition) {
+        match self {
+            Configuration::Unprovisioned(inner) => inner.display(composition),
+            Configuration::Provisioned(inner) => inner.display(composition),
+        }
+    }
+}
+
 pub struct Storage<B: BackingStore> {
     backing_store: RefCell<B>,
     capabilities: RefCell<Option<Capabilities>>,

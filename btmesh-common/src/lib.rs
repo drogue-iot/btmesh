@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use core::array::TryFromSliceError;
-use core::ops::{Add, BitAnd, Deref, Sub};
+use core::ops::{Add, BitAnd, Deref, Index, Sub};
 use heapless::Vec;
 use rand_core::RngCore;
 
@@ -388,7 +388,7 @@ impl Deref for NetworkId {
     }
 }
 
-#[derive(Eq, PartialEq, Copy, Clone)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "darling", derive(darling::FromMeta))]
@@ -417,7 +417,7 @@ pub struct ProductIdentifier(pub u16);
 pub struct VersionIdentifier(pub u16);
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Hash)]
 pub enum ModelIdentifier {
     SIG(u16),
     Vendor(CompanyIdentifier, u16),
@@ -482,6 +482,14 @@ pub struct Composition {
     pub(crate) crpl: u16,
     pub(crate) features: Features,
     pub(crate) elements: Vec<ElementDescriptor, 4>,
+}
+
+impl Index<u8> for Composition {
+    type Output = ElementDescriptor;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        &self.elements[index as usize]
+    }
 }
 
 impl Composition {
@@ -559,6 +567,10 @@ impl ElementDescriptor {
 
     pub fn models_iter(&self) -> impl Iterator<Item = &ModelIdentifier> + '_ {
         self.models.iter()
+    }
+
+    pub fn has_model(&self, model_identifier: ModelIdentifier) -> bool {
+        self.models.iter().any(|e| *e == model_identifier)
     }
 }
 

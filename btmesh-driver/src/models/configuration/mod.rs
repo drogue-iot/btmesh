@@ -8,6 +8,7 @@ pub mod app_key;
 pub mod beacon;
 pub mod composition_data;
 pub mod default_ttl;
+pub mod model_app;
 pub mod node_reset;
 pub mod relay;
 
@@ -55,12 +56,15 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::AppKey(app_key) => {
-                        info!("--------> {}", app_key);
                         app_key::dispatch(&ctx, self.storage, app_key, meta)
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::ModelApp(_model_app) => {}
+                    ConfigurationMessage::ModelApp(model_app) => {
+                        model_app::dispatch(&ctx, self.storage, model_app, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                     ConfigurationMessage::ModelPublication(_model_publication) => {}
                     ConfigurationMessage::ModelSubscription(_model_subscription) => {}
                     ConfigurationMessage::NodeReset(node_reset) => {

@@ -291,7 +291,7 @@ impl defmt::Format for NetKeyIndex {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug, Hash)]
 pub struct AppKeyIndex(KeyIndex);
 
 impl AppKeyIndex {

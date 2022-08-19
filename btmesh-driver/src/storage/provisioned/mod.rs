@@ -1,8 +1,10 @@
+use crate::storage::provisioned::bindings::Bindings;
 use crate::storage::provisioned::foundation::Foundation;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use btmesh_common::Composition;
 use core::hash::{Hash, Hasher};
 
+mod bindings;
 mod foundation;
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
@@ -13,6 +15,7 @@ pub struct ProvisionedConfiguration {
     network_state: NetworkState,
     secrets: Secrets,
     device_info: DeviceInfo,
+    bindings: Bindings,
     foundation: Foundation,
 }
 
@@ -30,10 +33,11 @@ impl ProvisionedConfiguration {
             secrets,
             device_info,
             foundation,
+            bindings: Default::default(),
         }
     }
 
-    pub fn display(&self, _composition: &Composition) {
+    pub fn display(&self, composition: &Composition) {
         info!("========================================================================");
         info!("=  Provisioned                                                         =");
         info!("------------------------------------------------------------------------");
@@ -41,6 +45,7 @@ impl ProvisionedConfiguration {
         self.device_info.display();
         self.network_state.display();
         self.secrets.display();
+        self.bindings.display(composition);
         info!("========================================================================");
     }
 
@@ -58,6 +63,14 @@ impl ProvisionedConfiguration {
 
     pub(crate) fn device_info(&self) -> &DeviceInfo {
         &self.device_info
+    }
+
+    pub(crate) fn bindings(&self) -> &Bindings {
+        &self.bindings
+    }
+
+    pub(crate) fn bindings_mut(&mut self) -> &mut Bindings {
+        &mut self.bindings
     }
 
     pub(crate) fn sequence(&self) -> u32 {
@@ -85,6 +98,7 @@ impl From<(DeviceInfo, Secrets, NetworkState)> for ProvisionedConfiguration {
             secrets: config.1,
             device_info: config.0,
             foundation: Default::default(),
+            bindings: Default::default(),
         }
     }
 }
@@ -94,6 +108,7 @@ impl Hash for ProvisionedConfiguration {
         self.network_state.hash(state);
         self.secrets.hash(state);
         self.device_info.hash(state);
+        self.bindings.hash(state);
         // explicitly skip sequence, checked separately.
     }
 }

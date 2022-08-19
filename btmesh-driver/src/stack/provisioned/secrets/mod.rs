@@ -122,4 +122,8 @@ impl Secrets {
     ) -> Result<ApplicationKey, DriverError> {
         self.application_keys.get(application_key)
     }
+
+    pub(crate) fn has_application_key(&self, app_key_index: AppKeyIndex) -> bool {
+        self.application_keys.has_key(app_key_index)
+    }
 }

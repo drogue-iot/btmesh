@@ -49,6 +49,7 @@ use crate::stack::Stack;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::storage::{BackingStore, Configuration, Storage};
+use crate::util::hash::hash_of;
 use crate::watchdog::{Watchdog, WatchdogEvent};
 pub use error::DriverError;
 
@@ -318,19 +319,21 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         self.storage.init().await?;
 
+        let mut last_displayed_hash = None;
+
         loop {
             let config = self.storage.get().await?;
 
             let mut desired = DesiredStack::Unchanged;
 
-            match (&*self.stack.borrow(), config) {
+            match (&*self.stack.borrow(), &config) {
                 (Stack::None, Configuration::Unprovisioned(config))
                 | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
-                    desired = DesiredStack::Unprovisioned(config);
+                    desired = DesiredStack::Unprovisioned(config.clone());
                 }
                 (Stack::None, Configuration::Provisioned(config))
                 | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
-                    desired = DesiredStack::Provisioned(config);
+                    desired = DesiredStack::Provisioned(config.clone());
                 }
                 _ => {
                     // unchanged, don't reconfigure the stack.
@@ -346,6 +349,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     };
                     self.network.reset();
                     config.display(&composition);
+                    last_displayed_hash.replace(hash_of(&Configuration::Unprovisioned(config)));
                 }
                 DesiredStack::Provisioned(config) => {
                     *self.stack.borrow_mut() = Stack::Provisioned {
@@ -353,6 +357,15 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         stack: (&config).into(),
                     };
                     config.display(&composition);
+                    last_displayed_hash.replace(hash_of(&Configuration::Provisioned(config)));
+                }
+            }
+
+            if let Some(previous_hash) = last_displayed_hash {
+                let current_hash = hash_of(&config);
+                if previous_hash != current_hash {
+                    config.display(&composition);
+                    last_displayed_hash.replace(current_hash);
                 }
             }
 

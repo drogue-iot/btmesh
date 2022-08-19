@@ -1,4 +1,4 @@
-use crate::foundation::configuration::{AppKeyIndex, KeyIndex};
+use crate::foundation::configuration::{AppKeyIndex, ConfigurationMessage, KeyIndex};
 use crate::{Message, Status};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::opcode::Opcode;
@@ -14,6 +14,12 @@ pub enum ModelAppMessage {
     Bind(ModelAppPayload),
     Status(ModelAppStatusMessage),
     Unbind(ModelAppPayload),
+}
+
+impl From<ModelAppMessage> for ConfigurationMessage {
+    fn from(inner: ModelAppMessage) -> Self {
+        ConfigurationMessage::ModelApp(inner)
+    }
 }
 
 impl ModelAppMessage {
@@ -49,9 +55,9 @@ impl Message for ModelAppMessage {
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelAppPayload {
-    pub(crate) element_address: UnicastAddress,
-    pub(crate) app_key_index: AppKeyIndex,
-    pub(crate) model_identifier: ModelIdentifier,
+    pub element_address: UnicastAddress,
+    pub app_key_index: AppKeyIndex,
+    pub model_identifier: ModelIdentifier,
 }
 
 impl ModelAppPayload {
@@ -87,8 +93,8 @@ impl ModelAppPayload {
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelAppStatusMessage {
-    pub(crate) status: Status,
-    pub(crate) payload: ModelAppPayload,
+    pub status: Status,
+    pub payload: ModelAppPayload,
 }
 
 impl ModelAppStatusMessage {
