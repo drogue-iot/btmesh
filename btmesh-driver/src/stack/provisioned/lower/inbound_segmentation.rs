@@ -6,7 +6,7 @@ use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use crate::Watchdog;
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
-use btmesh_common::SeqZero;
+use btmesh_common::{IvIndex, Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
 use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
 use btmesh_pdu::provisioned::lower::{BlockAck, SegmentedLowerPDU};
@@ -34,21 +34,32 @@ pub struct SegmentationResult {
 
 impl<const N: usize> InboundSegmentation<N> {
     pub fn expire_inbound(
-        &self,
+        &mut self,
         seq_zero: SeqZero,
         watchdog: &Watchdog,
     ) -> Option<(BlockAck, UpperMetadata)> {
         let result = self
             .current
-            .values()
+            .values_mut()
             .find(|e| e.seq_zero == seq_zero)
-            .map(|in_flight| (in_flight.blocks.block_ack, in_flight.meta.clone()));
+            .map(|in_flight| in_flight.expire());
 
         for e in self.current.values() {
             e.set_watchdog_expiration(watchdog);
         }
 
-        result
+        if let Some(result) = result {
+            match result {
+                Err(src) => {
+                    self.current.remove(&src);
+                    None
+                }
+                Ok(inner @ Some(_)) => inner,
+                _ => None,
+            }
+        } else {
+            None
+        }
     }
 
     /// Accept an inbound segmented `LowerPDU`, and attempt to reassemble
@@ -73,7 +84,7 @@ impl<const N: usize> InboundSegmentation<N> {
         };
 
         if !in_flight.is_valid(pdu) {
-            return Err(DriverError::InvalidPDU);
+            return Err(DriverError::InvalidPDU("in flight is valid"));
         }
 
         if in_flight.already_seen(pdu)? {
@@ -122,7 +133,7 @@ impl Blocks {
     /// * `seg_o` The `seg_o` (offset) of the block to denote as processed.
     fn ack(&mut self, seg_o: u8) -> Result<(), DriverError> {
         if seg_o > self.seg_n {
-            return Err(DriverError::InvalidState);
+            return Err(DriverError::InvalidState("ack"));
         }
         Ok(self.block_ack.ack(seg_o)?)
     }
@@ -158,6 +169,7 @@ struct InFlight {
     reassembly: Reassembly,
     meta: UpperMetadata,
     last_ack: Instant,
+    watchdogs: u8,
 }
 
 impl InFlight {
@@ -182,6 +194,7 @@ impl InFlight {
             reassembly: Reassembly::new_access(szmic),
             meta,
             last_ack: Instant::now(),
+            watchdogs: 0,
         }
     }
 
@@ -197,6 +210,17 @@ impl InFlight {
             reassembly: Reassembly::new_control(opcode),
             meta,
             last_ack: Instant::now(),
+            watchdogs: 0,
+        }
+    }
+
+    fn expire(&mut self) -> Result<Option<(BlockAck, UpperMetadata)>, UnicastAddress> {
+        self.watchdogs += 1;
+        if self.watchdogs > 2 {
+            Err(self.meta.src())
+        } else {
+            self.last_ack = Instant::now();
+            Ok(Some((self.blocks.block_ack.clone(), self.meta.clone())))
         }
     }
 
@@ -239,7 +263,7 @@ impl InFlight {
     /// Returns a result of `()` or a `DriverError`.
     fn ingest(&mut self, pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Result<(), DriverError> {
         if !self.is_valid(pdu) {
-            return Err(DriverError::InvalidPDU);
+            return Err(DriverError::InvalidPDU("ingest"));
         }
         self.last_ack = Instant::now();
         self.reassembly.ingest(pdu)?;
@@ -266,7 +290,7 @@ impl InFlight {
     /// Returns a result of the reassembled `UpperPDU` or a `DriverError`, most likely `DriverError::InvalidState`.
     fn reassemble(&self, meta: UpperMetadata) -> Result<UpperPDU<ProvisionedStack>, DriverError> {
         if !self.is_complete()? {
-            return Err(DriverError::InvalidState);
+            return Err(DriverError::InvalidState("reassemble"));
         }
         self.reassembly.reassemble(meta)
     }
@@ -335,7 +359,7 @@ impl Reassembly {
                         .clone_from_slice(pdu.segment_m());
                 }
             }
-            _ => return Err(DriverError::InvalidPDU),
+            _ => return Err(DriverError::InvalidPDU("ingest 2")),
         }
         Ok(())
     }
@@ -501,7 +525,10 @@ mod tests {
         assert_eq!(Ok(()), blocks.ack(3));
         assert_eq!(Ok(true), blocks.is_complete());
 
-        assert_eq!(Err(DriverError::InvalidState), blocks.ack(4));
+        assert_eq!(
+            Err(DriverError::InvalidState("invalid block")),
+            blocks.ack(4)
+        );
     }
 
     #[test]

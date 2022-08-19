@@ -5,6 +5,7 @@ use crate::DriverError;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{Ctl, InsufficientBuffer};
 use btmesh_pdu::provisioned::lower::access::{SegmentedLowerAccessPDU, UnsegmentedLowerAccessPDU};
+use btmesh_pdu::provisioned::lower::control::UnsegmentedLowerControlPDU;
 use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
 use btmesh_pdu::provisioned::upper::UpperPDU;
 use heapless::Vec;
@@ -96,7 +97,29 @@ impl OutboundSegmentation {
                     }
                 }
             }
-            UpperPDU::Control(_inner) => {}
+            UpperPDU::Control(inner) => {
+                let lower_pdu =
+                    UnsegmentedLowerControlPDU::<()>::new(inner.opcode(), inner.parameters(), ())?;
+
+                let mut transport_pdu = Vec::<_, 16>::new();
+                lower_pdu
+                    .emit(&mut transport_pdu)
+                    .map_err(|_| DriverError::InsufficientSpace)?;
+
+                result
+                    .push(CleartextNetworkPDU::new(
+                        pdu.meta().iv_index().ivi(),
+                        pdu.meta().network_key_handle().nid(),
+                        Ctl::Control,
+                        pdu.meta().ttl(),
+                        sequence.next(),
+                        pdu.meta().src(),
+                        pdu.meta().dst(),
+                        &*transport_pdu,
+                        meta,
+                    )?)
+                    .map_err(|_| InsufficientBuffer)?;
+            }
         }
         Ok(result)
     }

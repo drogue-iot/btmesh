@@ -137,6 +137,7 @@ pub struct InvalidBlock;
 /// indicating which segment(s) have been received and should
 /// be ACK'd for a given segmented lower PDU.
 #[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct BlockAck(u32, SeqZero);
 
 impl BlockAck {

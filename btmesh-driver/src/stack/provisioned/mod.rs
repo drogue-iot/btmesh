@@ -1,5 +1,4 @@
 use crate::stack::provisioned::lower::LowerDriver;
-use crate::stack::provisioned::network::replay_protection::ReplayProtection;
 use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
@@ -18,6 +17,7 @@ use heapless::Vec;
 use secrets::Secrets;
 
 use crate::util::deadline::{Deadline, DeadlineFuture};
+use btmesh_common::address::UnicastAddress;
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::control::ControlMessage;
 use btmesh_pdu::provisioned::upper::control::ControlOpcode;
@@ -179,7 +179,7 @@ impl ProvisionedStack {
     }
 
     pub fn next_retransmit(&self) -> Option<impl Future<Output = ()>> {
-        Some(Timer::after(Duration::from_millis(100)))
+        Some(Timer::after(Duration::from_millis(200)))
     }
 
     pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 16>, DriverError> {
@@ -211,8 +211,25 @@ impl ProvisionedStack {
             .accepted_iv_index(network_pdu.ivi());
 
         if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
+            if cleartext_network_pdu.meta().is_replay_protected() {
+                return Ok(None);
+            }
+
             let (block_ack_meta, upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu, watchdog)?;
+
+            if let Some((block_ack, meta)) = &block_ack_meta {
+                if let Some(replacement_block_ack) = self.network.replay_protection.check_upper_pdu(
+                    meta,
+                    *block_ack,
+                    upper_pdu.is_some(),
+                ) {
+                    // we have already seen it and fully ack'd it, so just keep ack'ing for now.
+                    return Ok((Some((replacement_block_ack, meta.clone())), None)
+                        .try_into()
+                        .ok());
+                }
+            }
 
             let message = if let Some(upper_pdu) = upper_pdu {
                 Some(self.process_inbound_upper_pdu(upper_pdu)?)
@@ -292,10 +309,11 @@ impl ProvisionedStack {
         &mut self,
         sequence: &Sequence,
         seq_zero: SeqZero,
+        src: UnicastAddress,
         watchdog: &Watchdog,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
-            self.process_outbound_block_ack(sequence, block_ack, meta)
+            self.process_outbound_block_ack(sequence, block_ack, meta, src)
         } else {
             Ok(Vec::new())
         }

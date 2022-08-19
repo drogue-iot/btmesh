@@ -209,7 +209,7 @@ impl Phase<KeyExchange> {
                 rng.fill_bytes(&mut self.state.random_provisioner);
                 Ok(self.state.random_provisioner)
             }
-            None => Err(DriverError::InvalidState),
+            None => Err(DriverError::InvalidState("calculate ecdh")),
         }
     }
 }
@@ -253,7 +253,7 @@ impl Phase<DataDistribution> {
 
         let mut encrypted = Vec::<u8, 25>::new();
         self.data
-            .ok_or(DriverError::InvalidState)?
+            .ok_or(DriverError::InvalidState("encrypt"))?
             .emit(&mut encrypted)?;
         let mut mic = [0; 8];
 

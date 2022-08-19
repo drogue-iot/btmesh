@@ -251,9 +251,15 @@ impl ProvisionedStack {
                 )?);
             }
         } else {
+            let seq = if let Some(seq_auth) = pdu.meta().seq_auth() {
+                seq_auth.into()
+            } else {
+                pdu.meta().seq()
+            };
+
             let nonce = DeviceNonce::new(
                 pdu.transmic().szmic(),
-                pdu.meta().seq(),
+                seq,
                 pdu.meta().src(),
                 pdu.meta().dst(),
                 pdu.meta().iv_index(),
@@ -263,6 +269,7 @@ impl ProvisionedStack {
 
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;
+
             if crypto::device::try_decrypt_device_key(
                 &device_key,
                 &nonce,
@@ -278,6 +285,6 @@ impl ProvisionedStack {
             }
         }
 
-        Err(DriverError::InvalidPDU)
+        Err(DriverError::InvalidPDU("decrypt access"))
     }
 }

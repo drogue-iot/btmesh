@@ -1,5 +1,5 @@
 use crate::stack::provisioned::system::NetworkMetadata;
-use crate::stack::provisioned::{DriverError, ProvisionedStack, ReplayProtection};
+use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
 use btmesh_common::crypto::nonce::NetworkNonce;
@@ -7,6 +7,7 @@ use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
 
+use crate::stack::provisioned::network::replay_protection::ReplayProtection;
 use btmesh_device::NetworkKeyHandle;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -56,7 +57,7 @@ impl DeviceInfo {
 
 pub struct NetworkDriver {
     device_info: DeviceInfo,
-    replay_protection: ReplayProtection,
+    pub(crate) replay_protection: ReplayProtection,
 }
 
 impl NetworkDriver {
@@ -87,7 +88,7 @@ impl ProvisionedStack {
     }
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
-        self.network.replay_protection.check(pdu);
+        self.network.replay_protection.check_network_pdu(pdu);
     }
 
     pub fn encrypt_network_pdu(

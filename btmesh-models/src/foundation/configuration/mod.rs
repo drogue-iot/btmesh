@@ -1,5 +1,5 @@
 use crate::foundation::configuration::app_key::{
-    AppKeyMessage, CONFIG_APPKEY_ADD, CONFIG_APPKEY_GET,
+    AppKeyMessage, CONFIG_APPKEY_ADD, CONFIG_APPKEY_DELETE, CONFIG_APPKEY_GET,
 };
 use crate::foundation::configuration::beacon::{
     BeaconMessage, CONFIG_BEACON_GET, CONFIG_BEACON_SET,
@@ -17,6 +17,7 @@ use crate::foundation::configuration::model_publication::{
     ModelPublicationMessage, CONFIG_MODEL_PUBLICATION_SET,
     CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET,
 };
+use core::ops::Deref;
 
 use crate::foundation::configuration::model_subscription::{
     ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD,
@@ -126,6 +127,9 @@ impl Model for ConfigurationServer {
             CONFIG_APPKEY_ADD => Ok(Some(ConfigurationMessage::AppKey(
                 AppKeyMessage::parse_add(parameters)?,
             ))),
+            CONFIG_APPKEY_DELETE => Ok(Some(ConfigurationMessage::AppKey(
+                AppKeyMessage::parse_delete(parameters)?,
+            ))),
             CONFIG_APPKEY_GET => Ok(Some(ConfigurationMessage::AppKey(
                 AppKeyMessage::parse_get(parameters)?,
             ))),
@@ -183,7 +187,7 @@ impl Model for ConfigurationClient {
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
 
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyIndex(u16);
 
@@ -195,6 +199,10 @@ impl defmt::Format for KeyIndex {
 }
 
 impl KeyIndex {
+    pub fn new(index: u16) -> Self {
+        Self(index)
+    }
+
     fn parse_one(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() >= 2 {
             let byte1 = parameters[0];
@@ -257,7 +265,7 @@ impl KeyIndex {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Copy, Clone, Debug, Hash)]
 pub struct NetKeyIndex(KeyIndex);
 
 impl NetKeyIndex {
@@ -270,6 +278,12 @@ impl NetKeyIndex {
     }
 }
 
+impl From<NetKeyIndex> for usize {
+    fn from(index: NetKeyIndex) -> Self {
+        index.0 .0 as usize
+    }
+}
+
 #[cfg(feature = "defmt")]
 impl defmt::Format for NetKeyIndex {
     fn format(&self, fmt: defmt::Formatter) {
@@ -278,12 +292,22 @@ impl defmt::Format for NetKeyIndex {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Copy, Clone, Debug)]
+#[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug)]
 pub struct AppKeyIndex(KeyIndex);
 
 impl AppKeyIndex {
+    pub fn new(index: u16) -> Self {
+        Self(KeyIndex::new(index))
+    }
+
     fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         KeyIndex::emit_one(&self.0, xmit)
+    }
+}
+
+impl From<AppKeyIndex> for usize {
+    fn from(index: AppKeyIndex) -> Self {
+        index.0 .0 as usize
     }
 }
 

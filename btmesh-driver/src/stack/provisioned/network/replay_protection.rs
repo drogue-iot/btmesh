@@ -1,27 +1,38 @@
 use crate::stack::provisioned::ProvisionedStack;
+use crate::UpperMetadata;
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::Seq;
+use btmesh_common::{Seq, SeqZero};
+use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
+use btmesh_pdu::provisioned::upper::UpperPDU;
 use core::cmp::Ordering;
 use uluru::LRUCache;
 
 #[derive(PartialEq)]
-struct CacheEntry {
+struct NetworkCacheEntry {
     seq: Seq,
     src: UnicastAddress,
     iv_index: u16,
 }
 
+struct UpperCacheEntry {
+    seq: Seq,
+    src: UnicastAddress,
+    iv_index: u16,
+    block_ack: BlockAck,
+}
+
 #[derive(Default)]
 pub struct ReplayProtection<const N: usize = 100> {
-    lru: LRUCache<CacheEntry, N>,
+    network: LRUCache<NetworkCacheEntry, N>,
+    upper: LRUCache<UpperCacheEntry, N>,
 }
 
 impl<const N: usize> ReplayProtection<N> {
-    pub fn check(&mut self, pdu: &mut CleartextNetworkPDU<ProvisionedStack>) {
+    pub fn check_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<ProvisionedStack>) {
         let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;
 
-        if let Some(entry) = self.lru.find(|e| e.src == pdu.src()) {
+        if let Some(entry) = self.network.find(|e| e.src == pdu.src()) {
             match iv_index.cmp(&entry.iv_index) {
                 Ordering::Less => {
                     pdu.meta_mut().replay_protected(true);
@@ -41,12 +52,66 @@ impl<const N: usize> ReplayProtection<N> {
                 }
             }
         } else {
-            self.lru.insert(CacheEntry {
+            self.network.insert(NetworkCacheEntry {
                 seq: pdu.seq(),
                 src: pdu.src(),
                 iv_index,
             });
             pdu.meta_mut().replay_protected(false);
+        }
+    }
+
+    pub fn check_upper_pdu(
+        &mut self,
+        meta: &UpperMetadata,
+        block_ack: BlockAck,
+        is_complete: bool,
+    ) -> Option<BlockAck> {
+        let iv_index = (meta.iv_index().value() & 0xFFFF) as u16;
+
+        if let Some(entry) = self.upper.find(|e| e.src == meta.src()) {
+            match iv_index.cmp(&entry.iv_index) {
+                Ordering::Less => None,
+                Ordering::Equal => {
+                    if let Some(replay_seq) = meta.replay_seq() {
+                        if replay_seq == entry.seq {
+                            info!("A replay protected {}", replay_seq);
+                            Some(entry.block_ack)
+                        } else {
+                            info!("B replay not protected {}", replay_seq);
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                }
+                Ordering::Greater => {
+                    if is_complete {
+                        if let Some(replay_seq) = meta.replay_seq() {
+                            entry.iv_index = iv_index;
+                            entry.seq = replay_seq;
+                            entry.block_ack = block_ack;
+                            info!("C replay not protected {}", replay_seq);
+                        }
+                    }
+                    info!("C.5");
+                    None
+                }
+            }
+        } else {
+            if is_complete {
+                if let Some(replay_seq) = meta.replay_seq() {
+                    self.upper.insert(UpperCacheEntry {
+                        seq: replay_seq,
+                        src: meta.src(),
+                        iv_index,
+                        block_ack,
+                    });
+                    info!("D replay not protected {}", replay_seq);
+                }
+            }
+            info!("D.5");
+            None
         }
     }
 }

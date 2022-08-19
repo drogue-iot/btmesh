@@ -15,6 +15,7 @@ pub use btmesh_common::{
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, Ttl};
+use btmesh_models::foundation::configuration::{AppKeyIndex, KeyIndex};
 pub use btmesh_models::Model;
 use core::future::Future;
 use core::pin::Pin;
@@ -311,10 +312,23 @@ impl NetworkKeyHandle {
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ApplicationKeyHandle(pub u8, pub Aid);
+pub struct ApplicationKeyHandle {
+    index: AppKeyIndex,
+    aid: Aid,
+}
 
 impl ApplicationKeyHandle {
+    pub fn new(index: AppKeyIndex, aid: Aid) -> Self {
+        Self { index, aid }
+    }
+
     pub fn aid(&self) -> Aid {
-        self.1
+        self.aid
+    }
+}
+
+impl From<ApplicationKeyHandle> for AppKeyIndex {
+    fn from(handle: ApplicationKeyHandle) -> Self {
+        handle.index
     }
 }

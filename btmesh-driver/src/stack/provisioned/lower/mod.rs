@@ -7,8 +7,9 @@ use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
 use crate::{DriverError, Watchdog};
+use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
-use btmesh_common::{InsufficientBuffer, SeqZero};
+use btmesh_common::{InsufficientBuffer, Seq, SeqZero};
 use btmesh_pdu::provisioned::lower::{BlockAck, LowerPDU, UnsegmentedLowerPDU};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
@@ -24,7 +25,7 @@ pub struct LowerDriver {
 
 impl LowerDriver {
     pub fn expire_inbound(
-        &self,
+        &mut self,
         seq_zero: SeqZero,
         watchdog: &Watchdog,
     ) -> Option<(BlockAck, UpperMetadata)> {
@@ -86,13 +87,16 @@ impl ProvisionedStack {
         sequence: &Sequence,
         block_ack: BlockAck,
         meta: UpperMetadata,
+        src: UnicastAddress,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
+        info!("** process block ack {}", block_ack);
         let network_pdus = self.process_outbound_upper_pdu(
             sequence,
-            &block_ack_to_upper_pdu(block_ack, meta)?,
+            &block_ack_to_upper_pdu(sequence, block_ack, meta, src)?,
             false,
         )?;
 
+        info!("** process block ack PDUs {}", network_pdus);
         let network_pdus = network_pdus
             .iter()
             .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
@@ -114,12 +118,15 @@ impl ProvisionedStack {
 }
 
 fn block_ack_to_upper_pdu(
+    sequence: &Sequence,
     block_ack: BlockAck,
     meta: UpperMetadata,
+    src: UnicastAddress,
 ) -> Result<UpperPDU<ProvisionedStack>, InsufficientBuffer> {
     let mut parameters = [0; 6];
 
-    let seq_zero = (block_ack.seq_zero().value() << 2).to_be_bytes();
+    info!("ACK {}", block_ack.seq_zero().value());
+    let seq_zero = ((block_ack.seq_zero().value() & 0b0111111111111111) << 2).to_be_bytes();
     parameters[0] = seq_zero[0];
     parameters[1] = seq_zero[1];
 
@@ -128,6 +135,20 @@ fn block_ack_to_upper_pdu(
     parameters[3] = block_ack[1];
     parameters[4] = block_ack[2];
     parameters[5] = block_ack[3];
+
+    let meta = UpperMetadata {
+        network_key_handle: meta.network_key_handle(),
+        iv_index: meta.iv_index(),
+        local_element_index: None,
+        akf_aid: meta.aid(),
+        seq: sequence.next(),
+        src,
+        dst: meta.src().into(),
+        ttl: meta.ttl(),
+        label_uuids: Vec::from_slice(meta.label_uuids())?,
+        seq_auth: None,
+        replay_seq: None,
+    };
 
     Ok(UpperControlPDU::new(ControlOpcode::SegmentAcknowledgement, &parameters, meta)?.into())
 }

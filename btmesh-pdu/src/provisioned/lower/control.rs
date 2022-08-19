@@ -11,6 +11,18 @@ pub struct UnsegmentedLowerControlPDU<S: System> {
 }
 
 impl<S: System> UnsegmentedLowerControlPDU<S> {
+    pub fn new(
+        opcode: ControlOpcode,
+        parameters: &[u8],
+        meta: S::LowerMetadata,
+    ) -> Result<Self, InsufficientBuffer> {
+        Ok(Self {
+            opcode,
+            parameters: Vec::from_slice(parameters)?,
+            meta,
+        })
+    }
+
     pub fn parse(data: &[u8], meta: S::LowerMetadata) -> Result<Self, ParseError> {
         let opcode = ControlOpcode::parse(data[0] & 0b01111111)?;
         let parameters = &data[1..];
@@ -19,6 +31,12 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
             parameters: Vec::from_slice(parameters)?,
             meta,
         })
+    }
+
+    pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
+        xmit.push(self.opcode as u8 & 0b01111111)?;
+        xmit.extend_from_slice(&*self.parameters)?;
+        Ok(())
     }
 
     pub fn opcode(&self) -> ControlOpcode {

@@ -85,6 +85,15 @@ impl Watchdog {
         }
     }
 
+    pub fn clear_inbound_expiration(&self, seq_zero: SeqZero) {
+        if let Some((_, WatchdogEvent::InboundExpiration(current))) = self.inbound_expiration.get()
+        {
+            if current == seq_zero {
+                self.inbound_expiration.take();
+            }
+        }
+    }
+
     pub fn inbound_expiration(&self, expiration: (Instant, SeqZero)) {
         if let Some(current) = self.inbound_expiration.get() {
             if current.0 < expiration.0 {
@@ -121,7 +130,9 @@ impl<'w> Expiration<'w> {
             WatchdogEvent::OutboundExpiration(seq_zero) => {
                 self.watchdog.clear_outbound_expiration(seq_zero);
             }
-            WatchdogEvent::InboundExpiration(_seq_zero) => {}
+            WatchdogEvent::InboundExpiration(seq_zero) => {
+                self.watchdog.clear_inbound_expiration(seq_zero);
+            }
         }
 
         self.event

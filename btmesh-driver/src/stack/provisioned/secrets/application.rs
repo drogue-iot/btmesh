@@ -3,6 +3,7 @@ use btmesh_common::crypto::application::{Aid, ApplicationKey};
 use heapless::Vec;
 
 use btmesh_device::ApplicationKeyHandle;
+use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -10,7 +11,7 @@ use serde::{Deserialize, Serialize};
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub(crate) struct ApplicationKeys<const N: usize = 4> {
-    pub(crate) keys: Vec<Option<ApplicationKey>, N>,
+    keys: Vec<Option<(NetKeyIndex, ApplicationKey)>, N>,
 }
 
 impl<const N: usize> Default for ApplicationKeys<N> {
@@ -22,31 +23,78 @@ impl<const N: usize> Default for ApplicationKeys<N> {
 }
 
 impl<const N: usize> ApplicationKeys<N> {
+    pub fn display(&self) {
+        for (index, entry) in self.keys.iter().enumerate() {
+            if let Some((net_key_index, app_key)) = entry {
+                info!(
+                    "application_key[{}]: {} (net_key_index: {})",
+                    index, app_key, net_key_index
+                );
+            }
+        }
+    }
+
     pub(crate) fn by_aid_iter(&self, aid: Aid) -> impl Iterator<Item = ApplicationKeyHandle> + '_ {
         self.keys
             .iter()
             .enumerate()
             .filter(move |e| {
-                if let (_, Some(application_key)) = e {
+                if let (_, Some((_, application_key))) = e {
                     application_key.aid() == aid
                 } else {
                     false
                 }
             })
-            .map(move |(index, _)| ApplicationKeyHandle(index as u8, aid))
+            .map(move |(index, _)| ApplicationKeyHandle::new(AppKeyIndex::new(index as u16), aid))
     }
 
-    pub(crate) fn set(
+    pub(crate) fn get<I: Into<AppKeyIndex>>(
+        &self,
+        index: I,
+    ) -> Result<ApplicationKey, DriverError> {
+        if let Some(entry) = self.keys[usize::from(index.into())] {
+            Ok(entry.1)
+        } else {
+            Err(DriverError::InvalidAppKeyIndex)
+        }
+    }
+
+    pub(crate) fn add(
         &mut self,
-        index: u8,
+        index: AppKeyIndex,
+        net_key_index: NetKeyIndex,
         application_key: ApplicationKey,
     ) -> Result<(), DriverError> {
-        if index as usize >= N {
-            return Err(DriverError::InsufficientSpace);
+        if usize::from(index) >= N {
+            return Err(DriverError::InvalidAppKeyIndex);
         }
 
-        self.keys[index as usize].replace(application_key);
+        if let Some(..) = self.keys[usize::from(index)] {
+            Err(DriverError::AppKeyIndexAlreadyStored)
+        } else {
+            self.keys[usize::from(index)].replace((net_key_index, application_key));
+            Ok(())
+        }
+    }
 
-        Ok(())
+    pub(crate) fn delete(
+        &mut self,
+        index: AppKeyIndex,
+        net_key_index: NetKeyIndex,
+    ) -> Result<(), DriverError> {
+        if usize::from(index) >= N {
+            return Err(DriverError::InvalidAppKeyIndex);
+        }
+
+        if let Some((current_net_key_index, ..)) = self.keys[usize::from(index)] {
+            if net_key_index == current_net_key_index {
+                self.keys[usize::from(index)].take();
+                Ok(())
+            } else {
+                Err(DriverError::InvalidNetKeyIndex)
+            }
+        } else {
+            Err(DriverError::InvalidAppKeyIndex)
+        }
     }
 }

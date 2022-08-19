@@ -1,7 +1,9 @@
 use crate::foundation::configuration::{
-    AppKeyIndex, KeyIndex, NetKeyAppKeyIndexesPair, NetKeyIndex,
+    AppKeyIndex, ConfigurationMessage, KeyIndex, NetKeyAppKeyIndexesPair, NetKeyIndex,
 };
 use crate::{Message, Status};
+use btmesh_common::crypto::application::ApplicationKey;
+use btmesh_common::crypto::network::NetworkKey;
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ParseError};
 use core::convert::TryInto;
@@ -24,14 +26,31 @@ pub enum AppKeyMessage {
     Update(AppKeyUpdateMessage),
 }
 
+impl From<AppKeyMessage> for ConfigurationMessage {
+    fn from(inner: AppKeyMessage) -> Self {
+        Self::AppKey(inner)
+    }
+}
+
 impl AppKeyMessage {
     pub fn parse_add(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() == 19 {
             let indexes = NetKeyAppKeyIndexesPair::parse(&parameters[0..=2])?;
-            let app_key = parameters[3..]
-                .try_into()
-                .map_err(|_| ParseError::InvalidLength)?;
+            let app_key = ApplicationKey::new(
+                parameters[3..]
+                    .try_into()
+                    .map_err(|_| ParseError::InvalidLength)?,
+            )?;
             Ok(Self::Add(AppKeyAddMessage { indexes, app_key }))
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+
+    pub fn parse_delete(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() == 3 {
+            let indexes = NetKeyAppKeyIndexesPair::parse(&parameters[0..=2])?;
+            Ok(Self::Delete(AppKeyDeleteMessage { indexes }))
         } else {
             Err(ParseError::InvalidLength)
         }
@@ -76,8 +95,8 @@ impl Message for AppKeyMessage {
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AppKeyAddMessage {
-    pub(crate) indexes: NetKeyAppKeyIndexesPair,
-    pub(crate) app_key: [u8; 16],
+    pub indexes: NetKeyAppKeyIndexesPair,
+    pub app_key: ApplicationKey,
 }
 
 impl AppKeyAddMessage {
@@ -87,11 +106,23 @@ impl AppKeyAddMessage {
     ) -> Result<(), InsufficientBuffer> {
         todo!();
     }
+
+    pub fn net_key_index(&self) -> NetKeyIndex {
+        self.indexes.0
+    }
+
+    pub fn app_key_index(&self) -> AppKeyIndex {
+        self.indexes.1
+    }
+
+    pub fn app_key(&self) -> ApplicationKey {
+        self.app_key
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AppKeyDeleteMessage {
-    pub(crate) indexes: NetKeyAppKeyIndexesPair,
+    pub indexes: NetKeyAppKeyIndexesPair,
 }
 
 impl AppKeyDeleteMessage {
@@ -100,6 +131,14 @@ impl AppKeyDeleteMessage {
         _xmit: &mut Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         todo!();
+    }
+
+    pub fn net_key_index(&self) -> NetKeyIndex {
+        self.indexes.0
+    }
+
+    pub fn app_key_index(&self) -> AppKeyIndex {
+        self.indexes.1
     }
 }
 
@@ -156,8 +195,14 @@ impl AppKeyListMessage {
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AppKeyStatusMessage {
-    pub(crate) status: Status,
-    pub(crate) indexes: NetKeyAppKeyIndexesPair,
+    pub status: Status,
+    pub indexes: NetKeyAppKeyIndexesPair,
+}
+
+impl From<AppKeyStatusMessage> for AppKeyMessage {
+    fn from(inner: AppKeyStatusMessage) -> Self {
+        Self::Status(inner)
+    }
 }
 
 impl AppKeyStatusMessage {

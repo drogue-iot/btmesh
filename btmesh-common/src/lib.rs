@@ -293,6 +293,22 @@ impl BitAnd<u16> for SeqZero {
 
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct SeqAuth(u32);
+
+impl SeqAuth {
+    pub fn new(seq_auth: u32) -> Self {
+        Self(seq_auth)
+    }
+}
+
+impl From<SeqAuth> for Seq {
+    fn from(seq_auth: SeqAuth) -> Self {
+        Seq::new(seq_auth.0)
+    }
+}
+
+#[derive(Copy, Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum Ctl {
     Access,
     Control,

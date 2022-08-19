@@ -1,5 +1,7 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
+use crate::DriverError;
+use aes::cipher::generic_array::typenum::Mod;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;
@@ -18,6 +20,11 @@ pub mod flash;
 #[cfg(feature = "memory")]
 pub mod memory;
 
+pub enum ModifyError {
+    Storage(StorageError),
+    Driver(DriverError),
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum StorageError {
@@ -25,6 +32,18 @@ pub enum StorageError {
     Store,
     Serialization,
     Deserialization,
+}
+
+impl From<StorageError> for ModifyError {
+    fn from(inner: StorageError) -> Self {
+        Self::Storage(inner)
+    }
+}
+
+impl From<DriverError> for ModifyError {
+    fn from(inner: DriverError) -> Self {
+        Self::Driver(inner)
+    }
 }
 
 pub trait BackingStore {
@@ -113,17 +132,13 @@ impl<B: BackingStore> Storage<B> {
         Ok(())
     }
 
-    pub async fn modify<F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), ()>>(
+    pub async fn modify<F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), DriverError>>(
         &self,
         modification: F,
-    ) -> Result<(), StorageError> {
-        let config = self.config.lock().await;
-
-        if let Some(Configuration::Provisioned(config)) = &*config {
-            let mut config = config.clone();
-            if modification(&mut config).is_ok() {
-                self.put(&Configuration::Provisioned(config)).await?;
-            }
+    ) -> Result<(), ModifyError> {
+        if let Configuration::Provisioned(mut config) = self.get().await? {
+            modification(&mut config)?;
+            self.put(&Configuration::Provisioned(config)).await?;
         }
 
         Ok(())

@@ -97,7 +97,7 @@ pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: Back
     network: N,
     rng: RefCell<R>,
     storage: &'s Storage<B>,
-    dispatcher: Dispatcher,
+    dispatcher: RefCell<Dispatcher>,
     watchdog: Watchdog,
 }
 
@@ -108,7 +108,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             network,
             rng: RefCell::new(rng),
             storage,
-            dispatcher: Dispatcher::new(FOUNDATION_INBOUND.sender(), DEVICE_INBOUND.sender()),
+            dispatcher: RefCell::new(Dispatcher::new(
+                FOUNDATION_INBOUND.sender(),
+                DEVICE_INBOUND.sender(),
+            )),
             watchdog: Default::default(),
         }
     }
@@ -165,16 +168,23 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 debug!("inbound network pdu: {}", pdu);
                 if let Some(result) = stack.process_inbound_network_pdu(pdu, &self.watchdog)? {
                     if let Some((block_ack, meta)) = result.block_ack {
+                        debug!("we have outbound block_ack");
                         // send outbound block-ack
-                        for network_pdu in
-                            stack.process_outbound_block_ack(sequence, block_ack, meta)?
+                        if let Configuration::Provisioned(config) =
+                            self.storage.borrow().get().await?
                         {
-                            debug!("outbound network block-ack pdu: {}", pdu);
-                            // don't error if we can't send.
-                            self.network
-                                .transmit(&PDU::Network(network_pdu), false)
-                                .await
-                                .ok();
+                            if let Some(src) = config.device_info().local_element_address(0) {
+                                for network_pdu in stack
+                                    .process_outbound_block_ack(sequence, block_ack, meta, src)?
+                                {
+                                    debug!("outbound network block-ack pdu: {}", pdu);
+                                    // don't error if we can't send.
+                                    self.network
+                                        .transmit(&PDU::Network(network_pdu), false)
+                                        .await
+                                        .ok();
+                                }
+                            }
                         }
                     }
 
@@ -182,7 +192,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         // dispatch to element(s)
                         match message {
                             Message::Access(message) => {
-                                self.dispatcher.dispatch(message).await?;
+                                self.dispatcher.borrow_mut().dispatch(message).await?;
                             }
                             Message::Control(message) => {
                                 stack.process_inbound_control(&message, &self.watchdog)?;
@@ -208,7 +218,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let element_address = config
                 .device_info()
                 .local_element_address(outbound_payload.0 .0 as u8)
-                .ok_or(DriverError::InvalidState)?;
+                .ok_or(DriverError::InvalidState("process outbound payload"))?;
             let default_ttl = config.foundation().configuration().default_ttl();
             let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
                 outbound_payload.1,
@@ -366,7 +376,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 match select4(io_fut, beacon_fut, retransmit_fut, watchdog_fut).await {
                     Either4::First(inner) => match inner {
                         Either::First(Ok(pdu)) => {
-                            self.receive_pdu(&pdu).await?;
+                            if let Err(result) = self.receive_pdu(&pdu).await {
+                                match result {
+                                    DriverError::InvalidPDU(_) | DriverError::Parse(_) => continue,
+                                    _ => return Err(result),
+                                }
+                            }
                         }
                         Either::First(Err(err)) => {
                             return Err(err.into());
@@ -408,10 +423,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack, sequence, ..
                 } = &mut *self.stack.borrow_mut()
                 {
-                    for network_pdu in
-                        stack.inbound_expiration(sequence, seq_zero, &self.watchdog)?
-                    {
-                        self.network.transmit(&network_pdu.into(), false).await.ok();
+                    if let Configuration::Provisioned(config) = self.storage.borrow().get().await? {
+                        if let Some(src) = config.device_info().local_element_address(0) {
+                            for network_pdu in
+                                stack.inbound_expiration(sequence, seq_zero, src, &self.watchdog)?
+                            {
+                                self.network.transmit(&network_pdu.into(), false).await.ok();
+                            }
+                        }
                     }
                 }
             }
@@ -437,16 +456,16 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         // if the device or the driver is `Ready` then stuff is just done, stop.
         match select3(network_fut, driver_fut, device_fut).await {
             Either3::First(_val) => {
-                info!("network exited");
+                info!("************** network exited");
             }
             Either3::Second(Ok(_)) => {
-                info!("driver exited");
+                info!("************** driver exited");
             }
             Either3::Second(Err(err)) => {
-                info!("driver exited with error {}", err);
+                info!("************** driver exited with error {}", err);
             }
             Either3::Third(_val) => {
-                info!("device exited");
+                info!("************** device exited");
             }
         }
 

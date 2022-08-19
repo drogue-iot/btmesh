@@ -7,6 +7,7 @@ use btmesh_common::crypto::network::{NetworkKey, Nid};
 use btmesh_pdu::provisioning::ProvisioningData;
 
 use btmesh_device::{ApplicationKeyHandle, NetworkKeyHandle};
+use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -36,6 +37,7 @@ impl Secrets {
     pub fn display(&self) {
         info!("device_key: {}", self.device_key);
         self.network_keys.display();
+        self.application_keys.display();
     }
 
     pub(crate) fn new(
@@ -79,6 +81,34 @@ impl Secrets {
         }
     }
 
+    pub(crate) fn add_application_key(
+        &mut self,
+        net_key_index: NetKeyIndex,
+        app_key_index: AppKeyIndex,
+        app_key: ApplicationKey,
+    ) -> Result<(), DriverError> {
+        if let Some(net_key) = self.network_keys.keys[usize::from(net_key_index)] {
+            self.application_keys
+                .add(app_key_index, net_key_index, app_key)?;
+            Ok(())
+        } else {
+            Err(DriverError::InvalidNetKeyIndex)
+        }
+    }
+
+    pub(crate) fn delete_application_key(
+        &mut self,
+        net_key_index: NetKeyIndex,
+        app_key_index: AppKeyIndex,
+    ) -> Result<(), DriverError> {
+        if let Some(_) = self.network_keys.keys[usize::from(net_key_index)] {
+            self.application_keys.delete(app_key_index, net_key_index)?;
+            Ok(())
+        } else {
+            Err(DriverError::InvalidNetKeyIndex)
+        }
+    }
+
     pub(crate) fn application_keys_by_aid(
         &self,
         aid: Aid,
@@ -90,9 +120,6 @@ impl Secrets {
         &self,
         application_key: ApplicationKeyHandle,
     ) -> Result<ApplicationKey, DriverError> {
-        self.application_keys.keys[application_key.0 as usize]
-            .as_ref()
-            .ok_or(DriverError::InvalidKeyHandle)
-            .cloned()
+        Ok(self.application_keys.get(application_key)?)
     }
 }

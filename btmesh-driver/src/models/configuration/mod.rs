@@ -4,6 +4,7 @@ use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
 use core::future::Future;
 
+pub mod app_key;
 pub mod beacon;
 pub mod composition_data;
 pub mod default_ttl;
@@ -53,7 +54,12 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::AppKey(_app_key) => {}
+                    ConfigurationMessage::AppKey(app_key) => {
+                        info!("--------> {}", app_key);
+                        app_key::dispatch(&ctx, self.storage, app_key, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                     ConfigurationMessage::ModelApp(_model_app) => {}
                     ConfigurationMessage::ModelPublication(_model_publication) => {}
                     ConfigurationMessage::ModelSubscription(_model_subscription) => {}

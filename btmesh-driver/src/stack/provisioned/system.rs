@@ -2,7 +2,7 @@ use crate::stack::provisioned::ProvisionedStack;
 use crate::DriverError;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
-use btmesh_common::{IvIndex, Seq, Ttl};
+use btmesh_common::{IvIndex, Seq, SeqAuth, SeqZero, Ttl};
 use btmesh_device::{
     ApplicationKeyHandle, InboundMetadata, KeyHandle, NetworkKeyHandle, OutboundMetadata,
 };
@@ -50,6 +50,10 @@ impl NetworkMetadata {
 
     pub fn replay_protected(&mut self, protected: bool) {
         self.replay_protected = protected;
+    }
+
+    pub fn is_replay_protected(&self) -> bool {
+        self.replay_protected
     }
 
     pub fn should_relay(&mut self, relay: bool) {
@@ -160,19 +164,38 @@ impl LowerMetadata {
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct UpperMetadata {
-    network_key_handle: NetworkKeyHandle,
-    iv_index: IvIndex,
-    local_element_index: Option<u8>,
-    akf_aid: Option<Aid>,
-    seq: Seq,
-    src: UnicastAddress,
-    dst: Address,
-    ttl: Ttl,
-    label_uuids: Vec<LabelUuid, 3>,
+    pub(crate) network_key_handle: NetworkKeyHandle,
+    pub(crate) iv_index: IvIndex,
+    pub(crate) local_element_index: Option<u8>,
+    pub(crate) akf_aid: Option<Aid>,
+    pub(crate) seq: Seq,
+    pub(crate) src: UnicastAddress,
+    pub(crate) dst: Address,
+    pub(crate) ttl: Ttl,
+    pub(crate) label_uuids: Vec<LabelUuid, 3>,
+    pub(crate) seq_auth: Option<SeqAuth>,
+    pub(crate) replay_seq: Option<Seq>,
 }
 
 impl UpperMetadata {
+    fn calculate_seq_auth(iv_index: IvIndex, seq: Seq, seq_zero: SeqZero) -> SeqAuth {
+        SeqAuth::new((iv_index.value() << 24) + Self::first_seq_number(seq, seq_zero).value())
+    }
+
+    fn first_seq_number(seq: Seq, seq_zero: SeqZero) -> Seq {
+        if (seq.value() & 8191u32) < seq_zero.value() as u32 {
+            Seq::new(seq.value() - ((seq.value() & 8191) - seq_zero.value() as u32) - (8191 + 1))
+        } else {
+            Seq::new(seq.value() - ((seq.value() & 8191) - seq_zero.value() as u32))
+        }
+    }
+
     pub fn from_segmented_lower_pdu(pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Self {
+        let iv_index = pdu.meta().iv_index();
+        let seq_zero = pdu.seq_zero();
+        let seq = pdu.meta().seq();
+        let seq_auth = Self::calculate_seq_auth(iv_index, seq, seq_zero);
+
         Self {
             network_key_handle: pdu.meta().network_key_handle(),
             iv_index: pdu.meta().iv_index(),
@@ -187,6 +210,8 @@ impl UpperMetadata {
             dst: pdu.meta().dst(),
             ttl: pdu.meta().ttl(),
             label_uuids: Default::default(),
+            seq_auth: Some(seq_auth),
+            replay_seq: Some(Self::first_seq_number(seq, seq_zero)),
         }
     }
 
@@ -205,6 +230,8 @@ impl UpperMetadata {
             dst: pdu.meta().dst(),
             ttl: pdu.meta().ttl(),
             label_uuids: Default::default(),
+            seq_auth: None,
+            replay_seq: Some(pdu.meta().seq()),
         }
     }
 
@@ -229,6 +256,8 @@ impl UpperMetadata {
             dst: message.meta().dst(),
             ttl: message.meta().ttl(),
             label_uuids: Default::default(),
+            seq_auth: None,
+            replay_seq: Some(seq),
         }
     }
 
@@ -250,6 +279,14 @@ impl UpperMetadata {
 
     pub fn seq(&self) -> Seq {
         self.seq
+    }
+
+    pub fn seq_auth(&self) -> Option<SeqAuth> {
+        self.seq_auth
+    }
+
+    pub fn replay_seq(&self) -> Option<Seq> {
+        self.replay_seq
     }
 
     pub fn src(&self) -> UnicastAddress {
@@ -287,6 +324,7 @@ pub struct AccessMetadata {
     dst: Address,
     ttl: Ttl,
     label_uuid: Option<LabelUuid>,
+    replay_seq: Option<Seq>,
 }
 
 impl From<(UnicastAddress, OutboundMetadata, Ttl)> for AccessMetadata {
@@ -304,6 +342,7 @@ impl From<(UnicastAddress, OutboundMetadata, Ttl)> for AccessMetadata {
             dst: meta.dst(),
             ttl: meta.ttl().unwrap_or(default_ttl),
             label_uuid: None,
+            replay_seq: None,
         }
     }
 }
@@ -323,7 +362,16 @@ impl AccessMetadata {
             dst: pdu.meta().dst(),
             ttl: pdu.meta().ttl(),
             label_uuid,
+            replay_seq: Some(if let Some(replay_seq) = pdu.meta().replay_seq() {
+                replay_seq
+            } else {
+                pdu.meta().seq()
+            }),
         }
+    }
+
+    pub(crate) fn replay_seq(&self) -> Option<Seq> {
+        self.replay_seq
     }
 
     pub fn network_key_handle(&self) -> NetworkKeyHandle {
