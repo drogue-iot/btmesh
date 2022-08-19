@@ -21,14 +21,18 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             }
         }
         DefaultTTLMessage::Set(default_ttl) => {
-            if let Configuration::Provisioned(mut config) = storage.get().await? {
-                *config
-                    .foundation_mut()
-                    .configuration_mut()
-                    .default_ttl_mut() = default_ttl;
-                ctx.send(DefaultTTLMessage::Status(default_ttl).into(), meta.reply())
-                    .await?;
-            }
+            storage
+                .modify(|config| {
+                    *config
+                        .foundation_mut()
+                        .configuration_mut()
+                        .default_ttl_mut() = default_ttl;
+                    Ok(())
+                })
+                .await
+                .ok();
+            ctx.send(DefaultTTLMessage::Status(default_ttl).into(), meta.reply())
+                .await?;
         }
         _ => {
             // not applicable

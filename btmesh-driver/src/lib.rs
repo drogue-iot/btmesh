@@ -229,7 +229,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     &self.watchdog,
                 );
                 for pdu in network_pdus? {
-                    debug!("outbound network pdu: {}", pdu);
+                    //debug!("outbound network pdu: {}", pdu);
                     self.network.transmit(&(pdu.into()), false).await?;
                 }
             }

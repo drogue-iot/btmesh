@@ -20,11 +20,15 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             }
         }
         BeaconMessage::Set(beacon) => {
-            if let Configuration::Provisioned(mut config) = storage.get().await? {
-                *config.foundation_mut().configuration_mut().beacon_mut() = beacon;
-                ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
-                    .await?;
-            }
+            storage
+                .modify(|config| {
+                    *config.foundation_mut().configuration_mut().beacon_mut() = beacon;
+                    Ok(())
+                })
+                .await
+                .ok();
+            ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
+                .await?;
         }
         _ => {
             // not applicable
