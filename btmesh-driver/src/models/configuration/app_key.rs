@@ -1,8 +1,7 @@
 use crate::storage::ModifyError;
-use crate::{BackingStore, Configuration, DriverError, Storage};
+use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
 use btmesh_models::foundation::configuration::app_key::{AppKeyMessage, AppKeyStatusMessage};
-use btmesh_models::foundation::configuration::relay::{Relay, RelayMessage};
 use btmesh_models::foundation::configuration::ConfigurationServer;
 use btmesh_models::Status;
 
@@ -41,7 +40,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                 return Err(err);
             }
         }
-        AppKeyMessage::Get(get) => {}
+        AppKeyMessage::Get(_get) => {}
         AppKeyMessage::Delete(delete) => {
             let (status, err) = convert(
                 storage
@@ -68,8 +67,8 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                 return Err(err);
             }
         }
-        AppKeyMessage::List(list) => {}
-        AppKeyMessage::Update(update) => {}
+        AppKeyMessage::List(_list) => {}
+        AppKeyMessage::Update(_update) => {}
         _ => {}
     }
 
@@ -79,16 +78,16 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 fn convert(input: Result<(), ModifyError>) -> (Status, Option<DriverError>) {
     if let Err(result) = input {
         match result {
-            ModifyError::Driver(inner @ DriverError::InvalidAppKeyIndex) => {
+            ModifyError::Driver(DriverError::InvalidAppKeyIndex) => {
                 (Status::InvalidAppKeyIndex, None)
             }
-            ModifyError::Driver(inner @ DriverError::InvalidNetKeyIndex) => {
+            ModifyError::Driver(DriverError::InvalidNetKeyIndex) => {
                 (Status::InvalidNetKeyIndex, None)
             }
-            ModifyError::Driver(inner @ DriverError::AppKeyIndexAlreadyStored) => {
+            ModifyError::Driver(DriverError::AppKeyIndexAlreadyStored) => {
                 (Status::KeyIndexAlreadyStored, None)
             }
-            ModifyError::Storage(inner) => (Status::StorageFailure, None),
+            ModifyError::Storage(_) => (Status::StorageFailure, None),
             ModifyError::Driver(inner) => (Status::UnspecifiedError, Some(inner)),
         }
     } else {

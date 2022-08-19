@@ -17,7 +17,6 @@ use crate::foundation::configuration::model_publication::{
     ModelPublicationMessage, CONFIG_MODEL_PUBLICATION_SET,
     CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET,
 };
-use core::ops::Deref;
 
 use crate::foundation::configuration::model_subscription::{
     ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD,

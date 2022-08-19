@@ -1,7 +1,6 @@
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::DriverError;
-use aes::cipher::generic_array::typenum::Mod;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
 use core::cell::RefCell;

@@ -83,7 +83,7 @@ impl UnprovisionedStack {
             if last_hash == hash {
                 return match fsm.response() {
                     Some(pdu) => Ok(Some(ProvisioningState::Response(pdu))),
-                    None => Err(DriverError::InvalidState("process")),
+                    None => Err(DriverError::InvalidState),
                 };
             }
         }
@@ -98,8 +98,7 @@ impl UnprovisionedStack {
                     Ok(Some(ProvisioningState::Data(
                         *device_key,
                         *provisioning_data,
-                        p.response()
-                            .ok_or(DriverError::InvalidState("process too"))?,
+                        p.response().ok_or(DriverError::InvalidState)?,
                     )))
                 }
                 Some(Provisionee::Failure(..)) => Ok(Some(ProvisioningState::Failed)),
@@ -116,7 +115,7 @@ impl UnprovisionedStack {
                 None => unreachable!(),
             }
         } else {
-            Err(DriverError::InvalidState("process 3"))
+            Err(DriverError::InvalidState)
         }
     }
 }

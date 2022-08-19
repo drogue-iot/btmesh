@@ -87,7 +87,7 @@ impl Secrets {
         app_key_index: AppKeyIndex,
         app_key: ApplicationKey,
     ) -> Result<(), DriverError> {
-        if let Some(net_key) = self.network_keys.keys[usize::from(net_key_index)] {
+        if self.network_keys.keys[usize::from(net_key_index)].is_some() {
             self.application_keys
                 .add(app_key_index, net_key_index, app_key)?;
             Ok(())
@@ -101,7 +101,7 @@ impl Secrets {
         net_key_index: NetKeyIndex,
         app_key_index: AppKeyIndex,
     ) -> Result<(), DriverError> {
-        if let Some(_) = self.network_keys.keys[usize::from(net_key_index)] {
+        if self.network_keys.keys[usize::from(net_key_index)].is_some() {
             self.application_keys.delete(app_key_index, net_key_index)?;
             Ok(())
         } else {
@@ -120,6 +120,6 @@ impl Secrets {
         &self,
         application_key: ApplicationKeyHandle,
     ) -> Result<ApplicationKey, DriverError> {
-        Ok(self.application_keys.get(application_key)?)
+        self.application_keys.get(application_key)
     }
 }

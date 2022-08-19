@@ -285,6 +285,6 @@ impl ProvisionedStack {
             }
         }
 
-        Err(DriverError::InvalidPDU("decrypt access"))
+        Err(DriverError::InvalidPDU)
     }
 }

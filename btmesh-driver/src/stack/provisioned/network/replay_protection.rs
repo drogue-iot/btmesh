@@ -1,10 +1,9 @@
 use crate::stack::provisioned::ProvisionedStack;
 use crate::UpperMetadata;
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::{Seq, SeqZero};
+use btmesh_common::Seq;
 use btmesh_pdu::provisioned::lower::BlockAck;
 use btmesh_pdu::provisioned::network::CleartextNetworkPDU;
-use btmesh_pdu::provisioned::upper::UpperPDU;
 use core::cmp::Ordering;
 use uluru::LRUCache;
 

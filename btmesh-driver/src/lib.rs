@@ -17,7 +17,6 @@ use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::generic::Reason;
 use btmesh_pdu::provisioning::Capabilities;
 use btmesh_pdu::PDU;
-use core::borrow::Borrow;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_time::{Duration, Timer};
@@ -127,9 +126,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         ProvisioningState::Failed => {
                             warn!("provisioning failed");
                             *current_stack = Stack::Unprovisioned {
-                                stack: UnprovisionedStack::new(
-                                    self.storage.borrow().capabilities(),
-                                ),
+                                stack: UnprovisionedStack::new(self.storage.capabilities()),
                                 uuid: *uuid,
                             };
                         }
@@ -142,7 +139,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             let primary_unicast_addr = provisioning_data.unicast_address;
                             let device_info = DeviceInfo::new(
                                 primary_unicast_addr,
-                                self.storage.borrow().capabilities().number_of_elements,
+                                self.storage.capabilities().number_of_elements,
                             );
                             let secrets = (device_key, provisioning_data).into();
                             let network_state = provisioning_data.into();
@@ -170,9 +167,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     if let Some((block_ack, meta)) = result.block_ack {
                         debug!("we have outbound block_ack");
                         // send outbound block-ack
-                        if let Configuration::Provisioned(config) =
-                            self.storage.borrow().get().await?
-                        {
+                        if let Configuration::Provisioned(config) = self.storage.get().await? {
                             if let Some(src) = config.device_info().local_element_address(0) {
                                 for network_pdu in stack
                                     .process_outbound_block_ack(sequence, block_ack, meta, src)?
@@ -213,12 +208,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         &self,
         outbound_payload: OutboundPayload,
     ) -> Result<(), DriverError> {
-        let config = self.storage.borrow().get().await?;
+        let config = self.storage.get().await?;
         if let Configuration::Provisioned(config) = config {
             let element_address = config
                 .device_info()
                 .local_element_address(outbound_payload.0 .0 as u8)
-                .ok_or(DriverError::InvalidState("process outbound payload"))?;
+                .ok_or(DriverError::InvalidState)?;
             let default_ttl = config.foundation().configuration().default_ttl();
             let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
                 outbound_payload.1,
@@ -321,10 +316,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         self.storage.set_composition(composition.clone());
         self.storage.set_capabilities(capabilities);
 
-        self.storage.borrow().init().await?;
+        self.storage.init().await?;
 
         loop {
-            let config = self.storage.borrow().get().await?;
+            let config = self.storage.get().await?;
 
             let mut desired = DesiredStack::Unchanged;
 
@@ -346,7 +341,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 DesiredStack::Unchanged => { /*nothing*/ }
                 DesiredStack::Unprovisioned(config) => {
                     *self.stack.borrow_mut() = Stack::Unprovisioned {
-                        stack: UnprovisionedStack::new(self.storage.borrow().capabilities()),
+                        stack: UnprovisionedStack::new(self.storage.capabilities()),
                         uuid: config.uuid,
                     };
                     self.network.reset();
@@ -378,7 +373,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         Either::First(Ok(pdu)) => {
                             if let Err(result) = self.receive_pdu(&pdu).await {
                                 match result {
-                                    DriverError::InvalidPDU(_) | DriverError::Parse(_) => continue,
+                                    DriverError::InvalidPDU | DriverError::Parse(_) => continue,
                                     _ => return Err(result),
                                 }
                             }
@@ -423,7 +418,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack, sequence, ..
                 } = &mut *self.stack.borrow_mut()
                 {
-                    if let Configuration::Provisioned(config) = self.storage.borrow().get().await? {
+                    if let Configuration::Provisioned(config) = self.storage.get().await? {
                         if let Some(src) = config.device_info().local_element_address(0) {
                             for network_pdu in
                                 stack.inbound_expiration(sequence, seq_zero, src, &self.watchdog)?

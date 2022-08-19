@@ -15,7 +15,7 @@ pub use btmesh_common::{
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, Ttl};
-use btmesh_models::foundation::configuration::{AppKeyIndex, KeyIndex};
+use btmesh_models::foundation::configuration::AppKeyIndex;
 pub use btmesh_models::Model;
 use core::future::Future;
 use core::pin::Pin;

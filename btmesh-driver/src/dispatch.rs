@@ -1,4 +1,3 @@
-use crate::stack::provisioned::system::AccessMetadata;
 use crate::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;

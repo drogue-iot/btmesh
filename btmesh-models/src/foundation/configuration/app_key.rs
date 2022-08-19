@@ -3,7 +3,6 @@ use crate::foundation::configuration::{
 };
 use crate::{Message, Status};
 use btmesh_common::crypto::application::ApplicationKey;
-use btmesh_common::crypto::network::NetworkKey;
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ParseError};
 use core::convert::TryInto;

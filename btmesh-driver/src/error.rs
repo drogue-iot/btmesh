@@ -10,7 +10,7 @@ use btmesh_pdu::provisioned::lower::InvalidBlock;
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DriverError {
-    InvalidState(&'static str),
+    InvalidState,
     InvalidFormat,
     InvalidKeyLength,
     CryptoError,
@@ -21,7 +21,7 @@ pub enum DriverError {
     InvalidAppKeyIndex,
     NetKeyIndexAlreadyStored,
     AppKeyIndexAlreadyStored,
-    InvalidPDU(&'static str),
+    InvalidPDU,
     IncompleteTransaction,
     Parse(ParseError),
     Network(NetworkError),
@@ -73,7 +73,7 @@ impl From<InvalidAddress> for DriverError {
 
 impl From<InvalidBlock> for DriverError {
     fn from(_: InvalidBlock) -> Self {
-        Self::InvalidState("invalid block")
+        Self::InvalidState
     }
 }
 
