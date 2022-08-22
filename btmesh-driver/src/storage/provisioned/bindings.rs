@@ -20,6 +20,7 @@ impl<const N: usize> Default for Bindings<N> {
 
 impl<const N: usize> Bindings<N> {
     pub fn display(&self, composition: &Composition) {
+        info!("== app-key bindings ==");
         for (index, element) in composition.elements_iter().enumerate() {
             info!("elements[{}]", index);
             let element_bindings = &self.elements[index];

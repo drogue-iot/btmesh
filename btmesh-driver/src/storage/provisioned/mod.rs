@@ -3,8 +3,10 @@ use crate::storage::provisioned::foundation::Foundation;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use btmesh_common::Composition;
 use core::hash::{Hash, Hasher};
+use crate::storage::provisioned::subscriptions::Subscriptions;
 
 mod bindings;
+mod subscriptions;
 mod foundation;
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
@@ -16,6 +18,7 @@ pub struct ProvisionedConfiguration {
     secrets: Secrets,
     device_info: DeviceInfo,
     bindings: Bindings,
+    subscriptions: Subscriptions,
     foundation: Foundation,
 }
 
@@ -34,6 +37,7 @@ impl ProvisionedConfiguration {
             device_info,
             foundation,
             bindings: Default::default(),
+            subscriptions: Default::default(),
         }
     }
 
@@ -46,6 +50,7 @@ impl ProvisionedConfiguration {
         self.network_state.display();
         self.secrets.display();
         self.bindings.display(composition);
+        self.subscriptions.display(composition);
         info!("========================================================================");
     }
 
@@ -71,6 +76,14 @@ impl ProvisionedConfiguration {
 
     pub(crate) fn bindings_mut(&mut self) -> &mut Bindings {
         &mut self.bindings
+    }
+
+    pub(crate) fn subscriptions(&self) -> &Subscriptions {
+        &self.subscriptions
+    }
+
+    pub(crate) fn subscriptions_mut(&mut self) -> &mut Subscriptions {
+        &mut self.subscriptions
     }
 
     pub(crate) fn sequence(&self) -> u32 {
@@ -99,6 +112,7 @@ impl From<(DeviceInfo, Secrets, NetworkState)> for ProvisionedConfiguration {
             device_info: config.0,
             foundation: Default::default(),
             bindings: Default::default(),
+            subscriptions: Default::default()
         }
     }
 }

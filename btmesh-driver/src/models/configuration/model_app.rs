@@ -31,7 +31,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                             }
                             Ok(())
                         } else {
-                            Err(DriverError::InvalidAppKeyIndex)
+                            Err(DriverError::InvalidElementAddress)
                         }
                     })
                     .await,

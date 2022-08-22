@@ -4,7 +4,7 @@ use cmac::crypto_mac::InvalidKeyLength;
 use core::convert::TryInto;
 
 /// A virtual address representing possibly several unique label UUIDs.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Hash, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct VirtualAddress(u16);
 
@@ -57,7 +57,7 @@ impl From<VirtualAddress> for Address {
 }
 
 /// A unique label UUID used for virtual addresses to address multiple destinations.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Hash, PartialEq, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct LabelUuid {
     uuid: [u8; 16],

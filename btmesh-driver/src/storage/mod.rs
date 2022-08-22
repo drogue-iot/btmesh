@@ -152,6 +152,16 @@ impl<B: BackingStore> Storage<B> {
         Ok(())
     }
 
+    pub async fn read<F: FnOnce(&ProvisionedConfiguration) -> Result<R, DriverError>, R>(
+        &self,
+        reader: F,
+    ) -> Result<R, DriverError>{
+        if let Configuration::Provisioned(config) = self.get().await? {
+            return reader(&config);
+        }
+        Err(DriverError::InvalidState)
+    }
+
     #[allow(clippy::await_holding_refcell_ref)]
     async fn load_if_needed(&self) -> Result<(), StorageError> {
         let mut locked_config = self.config.lock().await;
