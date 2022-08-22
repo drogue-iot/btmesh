@@ -93,8 +93,12 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
             loop {
                 let (_index, opcode, parameters, meta) = self.inbound.recv().await;
 
+                info!("**** parse {}", opcode);
+
                 if let Ok(Some(message)) = M::parse(opcode, &*parameters) {
                     return (message, meta);
+                } else {
+                    info!("error parsing message");
                 }
             }
         }

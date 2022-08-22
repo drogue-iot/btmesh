@@ -19,8 +19,16 @@ use crate::foundation::configuration::model_publication::{
 };
 
 use crate::foundation::configuration::model_subscription::{
-    ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD,
+    ModelSubscriptionMessage,
+    CONFIG_MODEL_SUBSCRIPTION_ADD,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD,
+    CONFIG_MODEL_SUBSCRIPTION_DELETE,
+    CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_DELETE,
+    CONFIG_MODEL_SUBSCRIPTION_OVERWRITE,
+    CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE,
+    CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL,
+    CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET,
+    CONFIG_SIG_MODEL_SUBSCRIPTION_GET,
 };
 
 use crate::foundation::configuration::node_reset::{NodeResetMessage, CONFIG_NODE_RESET};
@@ -157,6 +165,32 @@ impl Model for ConfigurationServer {
                     ModelSubscriptionMessage::parse_virtual_address_add(parameters)?,
                 )))
             }
+            CONFIG_MODEL_SUBSCRIPTION_DELETE => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_delete(parameters)?,
+            ))),
+            CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_DELETE => {
+                Ok(Some(ConfigurationMessage::ModelSubscription(
+                    ModelSubscriptionMessage::parse_virtual_address_delete(parameters)?,
+                )))
+            }
+            CONFIG_MODEL_SUBSCRIPTION_OVERWRITE => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_overwrite(parameters)?,
+            ))),
+            CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE => {
+                Ok(Some(ConfigurationMessage::ModelSubscription(
+                    ModelSubscriptionMessage::parse_virtual_address_overwrite(parameters)?,
+                )))
+            }
+            CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_delete_all(parameters)?,
+            ))),
+            CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_vendor_get(parameters)?,
+            ))),
+            CONFIG_SIG_MODEL_SUBSCRIPTION_GET => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_sig_get(parameters)?,
+            ))),
+
             // Relay
             CONFIG_RELAY_GET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_get(
                 parameters,
@@ -164,7 +198,9 @@ impl Model for ConfigurationServer {
             CONFIG_RELAY_SET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_set(
                 parameters,
             )?))),
-            _ => Ok(None),
+            _ => {
+                Ok(None)
+            },
         }
     }
 }

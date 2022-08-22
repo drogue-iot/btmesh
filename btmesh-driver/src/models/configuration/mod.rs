@@ -11,6 +11,7 @@ pub mod default_ttl;
 pub mod model_app;
 pub mod node_reset;
 pub mod relay;
+pub mod model_subscription;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
     storage: &'s Storage<B>,
@@ -34,6 +35,8 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
         async move {
             loop {
                 let (message, meta) = ctx.receive().await;
+
+                info!("---------------> {}", message);
                 match message {
                     ConfigurationMessage::Beacon(beacon) => {
                         beacon::dispatch(&ctx, self.storage, beacon, meta)
@@ -66,7 +69,11 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::ModelPublication(_model_publication) => {}
-                    ConfigurationMessage::ModelSubscription(_model_subscription) => {}
+                    ConfigurationMessage::ModelSubscription(model_subscription) => {
+                        model_subscription::dispatch(&ctx, self.storage, model_subscription, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                     ConfigurationMessage::NodeReset(node_reset) => {
                         node_reset::dispatch(&ctx, self.storage, node_reset, meta)
                             .await

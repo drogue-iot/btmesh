@@ -22,6 +22,7 @@ pub enum DriverError {
     InvalidModel,
     NetKeyIndexAlreadyStored,
     AppKeyIndexAlreadyStored,
+    InvalidElementAddress,
     InvalidPDU,
     IncompleteTransaction,
     Parse(ParseError),
