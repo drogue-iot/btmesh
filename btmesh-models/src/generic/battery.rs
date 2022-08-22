@@ -16,7 +16,7 @@ pub const GENERIC_BATTERY_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x100D)
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryMessage {
     Get,
-    Status(Status),
+    Status(GenericBatteryStatus),
 }
 
 impl Message for GenericBatteryMessage {
@@ -44,9 +44,9 @@ impl Model for GenericBatteryClient {
 
     fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match opcode {
-            GENERIC_BATTERY_STATUS => Ok(Some(GenericBatteryMessage::Status(Status::parse(
-                parameters,
-            )?))),
+            GENERIC_BATTERY_STATUS => Ok(Some(GenericBatteryMessage::Status(
+                GenericBatteryStatus::parse(parameters)?,
+            ))),
             _ => Ok(None),
         }
     }
@@ -168,14 +168,14 @@ pub enum GenericBatteryFlagsCharging {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Status {
+pub struct GenericBatteryStatus {
     pub battery_level: u8,
     pub time_to_discharge: u32,
     pub time_to_charge: u32,
     pub flags: GenericBatteryFlags,
 }
 
-impl Status {
+impl GenericBatteryStatus {
     pub fn new(
         battery_level: u8,
         time_to_discharge: u32,
