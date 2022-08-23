@@ -303,7 +303,7 @@ impl KeyIndex {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(PartialEq, Copy, Clone, Debug, Hash)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
 pub struct NetKeyIndex(KeyIndex);
 
 impl NetKeyIndex {

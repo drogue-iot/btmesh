@@ -133,7 +133,7 @@ impl ProvisionedStack {
                 crypto::device::encrypt_device_key(
                     &device_key,
                     &nonce,
-                    &mut *payload,
+                    &mut payload,
                     &mut transmic,
                 )
                 .map_err(|_| DriverError::CryptoError)?;
@@ -242,7 +242,7 @@ impl ProvisionedStack {
 
             if let Some((application_key_handle, label_uuid, bytes)) = decrypt_result {
                 return Ok(AccessMessage::parse(
-                    &*bytes,
+                    &bytes,
                     AccessMetadata::from_upper_access_pdu(
                         KeyHandle::Application(application_key_handle),
                         label_uuid,
@@ -279,7 +279,7 @@ impl ProvisionedStack {
             .is_ok()
             {
                 return Ok(AccessMessage::parse(
-                    &*bytes,
+                    &bytes,
                     AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, &pdu),
                 )?);
             }

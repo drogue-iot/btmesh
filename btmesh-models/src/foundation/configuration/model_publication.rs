@@ -94,7 +94,7 @@ impl ModelPublicationGetMessage {
     }
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Hash)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PublishAddress {
@@ -248,7 +248,7 @@ impl ModelPublicationStatusMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-#[derive(Copy, Clone, PartialEq, Hash)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct PublicationDetails {
     pub element_address: UnicastAddress,
     pub publish_address: PublishAddress,

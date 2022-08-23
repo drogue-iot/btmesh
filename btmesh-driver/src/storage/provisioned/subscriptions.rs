@@ -6,7 +6,7 @@ use heapless::Vec;
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug, Hash)]
-pub struct Subscriptions<const N: usize = 32> {
+pub struct Subscriptions<const N: usize = 16> {
     entries: Vec<Option<Subscription>, N>,
 }
 

@@ -175,7 +175,7 @@ impl ProvisionedStack {
             cleartext_pdu.ivi(),
             cleartext_pdu.nid(),
             obfuscated,
-            &*encrypted_and_mic,
+            &encrypted_and_mic,
         )?;
 
         Ok(network_pdu)

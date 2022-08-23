@@ -1,7 +1,8 @@
 use crate::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
-use btmesh_device::InboundSenderImpl;
+use btmesh_device::access_counted::AccessCounted;
+use btmesh_device::{InboundPayload, InboundSenderImpl};
 use btmesh_pdu::provisioned::access::AccessMessage;
 use core::cmp::Ordering;
 use heapless::Vec;
@@ -82,28 +83,40 @@ impl Dispatcher {
 
         let meta = message.meta().into();
 
+        unsafe {
+            PAYLOAD.set((
+                local_element_index.map(|index| index as usize),
+                opcode,
+                Vec::from_slice(parameters)?,
+                meta,
+            ));
+        }
+
         if let Some(local_element_index) = local_element_index {
             info!("dispatch to {}", local_element_index);
             if local_element_index == 0 {
                 self.foundation_sender
-                    .send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))
+                    .send(unsafe { PAYLOAD.get() })
+                    //.send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))
                     .await;
             }
             self.device_sender
-                .try_send((
-                    Some(local_element_index as usize),
-                    opcode,
-                    Vec::from_slice(parameters)?,
-                    meta,
-                ))
-                .ok();
+                .send(unsafe { PAYLOAD.get() })
+                //.send(( Some(local_element_index as usize), opcode, Vec::from_slice(parameters)?, meta,
+                .await;
         } else {
             self.foundation_sender
-                .send((None, opcode, Vec::from_slice(parameters)?, meta))
+                .send(unsafe { PAYLOAD.get() })
+                //.send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;
             self.device_sender
-                .send((None, opcode, Vec::from_slice(parameters)?, meta))
+                .send(unsafe { PAYLOAD.get() })
+                //.send((None, opcode, Vec::from_slice(parameters)?, meta))
                 .await;
+        }
+
+        unsafe {
+            PAYLOAD.wait().await;
         }
 
         info!("dispatch complete");
@@ -111,3 +124,5 @@ impl Dispatcher {
         Ok(())
     }
 }
+
+static mut PAYLOAD: AccessCounted<InboundPayload> = AccessCounted::new();

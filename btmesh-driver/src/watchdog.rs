@@ -31,6 +31,7 @@ impl Watchdog {
         }
     }
 
+    #[allow(clippy::let_unit_value)]
     pub async fn next(&self) -> Option<Expiration<'_>> {
         let next = Self::earliest(
             Self::earliest(None, self.link_opening_timeout.get()),

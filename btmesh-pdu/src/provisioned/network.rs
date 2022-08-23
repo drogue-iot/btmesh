@@ -40,7 +40,7 @@ impl From<NetworkPDU> for PDU {
 
 impl NetworkPDU {
     pub fn encrypted_and_mic(&self) -> &[u8] {
-        &*self.encrypted_and_mic
+        &self.encrypted_and_mic
     }
 
     pub fn obfuscated(&self) -> &[u8; 6] {
@@ -183,6 +183,6 @@ impl<S: System> CleartextNetworkPDU<S> {
     }
 
     pub fn transport_pdu(&self) -> &[u8] {
-        &*self.transport_pdu
+        &self.transport_pdu
     }
 }

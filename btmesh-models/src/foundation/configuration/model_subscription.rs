@@ -134,7 +134,7 @@ impl ModelSubscriptionMessage {
     }
 }
 
-#[derive(PartialEq, Copy, Clone, Debug, Hash)]
+#[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SubscriptionAddress {

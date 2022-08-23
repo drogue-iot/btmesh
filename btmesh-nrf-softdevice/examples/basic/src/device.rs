@@ -1,4 +1,4 @@
-use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
+use btmesh_device::{join, BluetoothMeshModel, BluetoothMeshModelContext, Either, select, pin_mut};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
 use core::future::Future;
@@ -95,8 +95,19 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                self.button.wait_for_falling_edge().await;
-                defmt::info!("** button pushed");
+                let button_fut = self.button.wait_for_falling_edge();
+                let message_fut = ctx.receive();
+                pin_mut!(button_fut);
+                pin_mut!(message_fut);
+
+                match select(button_fut, message_fut).await {
+                    Either::Left((button, _)) => {
+                        defmt::info!("** button pushed");
+                    }
+                    Either::Right((message, _)) => {
+                        defmt::info!("** message received");
+                    }
+                }
             }
         }
     }

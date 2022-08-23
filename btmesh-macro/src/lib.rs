@@ -113,7 +113,8 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         });
         fanout.extend(quote! {
             if matches!(target_element_index, Some(#i)) || matches!(target_element_index, None) {
-                #element_channel_name.try_send(message.clone());
+                //defmt::info!("sending to element {}", stringify!(#field_name) );
+                #element_channel_name.send(message.clone()).await;
             }
         });
         ctor_params.extend(quote! {
@@ -303,6 +304,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
             let #ctx_name = ctx.model_context(#i, #model_channel_name.receiver() );
         });
         fanout.extend(quote! {
+            //defmt::info!("sending to model {}", stringify!(#field_name) );
             #model_channel_name.send(message.clone()).await;
         });
 

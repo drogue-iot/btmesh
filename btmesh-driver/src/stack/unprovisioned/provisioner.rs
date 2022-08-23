@@ -233,7 +233,7 @@ impl Phase<Authentication> {
     }
     fn confirm(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
-        let key = prck(&self.state.shared_secret, &*salt.into_bytes())?;
+        let key = prck(&self.state.shared_secret, &salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
         bytes.extend_from_slice(random)?;
         bytes.extend_from_slice(&self.state.auth_value.get_bytes())?;

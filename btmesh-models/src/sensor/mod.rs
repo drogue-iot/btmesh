@@ -332,7 +332,7 @@ opcode!( SENSOR_SETTING_SET 0x59 );
 opcode!( SENSOR_SETTING_SET_UNACKNOWLEDGED 0x5A );
 opcode!( SENSOR_SETTING_STATUS 0x5B );
 
-impl<'a, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
+impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
     for SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>
 where
     C: SensorConfig,
@@ -367,7 +367,7 @@ where
     }
 }
 
-impl<'a, C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
+impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
     for SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>
 where
     C: SensorSetupConfig,
@@ -864,7 +864,7 @@ impl RawValue {
         &self,
         xmit: &mut heapless::Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&*self.0)
+        xmit.extend_from_slice(&self.0)
             .map_err(|_| InsufficientBuffer)?;
         Ok(())
     }

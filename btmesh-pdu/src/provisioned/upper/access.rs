@@ -36,13 +36,13 @@ impl<S: System> UpperAccessPDU<S> {
     }
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
-        xmit.extend_from_slice(&*self.payload)?;
+        xmit.extend_from_slice(&self.payload)?;
         xmit.extend_from_slice(self.transmic.as_ref())?;
         Ok(())
     }
 
     pub fn payload(&self) -> &[u8] {
-        &*self.payload
+        &self.payload
     }
 
     pub fn transmic(&self) -> TransMic {

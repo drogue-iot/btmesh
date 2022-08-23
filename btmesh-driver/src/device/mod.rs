@@ -1,4 +1,5 @@
 use btmesh_common::ModelIdentifier;
+use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
     CompletionStatus, CompletionToken, InboundMetadata, InboundPayload, InboundReceiverImpl, Model,
@@ -14,7 +15,7 @@ pub(crate) struct DeviceContext {
     outbound: OutboundSenderImpl,
 }
 
-impl<'ch> DeviceContext {
+impl DeviceContext {
     pub fn new(inbound: InboundReceiverImpl, outbound: OutboundSenderImpl) -> Self {
         Self { inbound, outbound }
     }
@@ -35,7 +36,7 @@ impl BluetoothMeshDeviceContext for DeviceContext {
         }
     }
 
-    type ReceiveFuture<'f> = impl Future<Output =InboundPayload> + 'f
+    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
         where
             Self: 'f;
 
@@ -66,7 +67,7 @@ impl BluetoothMeshElementContext for ElementContext {
         }
     }
 
-    type ReceiveFuture<'f> = impl Future<Output =InboundPayload> + 'f
+    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
     where
     Self: 'f;
 
@@ -91,13 +92,13 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move {
             loop {
-                let (_index, opcode, parameters, meta) = self.inbound.recv().await;
+                let (_index, opcode, parameters, meta) = &*self.inbound.recv().await;
 
                 info!("**** parse {}", opcode);
 
-                match M::parse(opcode, &*parameters) {
+                match M::parse(*opcode, parameters) {
                     Ok(Some(message)) => {
-                        return (message, meta);
+                        return (message, *meta);
                     }
                     Ok(None) => {
                         continue;

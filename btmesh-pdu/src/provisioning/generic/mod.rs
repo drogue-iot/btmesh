@@ -39,7 +39,7 @@ impl TransactionStart {
         xmit.push(self.seg_n << 2)?;
         xmit.extend_from_slice(&self.total_len.to_be_bytes())?;
         xmit.push(self.fcs)?;
-        xmit.extend_from_slice(&*self.data)?;
+        xmit.extend_from_slice(&self.data)?;
         Ok(())
     }
 }
@@ -66,7 +66,7 @@ impl TransactionContinuation {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         xmit.push(self.segment_index << 2 | 0b10)?;
-        xmit.extend_from_slice(&*self.data)?;
+        xmit.extend_from_slice(&self.data)?;
         Ok(())
     }
 }

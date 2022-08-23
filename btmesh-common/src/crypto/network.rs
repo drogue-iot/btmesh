@@ -215,6 +215,7 @@ impl NetworkKey {
     }
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn try_decrypt_network(
     network_key: &NetworkKey,
     nonce: &NetworkNonce,
@@ -230,6 +231,7 @@ pub fn try_decrypt_network(
     )
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn encrypt_network(
     network_key: &NetworkKey,
     nonce: &NetworkNonce,

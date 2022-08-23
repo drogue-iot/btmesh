@@ -50,7 +50,7 @@ impl<S: System> UnsegmentedLowerAccessPDU<S> {
     }
 
     pub fn upper_pdu(&self) -> &[u8] {
-        &*self.upper_pdu
+        &self.upper_pdu
     }
 
     pub fn meta(&self) -> &S::LowerMetadata {
@@ -121,7 +121,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
             ((self.seq_zero & 0b111111) << 2) as u8 | ((self.seg_o & 0b00011000) >> 2) as u8;
         header[2] = ((self.seg_o & 0b00000111) << 5) | (self.seg_n & 0b00011111);
         xmit.extend_from_slice(&header)?;
-        xmit.extend_from_slice(&*self.segment_m)?;
+        xmit.extend_from_slice(&self.segment_m)?;
         Ok(())
     }
 
@@ -162,7 +162,7 @@ impl<S: System> SegmentedLowerAccessPDU<S> {
     }
 
     pub fn segment_m(&self) -> &[u8] {
-        &*self.segment_m
+        &self.segment_m
     }
 
     pub fn szmic(&self) -> SzMic {

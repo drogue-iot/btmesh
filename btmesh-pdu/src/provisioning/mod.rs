@@ -312,7 +312,7 @@ impl Data {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Default, Debug)]
 /// The decrypted provisioning data wrapped in `Data` above.
 pub struct ProvisioningData {
     pub network_key: [u8; 16],

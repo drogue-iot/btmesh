@@ -4,6 +4,9 @@
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 
+pub mod access_counted;
+
+use crate::access_counted::AccessCountedHandle;
 use btmesh_common::address::{Address, LabelUuid, UnicastAddress};
 use btmesh_common::crypto::application::Aid;
 use btmesh_common::crypto::network::Nid;
@@ -24,11 +27,17 @@ use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_sync::signal::Signal;
 pub use futures::future::join;
+pub use futures::future::select;
+pub use futures::future::Either;
+pub use futures::pin_mut;
 use heapless::Vec;
 
-pub type InboundChannelImpl = Channel<CriticalSectionRawMutex, InboundPayload, 1>;
-pub type InboundSenderImpl = Sender<'static, CriticalSectionRawMutex, InboundPayload, 1>;
-pub type InboundReceiverImpl = Receiver<'static, CriticalSectionRawMutex, InboundPayload, 1>;
+pub type InboundChannelImpl =
+    Channel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
+pub type InboundSenderImpl =
+    Sender<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
+pub type InboundReceiverImpl =
+    Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
 pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
 
 pub type OutboundChannelImpl = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
@@ -47,7 +56,7 @@ pub trait BluetoothMeshDeviceContext {
 
     fn element_context(&self, index: usize, inbound: InboundReceiverImpl) -> Self::ElementContext;
 
-    type ReceiveFuture<'f>: Future<Output = InboundPayload> + 'f
+    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
     where
         Self: 'f;
 
@@ -90,7 +99,7 @@ pub trait BluetoothMeshElementContext {
         inbound: InboundReceiverImpl,
     ) -> Self::ModelContext<M>;
 
-    type ReceiveFuture<'f>: Future<Output = InboundPayload> + 'f
+    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
     where
         Self: 'f;
 

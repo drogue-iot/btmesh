@@ -96,7 +96,7 @@ impl<B: GattBearer<MTU>, const MTU: usize> GattBearerNetworkInterface<B, MTU> {
                             0x15, 0x16, 0x27, 0x18
                         ]).unwrap();
 
-                adv_data.extend_from_slice(&*uuid)?;
+                adv_data.extend_from_slice(&uuid)?;
 
                 // TODO fix OOB data values
                 adv_data.extend_from_slice(&[0x00, 0x00])?;
@@ -114,7 +114,7 @@ impl<B: GattBearer<MTU>, const MTU: usize> GattBearerNetworkInterface<B, MTU> {
                 ]).unwrap();
 
                 adv_data.push(0x00)?; // network id
-                adv_data.extend_from_slice(&*network_id)?;
+                adv_data.extend_from_slice(&network_id)?;
                 self.bearer.advertise(&adv_data).await?;
             }
             Beacon::Secure => {

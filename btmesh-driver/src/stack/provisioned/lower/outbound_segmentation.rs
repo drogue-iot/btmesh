@@ -35,7 +35,7 @@ impl OutboundSegmentation {
 
                 if payload.len() <= NONSEGMENTED_ACCESS_MUT {
                     let lower_pdu =
-                        UnsegmentedLowerAccessPDU::<()>::new(inner.meta().aid(), &*payload, ())?;
+                        UnsegmentedLowerAccessPDU::<()>::new(inner.meta().aid(), &payload, ())?;
 
                     let mut transport_pdu = Vec::<_, 16>::new();
                     lower_pdu
@@ -51,7 +51,7 @@ impl OutboundSegmentation {
                             pdu.meta().seq(),
                             pdu.meta().src(),
                             pdu.meta().dst(),
-                            &*transport_pdu,
+                            &transport_pdu,
                             meta,
                         )?)
                         .map_err(|_| InsufficientBuffer)?;
@@ -90,7 +90,7 @@ impl OutboundSegmentation {
                                 seq,
                                 pdu.meta().src(),
                                 pdu.meta().dst(),
-                                &*transport_pdu,
+                                &transport_pdu,
                                 meta,
                             )?)
                             .map_err(|_| InsufficientBuffer)?;
@@ -115,7 +115,7 @@ impl OutboundSegmentation {
                         sequence.next(),
                         pdu.meta().src(),
                         pdu.meta().dst(),
-                        &*transport_pdu,
+                        &transport_pdu,
                         meta,
                     )?)
                     .map_err(|_| InsufficientBuffer)?;

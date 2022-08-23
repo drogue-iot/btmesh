@@ -180,7 +180,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                                         status: Status::Success,
                                         element_address: get.element_address,
                                         model_identifier: get.model_identifier,
-                                        addresses: Vec::from_slice(&*addresses)?,
+                                        addresses: Vec::from_slice(&addresses)?,
                                     },
                                 )
                                 .into(),
@@ -194,7 +194,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                                     status: Status::Success,
                                     element_address: get.element_address,
                                     model_identifier: get.model_identifier,
-                                    addresses: Vec::from_slice(&*addresses)?,
+                                    addresses: Vec::from_slice(&addresses)?,
                                 })
                                 .into(),
                                 meta.reply(),

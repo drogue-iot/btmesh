@@ -1,6 +1,6 @@
 use crate::address::{Address, InvalidAddress};
 
-#[derive(Copy, Clone, Hash, PartialEq, Debug)]
+#[derive(Copy, Clone, Hash, PartialEq, Eq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GroupAddress {

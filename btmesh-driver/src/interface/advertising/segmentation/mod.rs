@@ -29,7 +29,7 @@ impl Segmentation {
         match pdu {
             GenericProvisioningPDU::TransactionStart(transaction_start) => {
                 if transaction_start.seg_n == 0 {
-                    let pdu = ProvisioningPDU::parse(&*transaction_start.data)?;
+                    let pdu = ProvisioningPDU::parse(&transaction_start.data)?;
                     Ok(Some(pdu))
                 } else {
                     let mut borrowed_segments = self.inbound_segments.borrow_mut();

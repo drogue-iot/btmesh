@@ -35,7 +35,7 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
 
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         xmit.push(self.opcode as u8 & 0b01111111)?;
-        xmit.extend_from_slice(&*self.parameters)?;
+        xmit.extend_from_slice(&self.parameters)?;
         Ok(())
     }
 
@@ -44,7 +44,7 @@ impl<S: System> UnsegmentedLowerControlPDU<S> {
     }
 
     pub fn parameters(&self) -> &[u8] {
-        &*self.parameters
+        &self.parameters
     }
 
     pub fn meta(&self) -> &S::LowerMetadata {
@@ -121,7 +121,7 @@ impl<S: System> SegmentedLowerControlPDU<S> {
     }
 
     pub fn segment_m(&self) -> &[u8] {
-        &*self.segment_m
+        &self.segment_m
     }
 
     pub fn meta(&self) -> &S::LowerMetadata {

@@ -29,7 +29,7 @@ impl<S: System> ControlMessage<S> {
     }
 
     pub fn parameters(&self) -> &[u8] {
-        &*self.parameters
+        &self.parameters
     }
 }
 
@@ -44,7 +44,7 @@ impl<S: System> TryFrom<&ControlMessage<S>> for BlockAck {
 
     fn try_from(value: &ControlMessage<S>) -> Result<Self, Self::Error> {
         if let ControlOpcode::SegmentAcknowledgement = value.opcode {
-            Ok(BlockAck::parse(&*value.parameters)?)
+            Ok(BlockAck::parse(&value.parameters)?)
         } else {
             Err(ParseError::InvalidPDUFormat)
         }

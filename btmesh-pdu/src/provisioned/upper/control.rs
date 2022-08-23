@@ -85,7 +85,7 @@ impl<S: System> UpperControlPDU<S> {
     }
 
     pub fn parameters(&self) -> &[u8] {
-        &*self.parameters
+        &self.parameters
     }
 
     pub fn meta(&self) -> &S::UpperMetadata {

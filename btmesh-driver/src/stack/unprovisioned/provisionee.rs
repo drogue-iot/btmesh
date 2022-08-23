@@ -138,7 +138,7 @@ pub struct Phase<S> {
 impl<S> Phase<S> {
     fn confirmation(&self, random: &[u8]) -> Result<[u8; 16], DriverError> {
         let salt = self.transcript.confirmation_salt()?;
-        let key = prck(&self.shared_secret, &*salt.into_bytes())?;
+        let key = prck(&self.shared_secret, &salt.into_bytes())?;
         let mut bytes: Vec<u8, 32> = Vec::new();
         bytes.extend_from_slice(random)?;
         bytes.extend_from_slice(&self.auth_value.get_bytes())?;

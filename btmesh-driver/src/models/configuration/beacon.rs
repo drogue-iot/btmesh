@@ -1,4 +1,4 @@
-use crate::{BackingStore, Configuration, DriverError, Storage};
+use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
 use btmesh_models::foundation::configuration::beacon::BeaconMessage;
 use btmesh_models::foundation::configuration::ConfigurationServer;
@@ -11,13 +11,12 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         BeaconMessage::Get => {
-            if let Configuration::Provisioned(config) = storage.get().await? {
-                ctx.send(
-                    BeaconMessage::Status(config.foundation().configuration().beacon()).into(),
-                    meta.reply(),
-                )
+            let beacon = storage
+                .read(|config| Ok(config.foundation().configuration().beacon()))
                 .await?;
-            }
+
+            ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
+                .await?;
         }
         BeaconMessage::Set(beacon) => {
             storage

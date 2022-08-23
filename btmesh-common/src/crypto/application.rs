@@ -78,6 +78,7 @@ impl Deref for ApplicationKey {
     }
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn try_decrypt_application_key(
     application_key: &ApplicationKey,
     nonce: ApplicationNonce,
@@ -99,6 +100,7 @@ pub fn try_decrypt_application_key(
     }
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn encrypt_application_key(
     application_key: &ApplicationKey,
     nonce: ApplicationNonce,

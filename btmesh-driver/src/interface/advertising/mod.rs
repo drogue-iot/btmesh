@@ -58,7 +58,7 @@ impl<B: AdvertisingBearer> AdvertisingBearerNetworkInterface<B> {
             Beacon::Unprovisioned(uuid) => {
                 let mut adv_data: Vec<u8, PB_ADV_MTU> = Vec::new();
                 adv_data.extend_from_slice(&[20, MESH_BEACON, 0x00])?;
-                adv_data.extend_from_slice(&*uuid)?;
+                adv_data.extend_from_slice(&uuid)?;
                 adv_data.extend_from_slice(&[0xa0, 0x40])?;
                 self.bearer.transmit(&adv_data).await?;
             }

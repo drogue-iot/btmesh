@@ -61,6 +61,7 @@ impl TryFrom<&[u8]> for DeviceKey {
     }
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn try_decrypt_device_key(
     device_key: &DeviceKey,
     nonce: &DeviceNonce,
@@ -70,6 +71,7 @@ pub fn try_decrypt_device_key(
     crypto::aes_ccm_decrypt_detached(&**device_key, &**nonce, bytes, mic.as_ref(), None)
 }
 
+#[allow(clippy::explicit_auto_deref)]
 pub fn encrypt_device_key(
     device_key: &DeviceKey,
     nonce: &DeviceNonce,

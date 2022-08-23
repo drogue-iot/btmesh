@@ -41,7 +41,7 @@ impl InboundSegments {
         if self.is_complete() {
             let mut data: Vec<u8, 512> = Vec::new();
             self.fill(&mut data)?;
-            let pdu = ProvisioningPDU::parse(&*data)?;
+            let pdu = ProvisioningPDU::parse(&data)?;
             Ok(Some(pdu))
         } else {
             Ok(None)

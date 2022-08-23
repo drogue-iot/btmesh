@@ -302,7 +302,7 @@ impl UpperMetadata {
     }
 
     pub fn label_uuids(&self) -> &[LabelUuid] {
-        &*self.label_uuids
+        &self.label_uuids
     }
 
     pub fn add_label_uuid(&mut self, label_uuid: LabelUuid) -> Result<(), DriverError> {

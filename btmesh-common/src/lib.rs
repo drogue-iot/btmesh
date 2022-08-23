@@ -59,7 +59,7 @@ impl From<cmac::crypto_mac::InvalidKeyLength> for ParseError {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Default, Debug)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Default, Debug)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum IvUpdateFlag {
@@ -83,7 +83,7 @@ impl IvUpdateFlag {
     }
 }
 
-#[derive(Copy, Clone, Hash, PartialEq, Debug, Default)]
+#[derive(Copy, Clone, Hash, Eq, PartialEq, Debug, Default)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct KeyRefreshFlag(pub bool);
 
@@ -205,7 +205,7 @@ impl From<Ivi> for u8 {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, Hash, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Ttl(u8);
@@ -226,7 +226,7 @@ impl Ttl {
 
 pub struct SeqRolloverError;
 
-#[derive(Default, Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Default, Copy, Clone, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Seq(u32);
 
@@ -265,7 +265,7 @@ impl From<Seq> for SeqZero {
     }
 }
 
-#[derive(Copy, Clone, PartialEq, PartialOrd)]
+#[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SeqZero(u16);
 

@@ -9,7 +9,7 @@ pub use virtual_address::{LabelUuid, VirtualAddress};
 use crate::ParseError;
 
 /// Indicates an invalid address.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct InvalidAddress;
 
@@ -27,7 +27,7 @@ impl From<InvalidAddress> for ParseError {
 /// The conversion from LabelUuid to VirtualAddress is deterministic, but the
 /// inverse conversion from VirtualAddress to LabelUuid is not, without additional
 /// network-specific information held by a given node.
-#[derive(Copy, Clone, PartialEq, Debug)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Address {
