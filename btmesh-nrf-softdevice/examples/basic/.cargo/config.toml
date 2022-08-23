@@ -2,6 +2,15 @@
 # replace nRF82840_xxAA with your chip as listed in `probe-run --list-chips`
 runner = "probe-run --chip nRF52840_xxAA"
 
+rustflags = [
+  # Code-size optimizations.
+  "-Z", "trap-unreachable=no",
+  "-C", "inline-threshold=5",
+  "-C", "no-vectorize-loops",
+  "-Z", "emit-stack-sizes",
+]
+
+
 [build]
 target = "thumbv7em-none-eabi"
 
