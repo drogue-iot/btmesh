@@ -1,12 +1,15 @@
-use heapless::Vec;
-use crate::storage::ModifyError;
+use crate::models::configuration::convert;
 use crate::{BackingStore, DriverError, Storage};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::ModelIdentifier;
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
-use btmesh_models::foundation::configuration::model_subscription::{ModelSubscriptionListMessage, ModelSubscriptionMessage, ModelSubscriptionStatusMessage, SubscriptionAddress};
+use btmesh_models::foundation::configuration::model_subscription::{
+    ModelSubscriptionListMessage, ModelSubscriptionMessage, ModelSubscriptionStatusMessage,
+    SubscriptionAddress,
+};
 use btmesh_models::foundation::configuration::ConfigurationServer;
 use btmesh_models::Status;
+use heapless::Vec;
 
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
@@ -157,9 +160,10 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                         .device_info()
                         .local_element_index(get.element_address.into())
                     {
-                        Ok(config
+                        let subscriptions: Vec<_, 4> = config
                             .subscriptions()
-                            .get(element_index, get.model_identifier))
+                            .get(element_index, get.model_identifier);
+                        Ok(subscriptions)
                     } else {
                         Err(DriverError::InvalidElementAddress)
                     }
@@ -170,52 +174,66 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                 Ok(addresses) => {
                     match message {
                         ModelSubscriptionMessage::VendorGet(_) => {
-                                ctx.send( ModelSubscriptionMessage::VendorList(
+                            ctx.send(
+                                ModelSubscriptionMessage::VendorList(
                                     ModelSubscriptionListMessage {
                                         status: Status::Success,
                                         element_address: get.element_address,
                                         model_identifier: get.model_identifier,
-                                        addresses: Vec::from_slice( &*addresses )?,
-                                    }
-                                ).into(), meta.reply()).await?;
+                                        addresses: Vec::from_slice(&*addresses)?,
+                                    },
+                                )
+                                .into(),
+                                meta.reply(),
+                            )
+                            .await?;
                         }
                         ModelSubscriptionMessage::SigGet(_) => {
-                            ctx.send( ModelSubscriptionMessage::SigList(
-                                ModelSubscriptionListMessage {
+                            ctx.send(
+                                ModelSubscriptionMessage::SigList(ModelSubscriptionListMessage {
                                     status: Status::Success,
                                     element_address: get.element_address,
                                     model_identifier: get.model_identifier,
-                                    addresses: Vec::from_slice( &*addresses )?,
-                                }
-                            ).into(), meta.reply()).await?;
+                                    addresses: Vec::from_slice(&*addresses)?,
+                                })
+                                .into(),
+                                meta.reply(),
+                            )
+                            .await?;
                         }
-                        _=> {
+                        _ => {
                             // neither of those two
                         }
                     }
                 }
                 Err(DriverError::Storage(inner)) => {
-                    ctx.send( ModelSubscriptionMessage::SigList(
-                        ModelSubscriptionListMessage {
+                    ctx.send(
+                        ModelSubscriptionMessage::SigList(ModelSubscriptionListMessage {
                             status: Status::StorageFailure,
                             element_address: get.element_address,
                             model_identifier: get.model_identifier,
                             addresses: Default::default(),
-                        }
-                    ).into(), meta.reply()).await?;
+                        })
+                        .into(),
+                        meta.reply(),
+                    )
+                    .await?;
                     return Err(inner.into());
                 }
                 Err(inner) => {
-                    ctx.send( ModelSubscriptionMessage::SigList(
-                        ModelSubscriptionListMessage {
+                    ctx.send(
+                        ModelSubscriptionMessage::SigList(ModelSubscriptionListMessage {
                             status: Status::UnspecifiedError,
                             element_address: get.element_address,
                             model_identifier: get.model_identifier,
                             addresses: Default::default(),
-                        }
-                    ).into(), meta.reply()).await?;
+                        })
+                        .into(),
+                        meta.reply(),
+                    )
+                    .await?;
 
-                   return  Err(inner)
+                    return Err(inner);
                 }
             }
             return Ok(());
@@ -257,23 +275,5 @@ async fn respond<C: BluetoothMeshModelContext<ConfigurationServer>>(
         Err(err)
     } else {
         Ok(())
-    }
-}
-
-fn convert(input: Result<(), ModifyError>) -> (Status, Option<DriverError>) {
-    if let Err(result) = input {
-        match result {
-            ModifyError::Driver(DriverError::InvalidElementAddress) => {
-                (Status::InvalidAddress, None)
-            }
-            ModifyError::Driver(DriverError::InvalidModel) => (Status::InvalidModel, None),
-            ModifyError::Driver(DriverError::InvalidAppKeyIndex) => {
-                (Status::InvalidAppKeyIndex, None)
-            }
-            ModifyError::Storage(_) => (Status::StorageFailure, None),
-            ModifyError::Driver(inner) => (Status::UnspecifiedError, Some(inner)),
-        }
-    } else {
-        (Status::Success, None)
     }
 }

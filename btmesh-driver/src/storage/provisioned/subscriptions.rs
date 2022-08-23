@@ -6,7 +6,7 @@ use heapless::Vec;
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug, Hash)]
-pub struct Subscriptions<const N: usize = 64> {
+pub struct Subscriptions<const N: usize = 32> {
     entries: Vec<Option<Subscription>, N>,
 }
 
@@ -19,14 +19,13 @@ impl<const N: usize> Default for Subscriptions<N> {
 }
 
 impl<const N: usize> Subscriptions<N> {
-
     pub fn display(&self, composition: &Composition) {
         info!("== subscriptions ==");
         for (index, element) in composition.elements_iter().enumerate() {
             info!("elements[{}]", index);
             for model_identifier in element.models_iter() {
-                for address in  self.get(index as u8, *model_identifier) {
-                    info!("  {} - subscription: {}", model_identifier, address);
+                for address in self.iter(index as u8, *model_identifier) {
+                    info!("  {} <-- {}", model_identifier, address);
                 }
             }
         }
@@ -74,7 +73,7 @@ impl<const N: usize> Subscriptions<N> {
         model_identifier: ModelIdentifier,
         address: SubscriptionAddress,
     ) -> Result<(), DriverError> {
-        for matching in self.entries.iter_mut().filter( |e| {
+        for matching in self.entries.iter_mut().filter(|e| {
             if let Some(slot) = e {
                 slot.element_index == element_index
                     && slot.model_identifier == model_identifier
@@ -93,10 +92,9 @@ impl<const N: usize> Subscriptions<N> {
         element_index: u8,
         model_identifier: ModelIdentifier,
     ) -> Result<(), DriverError> {
-        for matching in self.entries.iter_mut().filter( |e| {
+        for matching in self.entries.iter_mut().filter(|e| {
             if let Some(slot) = e {
-                slot.element_index == element_index
-                    && slot.model_identifier == model_identifier
+                slot.element_index == element_index && slot.model_identifier == model_identifier
             } else {
                 false
             }
@@ -106,18 +104,46 @@ impl<const N: usize> Subscriptions<N> {
         Ok(())
     }
 
-    pub fn get(&self, element_index: u8, model_identifier: ModelIdentifier) -> Vec<SubscriptionAddress, 12> {
-        self.entries.iter().filter_map(|e| {
+    pub fn get<const S: usize>(
+        &self,
+        element_index: u8,
+        model_identifier: ModelIdentifier,
+    ) -> Vec<SubscriptionAddress, S> {
+        self.entries
+            .iter()
+            .filter_map(|e| {
+                if let Some(slot) = e {
+                    if slot.element_index == element_index
+                        && slot.model_identifier == model_identifier
+                    {
+                        Some(slot.address)
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
+            })
+            .collect()
+    }
+
+    pub fn iter(
+        &self,
+        element_index: u8,
+        model_identifier: ModelIdentifier,
+    ) -> impl Iterator<Item = &Subscription> + '_ {
+        self.entries.iter().filter_map(move |e| {
             if let Some(slot) = e {
-                if slot.element_index == element_index && slot.model_identifier == model_identifier {
-                    Some(slot.address)
+                if slot.element_index == element_index && slot.model_identifier == model_identifier
+                {
+                    Some(slot)
                 } else {
                     None
                 }
             } else {
                 None
             }
-        }).collect()
+        })
     }
 }
 

@@ -95,10 +95,16 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
 
                 info!("**** parse {}", opcode);
 
-                if let Ok(Some(message)) = M::parse(opcode, &*parameters) {
-                    return (message, meta);
-                } else {
-                    info!("error parsing message");
+                match M::parse(opcode, &*parameters) {
+                    Ok(Some(message)) => {
+                        return (message, meta);
+                    }
+                    Ok(None) => {
+                        continue;
+                    }
+                    Err(err) => {
+                        info!("problems parsing {}", err);
+                    }
                 }
             }
         }

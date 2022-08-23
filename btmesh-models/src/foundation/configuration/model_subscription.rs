@@ -88,15 +88,13 @@ impl ModelSubscriptionMessage {
     }
 
     pub fn parse_virtual_address_add(parameters: &[u8]) -> Result<Self, ParseError> {
-        Ok(Self::Add(
-            ModelSubscriptionPayload::parse_virtual_address(parameters)?,
-        ))
+        Ok(Self::Add(ModelSubscriptionPayload::parse_virtual_address(
+            parameters,
+        )?))
     }
 
     pub fn parse_delete(parameters: &[u8]) -> Result<Self, ParseError> {
-        Ok(Self::Delete(ModelSubscriptionPayload::parse(
-            parameters,
-        )?))
+        Ok(Self::Delete(ModelSubscriptionPayload::parse(parameters)?))
     }
 
     pub fn parse_virtual_address_delete(parameters: &[u8]) -> Result<Self, ParseError> {
@@ -346,7 +344,7 @@ pub struct ModelSubscriptionGetMessage {
 impl ModelSubscriptionGetMessage {
     pub fn emit_parameters<const N: usize>(
         &self,
-        xmit: &mut Vec<u8, N>,
+        _xmit: &mut Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         todo!()
     }

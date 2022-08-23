@@ -1,24 +1,36 @@
 use crate::storage::provisioned::bindings::Bindings;
 use crate::storage::provisioned::foundation::Foundation;
+use crate::storage::provisioned::publications::Publications;
+use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use btmesh_common::Composition;
 use core::hash::{Hash, Hasher};
-use crate::storage::provisioned::subscriptions::Subscriptions;
 
 mod bindings;
-mod subscriptions;
 mod foundation;
+mod publications;
+mod subscriptions;
+
+#[derive(Clone, Debug)]
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+struct UnhashedU32(u32);
+
+impl Hash for UnhashedU32 {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
+}
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Hash)]
 pub struct ProvisionedConfiguration {
-    sequence: u32,
+    sequence: UnhashedU32,
     network_state: NetworkState,
     secrets: Secrets,
     device_info: DeviceInfo,
     bindings: Bindings,
     subscriptions: Subscriptions,
+    publications: Publications,
     foundation: Foundation,
 }
 
@@ -31,13 +43,14 @@ impl ProvisionedConfiguration {
         foundation: Foundation,
     ) -> Self {
         Self {
-            sequence,
+            sequence: UnhashedU32(sequence),
             network_state,
             secrets,
             device_info,
             foundation,
             bindings: Default::default(),
             subscriptions: Default::default(),
+            publications: Default::default(),
         }
     }
 
@@ -51,6 +64,7 @@ impl ProvisionedConfiguration {
         self.secrets.display();
         self.bindings.display(composition);
         self.subscriptions.display(composition);
+        self.publications.display(composition);
         info!("========================================================================");
     }
 
@@ -86,12 +100,20 @@ impl ProvisionedConfiguration {
         &mut self.subscriptions
     }
 
+    pub(crate) fn publications(&self) -> &Publications {
+        &self.publications
+    }
+
+    pub(crate) fn publications_mut(&mut self) -> &mut Publications {
+        &mut self.publications
+    }
+
     pub(crate) fn sequence(&self) -> u32 {
-        self.sequence as u32
+        self.sequence.0 as u32
     }
 
     pub(crate) fn sequence_mut(&mut self) -> &mut u32 {
-        &mut self.sequence
+        &mut self.sequence.0
     }
 
     pub(crate) fn foundation(&self) -> &Foundation {
@@ -106,26 +128,30 @@ impl ProvisionedConfiguration {
 impl From<(DeviceInfo, Secrets, NetworkState)> for ProvisionedConfiguration {
     fn from(config: (DeviceInfo, Secrets, NetworkState)) -> Self {
         Self {
-            sequence: 800,
+            sequence: UnhashedU32(800),
             network_state: config.2,
             secrets: config.1,
             device_info: config.0,
             foundation: Default::default(),
             bindings: Default::default(),
-            subscriptions: Default::default()
+            subscriptions: Default::default(),
+            publications: Default::default(),
         }
     }
 }
 
+/*
 impl Hash for ProvisionedConfiguration {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.network_state.hash(state);
         self.secrets.hash(state);
         self.device_info.hash(state);
         self.bindings.hash(state);
+        self.subscriptions.hash(state);
         // explicitly skip sequence, checked separately.
     }
 }
+ */
 
 impl From<ProvisionedConfiguration> for Configuration {
     fn from(inner: ProvisionedConfiguration) -> Self {

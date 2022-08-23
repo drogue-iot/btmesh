@@ -188,6 +188,7 @@ impl ProvisionedStack {
         let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 16> = self.transmit_queue.iter().collect();
 
         for upper_pdu in upper_pdus {
+            info!("rexmit {}", upper_pdu);
             for network_pdu in self
                 .process_outbound_upper_pdu(sequence, &upper_pdu, true)?
                 .iter()

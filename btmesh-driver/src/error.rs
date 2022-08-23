@@ -5,6 +5,7 @@ use crate::storage::StorageError;
 use btmesh_common::address::InvalidAddress;
 use btmesh_common::mic::InvalidLength;
 use btmesh_common::{InsufficientBuffer, ParseError, SeqRolloverError};
+use btmesh_models::Status;
 use btmesh_pdu::provisioned::lower::InvalidBlock;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -29,6 +30,20 @@ pub enum DriverError {
     Network(NetworkError),
     SeqRollover,
     Storage(StorageError),
+}
+
+impl From<&DriverError> for (Status, Option<DriverError>) {
+    fn from(err: &DriverError) -> Self {
+        match err {
+            DriverError::InvalidElementAddress => (Status::InvalidAddress, None),
+            DriverError::InvalidModel => (Status::InvalidModel, None),
+            DriverError::InvalidAppKeyIndex => (Status::InvalidAppKeyIndex, None),
+            DriverError::InvalidNetKeyIndex => (Status::InvalidNetKeyIndex, None),
+            DriverError::Storage(_) => (Status::StorageFailure, Some(*err)),
+            DriverError::InsufficientSpace => (Status::InsufficientResources, None),
+            _ => (Status::UnspecifiedError, Some(*err)),
+        }
+    }
 }
 
 impl From<StorageError> for DriverError {

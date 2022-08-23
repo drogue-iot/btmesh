@@ -19,11 +19,6 @@ pub mod flash;
 #[cfg(feature = "memory")]
 pub mod memory;
 
-pub enum ModifyError {
-    Storage(StorageError),
-    Driver(DriverError),
-}
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum StorageError {
@@ -31,18 +26,6 @@ pub enum StorageError {
     Store,
     Serialization,
     Deserialization,
-}
-
-impl From<StorageError> for ModifyError {
-    fn from(inner: StorageError) -> Self {
-        Self::Storage(inner)
-    }
-}
-
-impl From<DriverError> for ModifyError {
-    fn from(inner: DriverError) -> Self {
-        Self::Driver(inner)
-    }
 }
 
 pub trait BackingStore {
@@ -143,7 +126,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn modify<F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), DriverError>>(
         &self,
         modification: F,
-    ) -> Result<(), ModifyError> {
+    ) -> Result<(), DriverError> {
         if let Configuration::Provisioned(mut config) = self.get().await? {
             modification(&mut config)?;
             self.put(&Configuration::Provisioned(config)).await?;
@@ -155,7 +138,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn read<F: FnOnce(&ProvisionedConfiguration) -> Result<R, DriverError>, R>(
         &self,
         reader: F,
-    ) -> Result<R, DriverError>{
+    ) -> Result<R, DriverError> {
         if let Configuration::Provisioned(config) = self.get().await? {
             return reader(&config);
         }

@@ -1,9 +1,8 @@
-use crate::storage::ModifyError;
+use crate::models::configuration::convert;
 use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
 use btmesh_models::foundation::configuration::app_key::{AppKeyMessage, AppKeyStatusMessage};
 use btmesh_models::foundation::configuration::ConfigurationServer;
-use btmesh_models::Status;
 
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
@@ -73,24 +72,4 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     }
 
     Ok(())
-}
-
-fn convert(input: Result<(), ModifyError>) -> (Status, Option<DriverError>) {
-    if let Err(result) = input {
-        match result {
-            ModifyError::Driver(DriverError::InvalidAppKeyIndex) => {
-                (Status::InvalidAppKeyIndex, None)
-            }
-            ModifyError::Driver(DriverError::InvalidNetKeyIndex) => {
-                (Status::InvalidNetKeyIndex, None)
-            }
-            ModifyError::Driver(DriverError::AppKeyIndexAlreadyStored) => {
-                (Status::KeyIndexAlreadyStored, None)
-            }
-            ModifyError::Storage(_) => (Status::StorageFailure, None),
-            ModifyError::Driver(inner) => (Status::UnspecifiedError, Some(inner)),
-        }
-    } else {
-        (Status::Success, None)
-    }
 }

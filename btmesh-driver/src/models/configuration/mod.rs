@@ -1,7 +1,8 @@
 #![allow(clippy::single_match)]
-use crate::{BackingStore, Storage};
+use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_models::foundation::configuration::{ConfigurationMessage, ConfigurationServer};
+use btmesh_models::Status;
 use core::future::Future;
 
 pub mod app_key;
@@ -9,9 +10,10 @@ pub mod beacon;
 pub mod composition_data;
 pub mod default_ttl;
 pub mod model_app;
+pub mod model_publication;
+pub mod model_subscription;
 pub mod node_reset;
 pub mod relay;
-pub mod model_subscription;
 
 pub struct Configuration<'s, B: BackingStore + 's> {
     storage: &'s Storage<B>,
@@ -68,7 +70,11 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                             .await
                             .map_err(|_| ())?;
                     }
-                    ConfigurationMessage::ModelPublication(_model_publication) => {}
+                    ConfigurationMessage::ModelPublication(model_publication) => {
+                        model_publication::dispatch(&ctx, self.storage, model_publication, meta)
+                            .await
+                            .map_err(|_| ())?;
+                    }
                     ConfigurationMessage::ModelSubscription(model_subscription) => {
                         model_subscription::dispatch(&ctx, self.storage, model_subscription, meta)
                             .await
@@ -82,5 +88,13 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                 }
             }
         }
+    }
+}
+
+pub fn convert(input: Result<(), DriverError>) -> (Status, Option<DriverError>) {
+    if let Err(result) = input {
+        (&result).into()
+    } else {
+        (Status::Success, None)
     }
 }

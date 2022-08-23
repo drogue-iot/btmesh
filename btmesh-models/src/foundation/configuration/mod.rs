@@ -14,21 +14,17 @@ use crate::foundation::configuration::model_app::{
     ModelAppMessage, CONFIG_MODEL_APP_BIND, CONFIG_MODEL_APP_UNBIND,
 };
 use crate::foundation::configuration::model_publication::{
-    ModelPublicationMessage, CONFIG_MODEL_PUBLICATION_SET,
+    ModelPublicationMessage, CONFIG_MODEL_PUBLICATION_GET, CONFIG_MODEL_PUBLICATION_SET,
     CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET,
 };
 
 use crate::foundation::configuration::model_subscription::{
-    ModelSubscriptionMessage,
-    CONFIG_MODEL_SUBSCRIPTION_ADD,
+    ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD, CONFIG_MODEL_SUBSCRIPTION_DELETE,
+    CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL, CONFIG_MODEL_SUBSCRIPTION_OVERWRITE,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD,
-    CONFIG_MODEL_SUBSCRIPTION_DELETE,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_DELETE,
-    CONFIG_MODEL_SUBSCRIPTION_OVERWRITE,
-    CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE,
-    CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL,
+    CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE, CONFIG_SIG_MODEL_SUBSCRIPTION_GET,
     CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET,
-    CONFIG_SIG_MODEL_SUBSCRIPTION_GET,
 };
 
 use crate::foundation::configuration::node_reset::{NodeResetMessage, CONFIG_NODE_RESET};
@@ -151,6 +147,9 @@ impl Model for ConfigurationServer {
             CONFIG_MODEL_PUBLICATION_SET => Ok(Some(ConfigurationMessage::ModelPublication(
                 ModelPublicationMessage::parse_set(parameters)?,
             ))),
+            CONFIG_MODEL_PUBLICATION_GET => Ok(Some(ConfigurationMessage::ModelPublication(
+                ModelPublicationMessage::parse_get(parameters)?,
+            ))),
             CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET => {
                 Ok(Some(ConfigurationMessage::ModelPublication(
                     ModelPublicationMessage::parse_virtual_address_set(parameters)?,
@@ -173,20 +172,26 @@ impl Model for ConfigurationServer {
                     ModelSubscriptionMessage::parse_virtual_address_delete(parameters)?,
                 )))
             }
-            CONFIG_MODEL_SUBSCRIPTION_OVERWRITE => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_overwrite(parameters)?,
-            ))),
+            CONFIG_MODEL_SUBSCRIPTION_OVERWRITE => {
+                Ok(Some(ConfigurationMessage::ModelSubscription(
+                    ModelSubscriptionMessage::parse_overwrite(parameters)?,
+                )))
+            }
             CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE => {
                 Ok(Some(ConfigurationMessage::ModelSubscription(
                     ModelSubscriptionMessage::parse_virtual_address_overwrite(parameters)?,
                 )))
             }
-            CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_delete_all(parameters)?,
-            ))),
-            CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_vendor_get(parameters)?,
-            ))),
+            CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL => {
+                Ok(Some(ConfigurationMessage::ModelSubscription(
+                    ModelSubscriptionMessage::parse_delete_all(parameters)?,
+                )))
+            }
+            CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET => {
+                Ok(Some(ConfigurationMessage::ModelSubscription(
+                    ModelSubscriptionMessage::parse_vendor_get(parameters)?,
+                )))
+            }
             CONFIG_SIG_MODEL_SUBSCRIPTION_GET => Ok(Some(ConfigurationMessage::ModelSubscription(
                 ModelSubscriptionMessage::parse_sig_get(parameters)?,
             ))),
@@ -198,9 +203,7 @@ impl Model for ConfigurationServer {
             CONFIG_RELAY_SET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_set(
                 parameters,
             )?))),
-            _ => {
-                Ok(None)
-            },
+            _ => Ok(None),
         }
     }
 }

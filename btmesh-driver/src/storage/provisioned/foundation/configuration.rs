@@ -3,7 +3,7 @@ use btmesh_models::foundation::configuration::relay::RelayConfig;
 
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-#[derive(Clone, Debug)]
+#[derive(Clone, Hash, Debug)]
 pub struct Configuration {
     beacon: bool,
     relay: RelayConfig,

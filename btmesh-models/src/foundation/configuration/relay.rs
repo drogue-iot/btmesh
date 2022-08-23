@@ -8,7 +8,7 @@ opcode!( CONFIG_RELAY_GET 0x80, 0x26);
 opcode!( CONFIG_RELAY_SET 0x80, 0x27);
 opcode!( CONFIG_RELAY_STATUS 0x80, 0x28);
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Hash, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum Relay {
@@ -33,7 +33,7 @@ impl Relay {
     }
 }
 
-#[derive(Copy, Clone, Debug)]
+#[derive(Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct RelayConfig {
