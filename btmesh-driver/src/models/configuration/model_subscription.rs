@@ -23,7 +23,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 
             let status_err = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(add.element_address.into())
@@ -57,7 +57,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         | ModelSubscriptionMessage::VirtualAddressDelete(delete) => {
             let status_err = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(delete.element_address.into())
@@ -88,7 +88,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         ModelSubscriptionMessage::DeleteAll(delete_all) => {
             let status_err = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(delete_all.element_address.into())
@@ -119,7 +119,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let composition = storage.composition();
             let status_err = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(overwrite.element_address.into())
@@ -155,7 +155,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         }
         ModelSubscriptionMessage::VendorGet(get) | ModelSubscriptionMessage::SigGet(get) => {
             let result = storage
-                .read(|config| {
+                .read_provisioned(|config| {
                     if let Some(element_index) = config
                         .device_info()
                         .local_element_index(get.element_address.into())

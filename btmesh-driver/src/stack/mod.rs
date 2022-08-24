@@ -67,6 +67,14 @@ impl Stack {
             }
         })
     }
+
+    pub fn has_ongoing_completion(&self) -> bool {
+        match self {
+            Stack::None => false,
+            Stack::Unprovisioned { .. } => false,
+            Stack::Provisioned { stack, .. } => stack.has_ongoing_completion(),
+        }
+    }
 }
 
 impl TryFrom<&Stack> for Configuration {

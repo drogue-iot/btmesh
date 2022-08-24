@@ -1,4 +1,4 @@
-use crate::{BackingStore, Configuration, DriverError, Storage};
+use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
 use btmesh_models::foundation::configuration::default_ttl::DefaultTTLMessage;
 use btmesh_models::foundation::configuration::ConfigurationServer;
@@ -11,26 +11,23 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         DefaultTTLMessage::Get => {
-            if let Configuration::Provisioned(config) = storage.get().await? {
-                ctx.send(
-                    DefaultTTLMessage::Status(config.foundation().configuration().default_ttl())
-                        .into(),
-                    meta.reply(),
-                )
+            let ttl = storage
+                .read_provisioned(|config| Ok(config.foundation().configuration().default_ttl()))
                 .await?;
-            }
+
+            ctx.send(DefaultTTLMessage::Status(ttl).into(), meta.reply())
+                .await?;
         }
         DefaultTTLMessage::Set(default_ttl) => {
             storage
-                .modify(|config| {
+                .modify_provisioned(|config| {
                     *config
                         .foundation_mut()
                         .configuration_mut()
                         .default_ttl_mut() = default_ttl;
                     Ok(())
                 })
-                .await
-                .ok();
+                .await?;
             ctx.send(DefaultTTLMessage::Status(default_ttl).into(), meta.reply())
                 .await?;
         }

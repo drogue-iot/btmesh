@@ -16,7 +16,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     match message {
         ModelPublicationMessage::Get(get) => {
             let result = storage
-                .read(|config| {
+                .read_provisioned(|config| {
                     if let Some(element_index) = config
                         .device_info()
                         .local_element_index(get.element_address.into())
@@ -96,7 +96,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 
             let (status, err) = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(set.details.element_address.into())

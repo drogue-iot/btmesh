@@ -12,9 +12,15 @@ mod publications;
 mod subscriptions;
 
 #[derive(Clone, Debug)]
-#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 struct UnhashedU32(u32);
+
+#[cfg(feature = "defmt")]
+impl ::defmt::Format for UnhashedU32 {
+    fn format(&self, fmt: ::defmt::Formatter) {
+        ::defmt::write!(fmt, "{}", self.0);
+    }
+}
 
 impl Hash for UnhashedU32 {
     fn hash<H: Hasher>(&self, _state: &mut H) {}
@@ -65,6 +71,7 @@ impl ProvisionedConfiguration {
         self.bindings.display(composition);
         self.subscriptions.display(composition);
         self.publications.display(composition);
+        self.foundation.display();
         info!("========================================================================");
     }
 

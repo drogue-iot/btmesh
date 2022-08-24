@@ -21,6 +21,7 @@ use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::{select, select3, select4, Either, Either3, Either4};
 use embassy_time::{Duration, Timer};
+use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
 
 mod error;
@@ -52,13 +53,6 @@ use crate::storage::{BackingStore, Configuration, Storage};
 use crate::util::hash::hash_of;
 use crate::watchdog::{Watchdog, WatchdogEvent};
 pub use error::DriverError;
-
-#[allow(clippy::large_enum_variant)]
-enum DesiredStack {
-    Unchanged,
-    Unprovisioned(UnprovisionedConfiguration),
-    Provisioned(ProvisionedConfiguration),
-}
 
 enum CurrentStack<'s> {
     None,
@@ -155,9 +149,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
                             let provisioned_config: ProvisionedConfiguration =
                                 (device_info, secrets, network_state).into();
-                            self.storage
-                                .put(&Configuration::Provisioned(provisioned_config))
-                                .await?;
+                            self.storage.provision(provisioned_config).await?;
                         }
                     }
                 }
@@ -168,19 +160,25 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     if let Some((block_ack, meta)) = result.block_ack {
                         debug!("we have outbound block_ack");
                         // send outbound block-ack
-                        if let Configuration::Provisioned(config) = self.storage.get().await? {
-                            if let Some(src) = config.device_info().local_element_address(0) {
-                                for network_pdu in stack
-                                    .process_outbound_block_ack(sequence, block_ack, meta, src)?
-                                {
-                                    debug!("outbound network block-ack pdu: {}", pdu);
-                                    // don't error if we can't send.
-                                    self.network
-                                        .transmit(&PDU::Network(network_pdu), false)
-                                        .await
-                                        .ok();
+
+                        let network_pdus = self
+                            .storage
+                            .read_provisioned(|config| {
+                                if let Some(src) = config.device_info().local_element_address(0) {
+                                    Ok(stack.process_outbound_block_ack(
+                                        sequence, block_ack, meta, src,
+                                    )?)
+                                } else {
+                                    Ok(Vec::new())
                                 }
-                            }
+                            })
+                            .await?;
+
+                        for network_pdu in network_pdus {
+                            self.network
+                                .transmit(&PDU::Network(network_pdu), false)
+                                .await
+                                .ok();
                         }
                     }
 
@@ -209,33 +207,40 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         &self,
         outbound_payload: OutboundPayload,
     ) -> Result<(), DriverError> {
-        let config = self.storage.get().await?;
-        if let Configuration::Provisioned(config) = config {
-            let element_address = config
-                .device_info()
-                .local_element_address(outbound_payload.0 .0 as u8)
-                .ok_or(DriverError::InvalidState)?;
-            let default_ttl = config.foundation().configuration().default_ttl();
-            let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
-                outbound_payload.1,
-                outbound_payload.2,
-                (element_address, outbound_payload.3, default_ttl),
-            );
-
-            if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
-                let network_pdus = stack.process_outbound(
-                    sequence,
-                    &(message.into()),
-                    outbound_payload.4,
-                    &self.watchdog,
+        let network_pdus = self
+            .storage
+            .read_provisioned(|config| {
+                let element_address = config
+                    .device_info()
+                    .local_element_address(outbound_payload.0 .0 as u8)
+                    .ok_or(DriverError::InvalidState)?;
+                let default_ttl = config.foundation().configuration().default_ttl();
+                let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
+                    outbound_payload.1,
+                    outbound_payload.2,
+                    (element_address, outbound_payload.3, default_ttl),
                 );
-                for pdu in network_pdus? {
-                    //debug!("outbound network pdu: {}", pdu);
-                    self.network.transmit(&(pdu.into()), false).await?;
+
+                if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
+                    let network_pdus = stack.process_outbound(
+                        sequence,
+                        &(message.into()),
+                        outbound_payload.4,
+                        &self.watchdog,
+                    )?;
+                    Ok(Some(network_pdus))
+                } else {
+                    Ok(None)
                 }
+            })
+            .await?;
+
+        if let Some(network_pdus) = network_pdus {
+            for pdu in network_pdus {
+                //debug!("outbound network pdu: {}", pdu);
+                self.network.transmit(&(pdu.into()), false).await?;
             }
         }
-
         Ok(())
     }
 
@@ -322,52 +327,46 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         let mut last_displayed_hash = None;
 
         loop {
-            let config = self.storage.get().await?;
+            self.storage
+                .read(|config| {
+                    let mut stack = self.stack.borrow_mut();
 
-            let mut desired = DesiredStack::Unchanged;
+                    match (&*stack, &config) {
+                        (Stack::None, Configuration::Unprovisioned(config))
+                        | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
+                            *stack = Stack::Unprovisioned {
+                                stack: UnprovisionedStack::new(self.storage.capabilities()),
+                                uuid: config.uuid,
+                            };
+                            self.network.reset();
+                        }
+                        (Stack::None, Configuration::Provisioned(config))
+                        | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
+                            *stack = Stack::Provisioned {
+                                sequence: Sequence::new(Seq::new(config.sequence())),
+                                stack: config.into(),
+                            };
+                        }
+                        _ => {
+                            // unchanged, don't reconfigure the stack.
+                        }
+                    }
 
-            match (&*self.stack.borrow(), &config) {
-                (Stack::None, Configuration::Unprovisioned(config))
-                | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
-                    desired = DesiredStack::Unprovisioned(config.clone());
-                }
-                (Stack::None, Configuration::Provisioned(config))
-                | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
-                    desired = DesiredStack::Provisioned(config.clone());
-                }
-                _ => {
-                    // unchanged, don't reconfigure the stack.
-                }
-            }
+                    let current_hash = hash_of(&config);
 
-            match desired {
-                DesiredStack::Unchanged => { /*nothing*/ }
-                DesiredStack::Unprovisioned(config) => {
-                    *self.stack.borrow_mut() = Stack::Unprovisioned {
-                        stack: UnprovisionedStack::new(self.storage.capabilities()),
-                        uuid: config.uuid,
+                    let changed = match last_displayed_hash {
+                        Some(previous_hash) => current_hash != previous_hash,
+                        None => true,
                     };
-                    self.network.reset();
-                    config.display(&composition);
-                    last_displayed_hash.replace(hash_of(&Configuration::Unprovisioned(config)));
-                }
-                DesiredStack::Provisioned(config) => {
-                    *self.stack.borrow_mut() = Stack::Provisioned {
-                        sequence: Sequence::new(Seq::new(config.sequence())),
-                        stack: (&config).into(),
-                    };
-                    config.display(&composition);
-                    last_displayed_hash.replace(hash_of(&Configuration::Provisioned(config)));
-                }
-            }
 
-            if let Some(previous_hash) = last_displayed_hash {
-                let current_hash = hash_of(&config);
-                if previous_hash != current_hash {
-                    config.display(&composition);
-                    last_displayed_hash.replace(current_hash);
-                }
-            }
+                    if changed {
+                        config.display(&composition);
+                        last_displayed_hash.replace(current_hash);
+                    }
+
+                    Ok(())
+                })
+                .await?;
 
             let device_state = self.stack.borrow().device_state();
 
@@ -384,10 +383,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 match select4(io_fut, beacon_fut, retransmit_fut, watchdog_fut).await {
                     Either4::First(inner) => match inner {
                         Either::First(Ok(pdu)) => {
-                            if let Err(result) = self.receive_pdu(&pdu).await {
-                                match result {
-                                    DriverError::InvalidPDU | DriverError::Parse(_) => continue,
-                                    _ => return Err(result),
+                            if !self.stack.borrow().has_ongoing_completion() {
+                                if let Err(result) = self.receive_pdu(&pdu).await {
+                                    match result {
+                                        DriverError::InvalidPDU | DriverError::Parse(_) => continue,
+                                        _ => return Err(result),
+                                    }
                                 }
                             }
                         }
@@ -431,13 +432,25 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack, sequence, ..
                 } = &mut *self.stack.borrow_mut()
                 {
-                    if let Configuration::Provisioned(config) = self.storage.get().await? {
-                        if let Some(src) = config.device_info().local_element_address(0) {
-                            for network_pdu in
-                                stack.inbound_expiration(sequence, seq_zero, src, &self.watchdog)?
-                            {
-                                self.network.transmit(&network_pdu.into(), false).await.ok();
+                    let network_pdus = self
+                        .storage
+                        .read_provisioned(|config| {
+                            if let Some(src) = config.device_info().local_element_address(0) {
+                                Ok(Some(stack.inbound_expiration(
+                                    sequence,
+                                    seq_zero,
+                                    src,
+                                    &self.watchdog,
+                                )?))
+                            } else {
+                                Ok(None)
                             }
+                        })
+                        .await?;
+
+                    if let Some(network_pdus) = network_pdus {
+                        for network_pdu in network_pdus {
+                            self.network.transmit(&network_pdu.into(), false).await.ok();
                         }
                     }
                 }

@@ -10,6 +10,10 @@ pub struct Foundation {
 }
 
 impl Foundation {
+    pub fn display(&self) {
+        info!("= foundation");
+        self.configuration.display();
+    }
     pub fn configuration(&self) -> &Configuration {
         &self.configuration
     }

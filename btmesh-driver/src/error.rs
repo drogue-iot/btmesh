@@ -21,6 +21,7 @@ pub enum DriverError {
     InvalidNetKeyIndex,
     InvalidAppKeyIndex,
     InvalidModel,
+    FeatureNotSupported,
     NetKeyIndexAlreadyStored,
     AppKeyIndexAlreadyStored,
     InvalidElementAddress,
@@ -41,6 +42,7 @@ impl From<&DriverError> for (Status, Option<DriverError>) {
             DriverError::InvalidNetKeyIndex => (Status::InvalidNetKeyIndex, None),
             DriverError::Storage(_) => (Status::StorageFailure, Some(*err)),
             DriverError::InsufficientSpace => (Status::InsufficientResources, None),
+            DriverError::FeatureNotSupported => (Status::FeatureNotSupported, None),
             _ => (Status::UnspecifiedError, Some(*err)),
         }
     }

@@ -16,6 +16,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         NodeResetMessage::Reset => {
             ctx.send_with_completion(NodeResetMessage::Status.into(), meta.reply(), &SIGNAL)
                 .await;
+
             storage.reset().await?;
         }
         _ => {

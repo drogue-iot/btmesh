@@ -151,6 +151,7 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
             let opcode = message.opcode();
             let mut parameters = Vec::new();
             if message.emit_parameters(&mut parameters).is_ok() {
+                info!("sending outbound");
                 self.outbound
                     .send((
                         (self.element_index, self.model_identifier),
@@ -159,9 +160,11 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
                         meta,
                         Some(CompletionToken::new(signal)),
                     ))
-                    .await
+                    .await;
+                info!("sending outbound complete");
             }
 
+            info!("waiting completion signal");
             signal.wait().await
         }
     }

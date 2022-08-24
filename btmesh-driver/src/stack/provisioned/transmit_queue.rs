@@ -40,6 +40,16 @@ impl<const N: usize> Default for TransmitQueue<N> {
 }
 
 impl<const N: usize> TransmitQueue<N> {
+    pub fn has_ongoing_completion(&self) -> bool {
+        self.queue.iter().any(|e| match e {
+            Some(entry) => match entry {
+                QueueEntry::Nonsegmented(entry) => entry.completion_token.is_some(),
+                QueueEntry::Segmented(entry) => entry.completion_token.is_some(),
+            },
+            _ => false,
+        })
+    }
+
     pub fn add_segmented(
         &mut self,
         upper_pdu: UpperPDU<ProvisionedStack>,

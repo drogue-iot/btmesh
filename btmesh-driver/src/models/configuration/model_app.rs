@@ -15,7 +15,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let composition = storage.composition();
             let (status, err) = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if config.secrets().has_application_key(bind.app_key_index) {
                             if let Some(element_index) = config
                                 .device_info()
@@ -55,7 +55,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let composition = storage.composition();
             let (status, err) = convert(
                 storage
-                    .modify(|config| {
+                    .modify_provisioned(|config| {
                         if config.secrets().has_application_key(unbind.app_key_index) {
                             if let Some(element_index) = config
                                 .device_info()

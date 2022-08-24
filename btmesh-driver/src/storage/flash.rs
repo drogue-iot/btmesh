@@ -1,5 +1,6 @@
-use crate::storage::{BackingStore, Configuration, StorageError};
+use crate::storage::{BackingStore, StorageError};
 use crate::util::hash::hash_of;
+use crate::ProvisionedConfiguration;
 use core::future::Future;
 use embedded_storage_async::nor_flash::AsyncNorFlash;
 use postcard::{from_bytes, to_slice};
@@ -10,7 +11,6 @@ struct AlignedBytePage([u8; 4096]);
 #[derive(Copy, Clone)]
 pub enum LatestLoad {
     None,
-    Unprovisioned,
     Provisioned { hash: u64, sequence: u32 },
 }
 
@@ -33,7 +33,7 @@ impl<F: AsyncNorFlash> FlashBackingStore<F> {
 }
 
 impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
-    type LoadFuture<'m> =  impl Future<Output = Result<Configuration, StorageError>> + 'm
+    type LoadFuture<'m> =  impl Future<Output = Result<ProvisionedConfiguration, StorageError>> + 'm
         where
             Self: 'm;
     type StoreFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
@@ -51,26 +51,20 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                 .await
                 .map_err(|_| StorageError::Load)?;
 
-            let config = from_bytes(&bytes).map_err(|_| StorageError::Serialization)?;
+            let config: ProvisionedConfiguration =
+                from_bytes(&bytes).map_err(|_| StorageError::Serialization)?;
 
-            match &config {
-                Configuration::Unprovisioned(_) => {
-                    self.latest_load = LatestLoad::Unprovisioned;
-                }
-                Configuration::Provisioned(config) => {
-                    let hash = hash_of(&config);
-                    self.latest_load = LatestLoad::Provisioned {
-                        hash,
-                        sequence: config.sequence(),
-                    };
-                }
-            }
+            let hash = hash_of(&config);
+            self.latest_load = LatestLoad::Provisioned {
+                hash,
+                sequence: config.sequence(),
+            };
 
             Ok(config)
         }
     }
 
-    fn store<'f>(&'f mut self, config: &'f Configuration) -> Self::StoreFuture<'f> {
+    fn store<'f>(&'f mut self, config: &'f ProvisionedConfiguration) -> Self::StoreFuture<'f> {
         async move {
             if should_writeback(self.latest_load, config, self.sequence_threshold) {
                 let mut bytes = AlignedBytePage([0; 4096]);
@@ -84,12 +78,9 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
                     .await
                     .map_err(|_| StorageError::Store)?;
 
-                self.latest_load = match config {
-                    Configuration::Unprovisioned(_) => LatestLoad::Unprovisioned,
-                    Configuration::Provisioned(provisioned_config) => LatestLoad::Provisioned {
-                        hash: hash_of(config),
-                        sequence: provisioned_config.sequence(),
-                    },
+                self.latest_load = LatestLoad::Provisioned {
+                    hash: hash_of(config),
+                    sequence: config.sequence(),
                 };
             }
             Ok(())
@@ -109,24 +100,17 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
 }
 
 #[allow(clippy::needless_bool)]
-pub fn should_writeback(current: LatestLoad, new: &Configuration, sequence_threshold: u32) -> bool {
+pub fn should_writeback(
+    current: LatestLoad,
+    new: &ProvisionedConfiguration,
+    sequence_threshold: u32,
+) -> bool {
     match (current, new) {
         (LatestLoad::None, _) => {
             // we had nothing, so scribble.
             true
         }
-        (LatestLoad::Unprovisioned, Configuration::Provisioned(..)) => {
-            // unprovisioned -> provisioned
-            true
-        }
-        (LatestLoad::Provisioned { .. }, Configuration::Unprovisioned(..)) => {
-            // provisioned -> unprovisioned
-            true
-        }
-        (
-            LatestLoad::Provisioned { hash, sequence },
-            Configuration::Provisioned(new_provisioned_config),
-        ) => {
+        (LatestLoad::Provisioned { hash, sequence }, new_provisioned_config) => {
             let new_hash = hash_of(new);
             if new_hash != hash {
                 true
@@ -140,7 +124,6 @@ pub fn should_writeback(current: LatestLoad, new: &Configuration, sequence_thres
                 false
             }
         }
-        _ => false,
     }
 }
 
@@ -170,22 +153,8 @@ mod test {
         assert_eq!(hash_of(&config_a), hash_of(&config_b));
     }
 
-    #[test]
     pub fn should_writeback_from_none() {
-        let unprovisioned_config = Configuration::Unprovisioned(UnprovisionedConfiguration {
-            uuid: Uuid::new([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16]),
-        });
-
-        assert!(should_writeback(
-            LatestLoad::None,
-            &unprovisioned_config,
-            100
-        ))
-    }
-
-    #[test]
-    pub fn should_writeback_from_unprovisioned_to_provisioned() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+        let provisioned_config = ProvisionedConfiguration::new(
             0,
             NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
             Secrets::new(
@@ -198,18 +167,14 @@ mod test {
             ),
             DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             Default::default(),
-        ));
+        );
 
-        assert!(should_writeback(
-            LatestLoad::Unprovisioned,
-            &provisioned_config,
-            100
-        ))
+        assert!(should_writeback(LatestLoad::None, &provisioned_config, 100))
     }
 
     #[test]
     pub fn should_writeback_provisioned_sequence_unchanged() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+        let provisioned_config = ProvisionedConfiguration::new(
             100,
             NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
             Secrets::new(
@@ -222,7 +187,7 @@ mod test {
             ),
             DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             Default::default(),
-        ));
+        );
 
         let hash = hash_of(&provisioned_config);
 
@@ -238,7 +203,7 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_not_met() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+        let provisioned_config = ProvisionedConfiguration::new(
             199,
             NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
             Secrets::new(
@@ -251,7 +216,7 @@ mod test {
             ),
             DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             Default::default(),
-        ));
+        );
 
         assert!(!should_writeback(
             LatestLoad::Provisioned {
@@ -265,7 +230,7 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_is_met() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+        let provisioned_config = ProvisionedConfiguration::new(
             200,
             NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
             Secrets::new(
@@ -278,7 +243,7 @@ mod test {
             ),
             DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             Default::default(),
-        ));
+        );
 
         assert!(should_writeback(
             LatestLoad::Provisioned {
@@ -292,7 +257,7 @@ mod test {
 
     #[test]
     pub fn should_writeback_provisioned_sequence_changed_threshold_is_met_skippingly() {
-        let provisioned_config = Configuration::Provisioned(ProvisionedConfiguration::new(
+        let provisioned_config = ProvisionedConfiguration::new(
             205,
             NetworkState::new(IvIndex::new(100), IvUpdateFlag::Normal),
             Secrets::new(
@@ -305,7 +270,7 @@ mod test {
             ),
             DeviceInfo::new(UnicastAddress::new(0x00A1).unwrap(), 1),
             Default::default(),
-        ));
+        );
 
         assert!(should_writeback(
             LatestLoad::Provisioned {

@@ -1,12 +1,13 @@
-use crate::storage::{BackingStore, Configuration, StorageError};
+use crate::storage::{BackingStore, StorageError};
+use crate::ProvisionedConfiguration;
 use core::future::{ready, Future};
 
 pub struct MemoryBackingStore {
-    content: Configuration,
+    content: ProvisionedConfiguration,
 }
 
 impl BackingStore for MemoryBackingStore {
-    type LoadFuture<'m> =  impl Future<Output = Result<Configuration, StorageError>> + 'm
+    type LoadFuture<'m> =  impl Future<Output = Result<ProvisionedConfiguration, StorageError>> + 'm
         where
             Self: 'm;
     type StoreFuture<'m> = impl Future<Output = Result<(), StorageError>> + 'm
@@ -20,7 +21,7 @@ impl BackingStore for MemoryBackingStore {
         ready(Ok(self.content.clone()))
     }
 
-    fn store(&mut self, content: &Configuration) -> Self::StoreFuture<'_> {
+    fn store(&mut self, content: &ProvisionedConfiguration) -> Self::StoreFuture<'_> {
         self.content = content.clone();
         ready(Ok(()))
     }

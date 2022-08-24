@@ -1,7 +1,9 @@
-use crate::{BackingStore, Configuration, DriverError, Storage};
+use crate::models::configuration::convert;
+use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
-use btmesh_models::foundation::configuration::relay::{Relay, RelayMessage};
+use btmesh_models::foundation::configuration::relay::{Relay, RelayConfig, RelayMessage};
 use btmesh_models::foundation::configuration::ConfigurationServer;
+use btmesh_models::Status;
 
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
@@ -11,31 +13,49 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         RelayMessage::Get => {
-            if let Configuration::Provisioned(config) = storage.get().await? {
+            let relay = storage
+                .read_provisioned(|config| Ok(*config.foundation().configuration().relay()))
+                .await?;
+
+            ctx.send(RelayMessage::Status(relay).into(), meta.reply())
+                .await?;
+            Ok(())
+        }
+        RelayMessage::Set(relay) => {
+            let result = storage
+                .modify_provisioned(|config| {
+                    let relay_config = config.foundation_mut().configuration_mut().relay_mut();
+                    if let Relay::NotSupported = relay_config.relay() {
+                        Err(DriverError::FeatureNotSupported)
+                    } else {
+                        *relay_config = relay;
+                        Ok(())
+                    }
+                })
+                .await;
+
+            let (status, err) = convert(result);
+
+            if let Status::Success = status {
+                ctx.send(RelayMessage::Status(relay).into(), meta.reply())
+                    .await?;
+            } else {
                 ctx.send(
-                    RelayMessage::Status(*config.foundation().configuration().relay()).into(),
+                    RelayMessage::Status(RelayConfig::not_supported()).into(),
                     meta.reply(),
                 )
                 .await?;
             }
-        }
-        RelayMessage::Set(relay) => {
-            if let Configuration::Provisioned(mut config) = storage.get().await? {
-                let relay_config = config.foundation_mut().configuration_mut().relay_mut();
 
-                if let Relay::NotSupported = relay_config.relay() {
-                    ctx.send(RelayMessage::Status(*relay_config).into(), meta.reply())
-                        .await?;
-                } else {
-                    *relay_config = relay;
-                    ctx.send(RelayMessage::Status(relay).into(), meta.reply())
-                        .await?;
-                }
+            if let Some(err) = err {
+                Err(err)
+            } else {
+                Ok(())
             }
         }
         _ => {
             // not applicable
+            Ok(())
         }
     }
-    Ok(())
 }

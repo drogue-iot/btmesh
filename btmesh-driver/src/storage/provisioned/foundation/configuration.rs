@@ -11,6 +11,12 @@ pub struct Configuration {
 }
 
 impl Configuration {
+    pub fn display(&self) {
+        info!("  beacon: {}", self.beacon);
+        info!("  relay: {}", self.relay);
+        info!("  default_ttl: {}", self.default_ttl);
+    }
+
     pub fn beacon(&self) -> bool {
         self.beacon
     }

@@ -166,6 +166,10 @@ impl ProvisionedStack {
         }
     }
 
+    pub fn has_ongoing_completion(&self) -> bool {
+        self.transmit_queue.has_ongoing_completion()
+    }
+
     pub fn network_state(&self) -> NetworkState {
         self.network_state
     }

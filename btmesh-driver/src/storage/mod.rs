@@ -29,7 +29,7 @@ pub enum StorageError {
 }
 
 pub trait BackingStore {
-    type LoadFuture<'m>: Future<Output = Result<Configuration, StorageError>> + 'm
+    type LoadFuture<'m>: Future<Output = Result<ProvisionedConfiguration, StorageError>> + 'm
     where
         Self: 'm;
 
@@ -43,7 +43,7 @@ pub trait BackingStore {
         Self: 'm;
 
     fn load(&mut self) -> Self::LoadFuture<'_>;
-    fn store<'f>(&'f mut self, config: &'f Configuration) -> Self::StoreFuture<'f>;
+    fn store<'f>(&'f mut self, config: &'f ProvisionedConfiguration) -> Self::StoreFuture<'f>;
     fn clear(&mut self) -> Self::ClearFuture<'_>;
 }
 
@@ -85,7 +85,9 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub async fn init(&self) -> Result<(), StorageError> {
-        if let Ok(Configuration::Provisioned(mut config)) = self.get().await {
+        let mut locked_config = self.config.lock().await;
+        let mut backing_store = self.backing_store.borrow_mut();
+        if let Ok(mut config) = backing_store.load().await {
             let seq = config.sequence();
 
             let mut extra = seq % 100;
@@ -95,52 +97,61 @@ impl<B: BackingStore> Storage<B> {
             let seq = (seq - extra) + 100;
 
             *config.sequence_mut() = seq;
-            self.put(&(config.into())).await?;
+            backing_store.store(&config).await?;
+            locked_config.replace(Configuration::Provisioned(config));
         } else {
-            self.put(&self.default_config).await?;
+            locked_config.replace(self.default_config.clone());
         }
         Ok(())
     }
 
-    pub async fn get(&self) -> Result<Configuration, StorageError> {
-        self.load_if_needed().await?;
-        if let Some(config) = &*self.config.lock().await {
-            Ok(config.clone())
-        } else {
-            Err(StorageError::Load)
-        }
+    pub async fn provision(&self, config: ProvisionedConfiguration) -> Result<(), DriverError> {
+        let mut locked_config = self.config.lock().await;
+        self.backing_store.borrow_mut().store(&config).await?;
+        locked_config.replace(Configuration::Provisioned(config));
+        Ok(())
     }
 
-    #[allow(clippy::await_holding_refcell_ref)]
-    pub async fn put(&self, config: &Configuration) -> Result<(), StorageError> {
-        let mut locked_config = self.config.lock().await;
-        if matches!(config, Configuration::Provisioned(_)) {
-            // only write it back if it's provisioned.
-            // unprovisioned config is ephemeral.
+    pub async fn modify_provisioned<
+        F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), DriverError>,
+    >(
+        &self,
+        modifier: F,
+    ) -> Result<(), DriverError> {
+        self.load_if_needed().await?;
+        let mut config = self.config.lock().await;
+        if let Some(Configuration::Provisioned(config)) = &mut *config {
+            modifier(config)?;
             self.backing_store.borrow_mut().store(config).await?;
         }
-        locked_config.replace(config.clone());
-        Ok(())
-    }
-
-    pub async fn modify<F: FnOnce(&mut ProvisionedConfiguration) -> Result<(), DriverError>>(
-        &self,
-        modification: F,
-    ) -> Result<(), DriverError> {
-        if let Configuration::Provisioned(mut config) = self.get().await? {
-            modification(&mut config)?;
-            self.put(&Configuration::Provisioned(config)).await?;
-        }
 
         Ok(())
     }
 
-    pub async fn read<F: FnOnce(&ProvisionedConfiguration) -> Result<R, DriverError>, R>(
+    pub async fn read<F: FnOnce(&Configuration) -> Result<R, DriverError>, R>(
         &self,
         reader: F,
     ) -> Result<R, DriverError> {
-        if let Configuration::Provisioned(config) = self.get().await? {
-            return reader(&config);
+        self.load_if_needed().await?;
+        let config = self.config.lock().await;
+        if let Some(config) = &*config {
+            reader(config)
+        } else {
+            Err(DriverError::InvalidState)
+        }
+    }
+
+    pub async fn read_provisioned<
+        F: FnOnce(&ProvisionedConfiguration) -> Result<R, DriverError>,
+        R,
+    >(
+        &self,
+        reader: F,
+    ) -> Result<R, DriverError> {
+        self.load_if_needed().await?;
+        let config = self.config.lock().await;
+        if let Some(Configuration::Provisioned(config)) = &*config {
+            return reader(config);
         }
         Err(DriverError::InvalidState)
     }
@@ -150,7 +161,7 @@ impl<B: BackingStore> Storage<B> {
         let mut locked_config = self.config.lock().await;
         if locked_config.is_none() {
             let loaded_config = self.backing_store.borrow_mut().load().await?;
-            locked_config.replace(loaded_config);
+            locked_config.replace(Configuration::Provisioned(loaded_config));
         }
 
         Ok(())

@@ -12,7 +12,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     match message {
         BeaconMessage::Get => {
             let beacon = storage
-                .read(|config| Ok(config.foundation().configuration().beacon()))
+                .read_provisioned(|config| Ok(config.foundation().configuration().beacon()))
                 .await?;
 
             ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
@@ -20,12 +20,14 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         }
         BeaconMessage::Set(beacon) => {
             storage
-                .modify(|config| {
+                .modify_provisioned(|config| {
+                    info!("modify beacon");
                     *config.foundation_mut().configuration_mut().beacon_mut() = beacon;
+                    info!("modify beacon done");
                     Ok(())
                 })
-                .await
-                .ok();
+                .await?;
+            info!("send reply");
             ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
                 .await?;
         }
