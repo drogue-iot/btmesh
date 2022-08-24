@@ -1,6 +1,6 @@
 use core::ops::Deref;
 use core::sync::atomic::{AtomicU8, Ordering};
-use embassy_util::channel::signal::Signal;
+use embassy_sync::signal::Signal;
 
 pub struct AccessCounted<T> {
     count: AtomicU8,
