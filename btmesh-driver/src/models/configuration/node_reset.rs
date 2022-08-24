@@ -2,7 +2,7 @@ use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, CompletionStatus, InboundMetadata};
 use btmesh_models::foundation::configuration::node_reset::NodeResetMessage;
 use btmesh_models::foundation::configuration::ConfigurationServer;
-use embassy_util::channel::signal::Signal;
+use embassy_sync::signal::Signal;
 
 static SIGNAL: Signal<CompletionStatus> = Signal::new();
 

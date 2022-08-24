@@ -6,7 +6,7 @@ use btmesh_device::{
 };
 use btmesh_models::Message;
 use core::future::Future;
-use embassy_util::channel::signal::Signal;
+use embassy_sync::signal::Signal;
 use heapless::Vec;
 
 pub(crate) struct DeviceContext {

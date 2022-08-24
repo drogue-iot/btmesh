@@ -20,9 +20,9 @@ pub use btmesh_models::Model;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use embassy_util::blocking_mutex::raw::CriticalSectionRawMutex;
-pub use embassy_util::channel::mpmc::{Channel, Receiver, Sender};
-use embassy_util::channel::signal::Signal;
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+pub use embassy_sync::channel::{Channel, Receiver, Sender};
+use embassy_sync::signal::Signal;
 pub use futures::future::join;
 use heapless::Vec;
 
