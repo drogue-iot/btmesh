@@ -20,6 +20,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                     meta.reply(),
                 )
                 .await?;
+                info!("SENT");
             }
         }
         _ => {

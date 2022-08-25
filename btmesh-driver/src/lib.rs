@@ -327,6 +327,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         let mut last_displayed_hash = None;
 
         loop {
+            info!("driver loop");
             self.storage
                 .read(|config| {
                     let mut stack = self.stack.borrow_mut();

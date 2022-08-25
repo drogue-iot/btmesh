@@ -2,8 +2,8 @@ use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    CompletionStatus, CompletionToken, InboundMetadata, InboundPayload, InboundReceiverImpl, Model,
-    OutboundMetadata, OutboundSenderImpl,
+    CompletionStatus, CompletionToken, InboundMetadata, InboundModelChannelReceiver,
+    InboundPayload, InboundReceiverImpl, Model, OutboundMetadata, OutboundSenderImpl,
 };
 use btmesh_models::Message;
 use core::future::Future;
@@ -52,13 +52,14 @@ pub(crate) struct ElementContext {
 }
 
 impl BluetoothMeshElementContext for ElementContext {
-    type ModelContext<M: Model> = ModelContext;
+    type ModelContext<'m, M: Model> = ModelContext<'m, M>
+        where M: 'm, Self: 'm;
 
-    fn model_context<M: Model>(
-        &self,
+    fn model_context<'m, M: Model + 'm>(
+        &'m self,
         _index: usize,
-        inbound: InboundReceiverImpl,
-    ) -> Self::ModelContext<M> {
+        inbound: InboundModelChannelReceiver<'m, M::Message>,
+    ) -> Self::ModelContext<'m, M> {
         ModelContext {
             element_index: self.element_index,
             model_identifier: M::IDENTIFIER,
@@ -76,25 +77,27 @@ impl BluetoothMeshElementContext for ElementContext {
     }
 }
 
-pub(crate) struct ModelContext {
+pub(crate) struct ModelContext<'m, M: Model> {
     element_index: usize,
     model_identifier: ModelIdentifier,
-    inbound: InboundReceiverImpl,
+    inbound: InboundModelChannelReceiver<'m, M::Message>,
     outbound: OutboundSenderImpl,
 }
 
-impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
+impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
     type ReceiveFuture<'f> = impl Future<Output = (M::Message, InboundMetadata)> + 'f
     where
         Self: 'f,
         M: 'f;
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
+        self.inbound.recv()
+        /*
         async move {
             loop {
-                let (_index, opcode, parameters, meta) = &*self.inbound.recv().await;
+                //let (_index, opcode, parameters, meta) = &*self.inbound.recv().await;
 
-                info!("**** parse {}", opcode);
+                //info!("**** parse {}", opcode);
 
                 match M::parse(*opcode, parameters) {
                     Ok(Some(message)) => {
@@ -109,6 +112,7 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext {
                 }
             }
         }
+         */
     }
 
     type SendFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
