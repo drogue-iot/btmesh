@@ -13,11 +13,11 @@ use btmesh_common::crypto::network::Nid;
 pub use btmesh_common::location;
 use btmesh_common::opcode::Opcode;
 pub use btmesh_common::ElementDescriptor;
+use btmesh_common::{opcode, IvIndex, ParseError, Ttl};
 pub use btmesh_common::{
     CompanyIdentifier, Composition, Features, InsufficientBuffer, ModelIdentifier,
     ProductIdentifier, VersionIdentifier,
 };
-use btmesh_common::{IvIndex, Ttl};
 use btmesh_models::foundation::configuration::AppKeyIndex;
 pub use btmesh_models::Model;
 use core::future::Future;
@@ -39,6 +39,10 @@ pub type InboundSenderImpl =
 pub type InboundReceiverImpl =
     Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
 pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
+
+pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+pub type InboundModelChannelSender<'m, M> = Sender<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+pub type InboundModelChannelReceiver<'m, M> = Receiver<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
 
 pub type OutboundChannelImpl = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundSenderImpl = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
@@ -92,12 +96,16 @@ pub trait BluetoothMeshElement {
 }
 
 pub trait BluetoothMeshElementContext {
-    type ModelContext<M: Model>: BluetoothMeshModelContext<M>;
-    fn model_context<M: Model>(
-        &self,
+    type ModelContext<'m, M: Model>: BluetoothMeshModelContext<M>
+    where
+        M: 'm,
+        Self: 'm;
+
+    fn model_context<'m, M: Model +'m>(
+        &'m self,
         index: usize,
-        inbound: InboundReceiverImpl,
-    ) -> Self::ModelContext<M>;
+        inbound: InboundModelChannelReceiver<'m, M::Message>,
+    ) -> Self::ModelContext<'m, M>;
 
     type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
     where
@@ -107,6 +115,8 @@ pub trait BluetoothMeshElementContext {
 }
 
 pub trait BluetoothMeshModel<M: Model> {
+    type Model: Model = M;
+
     type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
     where
         Self: 'f,
@@ -119,6 +129,12 @@ pub trait BluetoothMeshModel<M: Model> {
 
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER
+    }
+
+    fn parser(
+        &self,
+    ) -> for<'r> fn(Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError> {
+        (M::parse as fn(Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>)
     }
 }
 

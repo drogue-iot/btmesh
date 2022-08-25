@@ -8,7 +8,10 @@ use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{Field, GenericParam, Type};
+use syn::{AngleBracketedGenericArguments, Field, GenericArgument, GenericParam, Lifetime, Path, PathArguments, PathSegment, Type, TypePath};
+use syn::punctuated::Punctuated;
+use syn::spanned::Spanned;
+use syn::token::Colon2;
 
 #[derive(FromMeta)]
 struct DeviceArgs {
@@ -288,24 +291,33 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
     for field in fields.clone() {
         let field_name = field.ident.as_ref().unwrap();
+        let field_ty = evaporate(field.ty);
+        println!("------------> {:?}", field_ty);
         populate.extend(quote! {
             descriptor.add_model( self.#field_name.model_identifier() );
         });
 
         let i = MODEL_COUNTER.fetch_add(1, Ordering::Relaxed);
 
-        let model_channel_name = format_ident!("MODEL_CHANNEL_{}", i);
-        static_channels.extend( quote!{
-            static #model_channel_name: ::btmesh_device::InboundChannelImpl = ::btmesh_device::InboundChannelImpl::new();
-        });
+        let ch_name = format_ident!("{}_ch", field_name);
+        let ch_sender_name = format_ident!("{}_sender", field_name);
+        let ch_receiver_name = format_ident!("{}_receiver", field_name);
+        let ch_parser_name = format_ident!("{}_parser", field_name);
 
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            let #ctx_name = ctx.model_context(#i, #model_channel_name.receiver() );
+            //use ::btmesh_device::BluetoothMeshModel;
+            let #ch_name = ::btmesh_device::InboundModelChannel::new();
+            let #ch_sender_name = #ch_name.sender();
+            let #ch_receiver_name = #ch_name.receiver();
+            let #ch_parser_name = self.#field_name.parser();
+
+            let #ctx_name = ctx.model_context(#i, #ch_receiver_name );
         });
         fanout.extend(quote! {
-            //defmt::info!("sending to model {}", stringify!(#field_name) );
-            #model_channel_name.send(message.clone()).await;
+            if let Ok(Some(model_message)) = #ch_parser_name( message.1, &message.2 ) {
+                #ch_sender_name.send( (model_message, message.3.clone()) ).await;
+            }
         });
 
         ctor_params.extend(quote! {
@@ -333,7 +345,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                 async move {
                     #run_prolog
                     ::btmesh_device::join(
-                        async move {
+                        async {
                             loop {
                                 let message = ctx.receive().await;
                                 #fanout
@@ -362,14 +374,80 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         #static_channels
     );
 
-    /*
     let pretty = result.clone();
     let file: syn::File = syn::parse(pretty.into()).unwrap();
     let pretty = prettyplease::unparse(&file);
     println!("{}", pretty);
-     */
 
     result.into()
+}
+
+fn evaporate(ty: Type) -> Type {
+    if let Type::Path(path) = ty {
+        return Type::Path( TypePath {
+            qself: path.qself,
+            path: Path {
+                leading_colon: None,
+                segments: path.path.segments.iter().map(|e| {
+                    PathSegment {
+                        ident: e.ident.clone(),
+                        arguments: match e.arguments.clone() {
+                            PathArguments::None => PathArguments::None,
+                            PathArguments::AngleBracketed(inner) =>  {
+                                PathArguments::AngleBracketed(
+                                    AngleBracketedGenericArguments {
+                                        colon2_token: inner.colon2_token,
+                                        lt_token: inner.lt_token,
+                                        args: inner.args.iter().map(|e| {
+                                            match e {
+                                                GenericArgument::Lifetime(inner) => {
+                                                    GenericArgument::Lifetime( Lifetime {
+                                                        apostrophe: inner.apostrophe,
+                                                        ident: Ident::new("_", inner.ident.span())
+                                                    })
+                                                }
+                                                GenericArgument::Type(inner) => {
+                                                    let mut segments: Punctuated<PathSegment, Colon2> = Default::default();
+                                                    segments.push(
+                                                        PathSegment {
+                                                            ident: Ident::new("_", inner.span()),
+                                                            arguments: Default::default()
+                                                        }
+                                                    );
+                                                    GenericArgument::Type( Type::Path (
+                                                        TypePath {
+                                                            qself: None,
+                                                            path: Path {
+                                                                leading_colon: None,
+                                                                segments,
+                                                            }
+                                                        }
+
+                                                    ) )
+                                                }
+                                                GenericArgument::Binding(inner) => {
+                                                    GenericArgument::Binding(inner.clone())
+                                                }
+                                                GenericArgument::Constraint(inner) => {
+                                                    GenericArgument::Constraint(inner.clone())
+                                                }
+                                                GenericArgument::Const(inner) => {
+                                                    GenericArgument::Const(inner.clone())
+                                                }
+                                            }
+                                        }).collect(),
+                                        gt_token: inner.gt_token,
+                                    }
+                                )
+                            }
+                            PathArguments::Parenthesized(inner) => PathArguments::Parenthesized(inner),
+                        }
+                    }
+                }).collect()
+            }
+        } )
+    }
+    panic!("unsupport type");
 }
 
 fn select_future_name(struct_name: Ident) -> Ident {

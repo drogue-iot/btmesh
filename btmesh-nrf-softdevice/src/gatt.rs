@@ -5,7 +5,7 @@ use core::future::Future;
 use core::sync::atomic::Ordering;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::{channel::Channel, signal::Signal};
-use embassy_futures::{Either, select};
+use embassy_futures::{select};
 use heapless::Vec;
 use nrf_softdevice::ble::peripheral::AdvertiseError;
 use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
