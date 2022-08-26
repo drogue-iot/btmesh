@@ -94,6 +94,8 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         ModelPublicationMessage::Set(set) | ModelPublicationMessage::VirtualAddressSet(set) => {
             let composition = storage.composition();
 
+            info!("==================> {}", set.details.element_address);
+
             let (status, err) = convert(
                 &storage
                     .modify_provisioned(|config| {
@@ -108,6 +110,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                             )?;
                             Ok(())
                         } else {
+                            info!("invalid element address?");
                             Err(DriverError::InvalidElementAddress)
                         }
                     })

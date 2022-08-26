@@ -1,11 +1,6 @@
 use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
-use btmesh_device::{
-    BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata,
-    InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundMetadata,
-    OutboundPayload, SendExtra,
-};
+use btmesh_device::{BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext, CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata, InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundExtra, OutboundMetadata, OutboundPayload, SendExtra};
 use btmesh_models::Message;
 use core::future::Future;
 use embassy_sync::signal::Signal;
@@ -162,7 +157,23 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
         Self: 'f,
         M: 'f;
 
-    fn publish(&self, _message: M::Message) -> Self::PublishFuture<'_> {
-        async move { todo!() }
+    fn publish(&self, message: M::Message) -> Self::PublishFuture<'_> {
+        async move {
+            let opcode = message.opcode();
+            let mut parameters = Vec::new();
+            if message.emit_parameters(&mut parameters).is_ok() {
+                self.outbound
+                    .send(OutboundPayload {
+                        element_index: self.element_index,
+                        model_identifer: self.model_identifier,
+                        opcode,
+                        parameters,
+                        extra: OutboundExtra::Publish,
+                    })
+                    .await;
+            }
+
+            Ok(())
+        }
     }
 }

@@ -61,9 +61,13 @@ impl<const N: usize> Publications<N> {
         element_index: u8,
         details: PublicationDetails,
     ) -> Result<(), DriverError> {
+        info!("pub-set 1");
         if let PublishAddress::Unassigned = details.publish_address {
+            info!("pub-set 2");
             for slot in self.entries.iter_mut().filter(|e| {
+                info!("pub-set 3");
                 if let Some(slot) = e {
+                    info!("pub-set 4");
                     slot.element_index == element_index
                         && slot.model_identifier == details.model_identifier
                 } else {
@@ -75,20 +79,27 @@ impl<const N: usize> Publications<N> {
             return Ok(());
         }
 
+        info!("pub-set 5");
         if self.entries.iter().any(|e| {
             if let Some(slot) = e {
+                info!("pub-set 6");
                 slot.element_index == element_index
                     && slot.model_identifier == details.model_identifier
             } else {
+                info!("pub-set 7");
                 false
             }
         }) {
             return Ok(());
         }
 
+        info!("pub-set 8");
         let descriptor = &composition[element_index];
+        info!("pub-set 9");
         if descriptor.has_model(details.model_identifier) {
+            info!("pub-set 10");
             if let Some(slot) = self.entries.iter_mut().find(|e| matches!(e, None)) {
+                info!("pub-set 11");
                 slot.replace(Publication {
                     element_index,
                     publish_address: details.publish_address,
@@ -102,9 +113,11 @@ impl<const N: usize> Publications<N> {
                 });
                 Ok(())
             } else {
+                info!("pub-set 12");
                 Err(DriverError::InsufficientSpace)
             }
         } else {
+            info!("pub-set 13");
             Err(DriverError::InvalidModel)
         }
     }

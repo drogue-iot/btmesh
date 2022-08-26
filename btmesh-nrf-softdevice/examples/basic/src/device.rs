@@ -1,8 +1,11 @@
-use btmesh_device::{join, BluetoothMeshModel, BluetoothMeshModelContext, Either, select, pin_mut};
+use btmesh_device::{join, BluetoothMeshModel, BluetoothMeshModelContext };
 use btmesh_macro::{device, element};
-use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer};
+use btmesh_models::generic::onoff::{
+    GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set,
+};
 use core::future::Future;
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
+use embassy_futures::{select, Either};
 
 #[device(cid = 0x0003, pid = 0x0001, vid = 0x0001)]
 pub struct Device<'d> {
@@ -95,16 +98,20 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                let button_fut = self.button.wait_for_falling_edge();
+                let button_fut = self.button.wait_for_any_edge();
                 let message_fut = ctx.receive();
-                pin_mut!(button_fut);
-                pin_mut!(message_fut);
 
                 match select(button_fut, message_fut).await {
-                    Either::Left((button, _)) => {
-                        defmt::info!("** button pushed");
+                    Either::First(_) => {
+                        defmt::info!("** button toggled");
+                        ctx.publish(GenericOnOffMessage::SetUnacknowledged(Set {
+                            on_off: if self.button.is_high() { 128 } else {0 },
+                            tid: 0,
+                            transition_time: None,
+                            delay: None
+                        })).await;
                     }
-                    Either::Right((message, _)) => {
+                    Either::Second(message) => {
                         defmt::info!("** message received");
                     }
                 }

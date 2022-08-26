@@ -145,7 +145,7 @@ impl ProvisionedStack {
                 )?)
             }
             KeyHandle::Network(_) => {
-                todo!()
+                todo!("network key handle")
             }
             KeyHandle::Application(key_handle) => {
                 let nonce = ApplicationNonce::new(
