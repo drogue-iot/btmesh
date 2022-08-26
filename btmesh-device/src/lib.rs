@@ -32,21 +32,29 @@ pub use futures::future::Either;
 pub use futures::pin_mut;
 use heapless::Vec;
 
-pub type InboundChannelImpl =
+pub type InboundChannel =
     Channel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
-pub type InboundSenderImpl =
+pub type InboundChannelSender =
     Sender<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
-pub type InboundReceiverImpl =
+pub type InboundChannelReceiver =
     Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
-pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
+
+//pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
+pub struct InboundPayload {
+    pub element_index: Option<usize>,
+    pub opcode: Opcode,
+    pub parameters: Vec<u8, 380>,
+    pub meta: InboundMetadata,
+}
 
 pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, (M, InboundMetadata), 1>;
 pub type InboundModelChannelSender<'m, M> = Sender<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
 pub type InboundModelChannelReceiver<'m, M> = Receiver<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
 
-pub type OutboundChannelImpl = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
-pub type OutboundSenderImpl = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
-pub type OutboundReceiverImpl = Receiver<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
+pub type OutboundChannel = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
+pub type OutboundChannelSender = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
+pub type OutboundChannelReceiver = Receiver<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
+
 pub type OutboundPayload = (
     (usize, ModelIdentifier),
     Opcode,
@@ -58,7 +66,7 @@ pub type OutboundPayload = (
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
 
-    fn element_context(&self, index: usize, inbound: InboundReceiverImpl) -> Self::ElementContext;
+    fn element_context(&self, index: usize, inbound: InboundChannelReceiver) -> Self::ElementContext;
 
     type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
     where
@@ -103,7 +111,6 @@ pub trait BluetoothMeshElementContext {
 
     fn model_context<'m, M: Model +'m>(
         &'m self,
-        index: usize,
         inbound: InboundModelChannelReceiver<'m, M::Message>,
     ) -> Self::ModelContext<'m, M>;
 

@@ -8,7 +8,7 @@
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{
-    BluetoothMeshDevice, InboundChannelImpl, InboundReceiverImpl, OutboundChannelImpl,
+    BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, OutboundChannel,
     OutboundPayload,
 };
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
@@ -300,7 +300,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
     fn run_device<D: BluetoothMeshDevice>(
         device: &mut D,
-        receiver: InboundReceiverImpl,
+        receiver: InboundChannelReceiver,
     ) -> impl Future<Output = Result<(), ()>> + '_ {
         device.run(DeviceContext::new(receiver, OUTBOUND.sender()))
     }
@@ -536,10 +536,10 @@ pub enum DeviceState {
     Provisioned,
 }
 
-static FOUNDATION_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
-static DEVICE_INBOUND: InboundChannelImpl = InboundChannelImpl::new();
+static FOUNDATION_INBOUND: InboundChannel = InboundChannel::new();
+static DEVICE_INBOUND: InboundChannel = InboundChannel::new();
 
-static OUTBOUND: OutboundChannelImpl = OutboundChannelImpl::new();
+static OUTBOUND: OutboundChannel = OutboundChannel::new();
 
 fn enhance_composition(composition: Composition) -> Result<Composition, DriverError> {
     let mut enhanced = Composition::new(composition.cid(), composition.pid(), composition.vid());

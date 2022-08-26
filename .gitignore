@@ -4,3 +4,4 @@ target/
 .idea
 log
 tmp
+memusage.txt

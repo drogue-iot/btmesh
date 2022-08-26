@@ -3,7 +3,7 @@ use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
     CompletionStatus, CompletionToken, InboundMetadata, InboundModelChannelReceiver,
-    InboundPayload, InboundReceiverImpl, Model, OutboundMetadata, OutboundSenderImpl,
+    InboundPayload, InboundChannelReceiver, Model, OutboundMetadata, OutboundChannelSender,
 };
 use btmesh_models::Message;
 use core::future::Future;
@@ -11,12 +11,12 @@ use embassy_sync::signal::Signal;
 use heapless::Vec;
 
 pub(crate) struct DeviceContext {
-    inbound: InboundReceiverImpl,
-    outbound: OutboundSenderImpl,
+    inbound: InboundChannelReceiver,
+    outbound: OutboundChannelSender,
 }
 
 impl DeviceContext {
-    pub fn new(inbound: InboundReceiverImpl, outbound: OutboundSenderImpl) -> Self {
+    pub fn new(inbound: InboundChannelReceiver, outbound: OutboundChannelSender) -> Self {
         Self { inbound, outbound }
     }
 }
@@ -27,7 +27,7 @@ impl BluetoothMeshDeviceContext for DeviceContext {
     fn element_context(
         &self,
         element_index: usize,
-        inbound: InboundReceiverImpl,
+        inbound: InboundChannelReceiver,
     ) -> Self::ElementContext {
         ElementContext {
             element_index,
@@ -47,8 +47,8 @@ impl BluetoothMeshDeviceContext for DeviceContext {
 
 pub(crate) struct ElementContext {
     element_index: usize,
-    inbound: InboundReceiverImpl,
-    outbound: OutboundSenderImpl,
+    inbound: InboundChannelReceiver,
+    outbound: OutboundChannelSender,
 }
 
 impl BluetoothMeshElementContext for ElementContext {
@@ -57,7 +57,6 @@ impl BluetoothMeshElementContext for ElementContext {
 
     fn model_context<'m, M: Model + 'm>(
         &'m self,
-        _index: usize,
         inbound: InboundModelChannelReceiver<'m, M::Message>,
     ) -> Self::ModelContext<'m, M> {
         ModelContext {
@@ -81,7 +80,7 @@ pub(crate) struct ModelContext<'m, M: Model> {
     element_index: usize,
     model_identifier: ModelIdentifier,
     inbound: InboundModelChannelReceiver<'m, M::Message>,
-    outbound: OutboundSenderImpl,
+    outbound: OutboundChannelSender,
 }
 
 impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {

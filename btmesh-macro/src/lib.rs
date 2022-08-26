@@ -107,7 +107,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
         );
 
         static_channels.extend( quote!{
-            static #element_channel_name: ::btmesh_device::InboundChannelImpl = ::btmesh_device::InboundChannelImpl::new();
+            static #element_channel_name: ::btmesh_device::InboundChannel = ::btmesh_device::InboundChannel::new();
         });
 
         let ctx_name = format_ident!("{}_ctx", field_name);
@@ -160,7 +160,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                         async move {
                             loop {
                                 let message = ctx.receive().await;
-                                let target_element_index = message.0;
+                                let target_element_index = message.element_index;
                                 #fanout
                             }
                         },
@@ -281,7 +281,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
     let mut populate = TokenStream2::new();
     let mut ctor_params = TokenStream2::new();
-    let mut static_channels = TokenStream2::new();
     let mut run_prolog = TokenStream2::new();
     let mut fanout = TokenStream2::new();
 
@@ -297,8 +296,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
             descriptor.add_model( self.#field_name.model_identifier() );
         });
 
-        let i = MODEL_COUNTER.fetch_add(1, Ordering::Relaxed);
-
         let ch_name = format_ident!("{}_ch", field_name);
         let ch_sender_name = format_ident!("{}_sender", field_name);
         let ch_receiver_name = format_ident!("{}_receiver", field_name);
@@ -306,17 +303,17 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            //use ::btmesh_device::BluetoothMeshModel;
             let #ch_name = ::btmesh_device::InboundModelChannel::new();
             let #ch_sender_name = #ch_name.sender();
             let #ch_receiver_name = #ch_name.receiver();
             let #ch_parser_name = self.#field_name.parser();
 
-            let #ctx_name = ctx.model_context(#i, #ch_receiver_name );
+            let #ctx_name = ctx.model_context(#ch_receiver_name );
         });
+
         fanout.extend(quote! {
-            if let Ok(Some(model_message)) = #ch_parser_name( message.1, &message.2 ) {
-                #ch_sender_name.send( (model_message, message.3.clone()) ).await;
+            if let Ok(Some(model_message)) = #ch_parser_name( message.opcode, &message.parameters ) {
+                #ch_sender_name.send( (model_message, message.meta.clone()) ).await;
             }
         });
 
@@ -370,8 +367,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         #element_impl
 
         #element_future
-
-        #static_channels
     );
 
     let pretty = result.clone();
