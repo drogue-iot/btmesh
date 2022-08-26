@@ -290,8 +290,6 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
     for field in fields.clone() {
         let field_name = field.ident.as_ref().unwrap();
-        let field_ty = evaporate(field.ty);
-        println!("------------> {:?}", field_ty);
         populate.extend(quote! {
             descriptor.add_model( self.#field_name.model_identifier() );
         });
@@ -313,7 +311,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
         fanout.extend(quote! {
             if let Ok(Some(model_message)) = #ch_parser_name( message.opcode, &message.parameters ) {
-                #ch_sender_name.send( (model_message, message.meta.clone()) ).await;
+                #ch_sender_name.try_send( (model_message, message.meta.clone()) ).ok();
             }
         });
 
@@ -369,80 +367,14 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         #element_future
     );
 
+    /*
     let pretty = result.clone();
     let file: syn::File = syn::parse(pretty.into()).unwrap();
     let pretty = prettyplease::unparse(&file);
     println!("{}", pretty);
+     */
 
     result.into()
-}
-
-fn evaporate(ty: Type) -> Type {
-    if let Type::Path(path) = ty {
-        return Type::Path( TypePath {
-            qself: path.qself,
-            path: Path {
-                leading_colon: None,
-                segments: path.path.segments.iter().map(|e| {
-                    PathSegment {
-                        ident: e.ident.clone(),
-                        arguments: match e.arguments.clone() {
-                            PathArguments::None => PathArguments::None,
-                            PathArguments::AngleBracketed(inner) =>  {
-                                PathArguments::AngleBracketed(
-                                    AngleBracketedGenericArguments {
-                                        colon2_token: inner.colon2_token,
-                                        lt_token: inner.lt_token,
-                                        args: inner.args.iter().map(|e| {
-                                            match e {
-                                                GenericArgument::Lifetime(inner) => {
-                                                    GenericArgument::Lifetime( Lifetime {
-                                                        apostrophe: inner.apostrophe,
-                                                        ident: Ident::new("_", inner.ident.span())
-                                                    })
-                                                }
-                                                GenericArgument::Type(inner) => {
-                                                    let mut segments: Punctuated<PathSegment, Colon2> = Default::default();
-                                                    segments.push(
-                                                        PathSegment {
-                                                            ident: Ident::new("_", inner.span()),
-                                                            arguments: Default::default()
-                                                        }
-                                                    );
-                                                    GenericArgument::Type( Type::Path (
-                                                        TypePath {
-                                                            qself: None,
-                                                            path: Path {
-                                                                leading_colon: None,
-                                                                segments,
-                                                            }
-                                                        }
-
-                                                    ) )
-                                                }
-                                                GenericArgument::Binding(inner) => {
-                                                    GenericArgument::Binding(inner.clone())
-                                                }
-                                                GenericArgument::Constraint(inner) => {
-                                                    GenericArgument::Constraint(inner.clone())
-                                                }
-                                                GenericArgument::Const(inner) => {
-                                                    GenericArgument::Const(inner.clone())
-                                                }
-                                            }
-                                        }).collect(),
-                                        gt_token: inner.gt_token,
-                                    }
-                                )
-                            }
-                            PathArguments::Parenthesized(inner) => PathArguments::Parenthesized(inner),
-                        }
-                    }
-                }).collect()
-            }
-        } )
-    }
-    panic!("unsupport type");
 }
 
 fn select_future_name(struct_name: Ident) -> Ident {

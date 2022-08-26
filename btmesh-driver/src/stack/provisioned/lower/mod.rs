@@ -26,7 +26,7 @@ pub struct LowerDriver {
 impl LowerDriver {
     pub fn expire_inbound(
         &mut self,
-        seq_zero: SeqZero,
+        seq_zero: &SeqZero,
         watchdog: &Watchdog,
     ) -> Option<(BlockAck, UpperMetadata)> {
         self.inbound_segmentation.expire_inbound(seq_zero, watchdog)
@@ -86,8 +86,8 @@ impl ProvisionedStack {
         &mut self,
         sequence: &Sequence,
         block_ack: BlockAck,
-        meta: UpperMetadata,
-        src: UnicastAddress,
+        meta: &UpperMetadata,
+        src: &UnicastAddress,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         info!("** process block ack {}", block_ack);
         let network_pdus = self.process_outbound_upper_pdu(
@@ -120,8 +120,8 @@ impl ProvisionedStack {
 fn block_ack_to_upper_pdu(
     sequence: &Sequence,
     block_ack: BlockAck,
-    meta: UpperMetadata,
-    src: UnicastAddress,
+    meta: &UpperMetadata,
+    src: &UnicastAddress,
 ) -> Result<UpperPDU<ProvisionedStack>, InsufficientBuffer> {
     let mut parameters = [0; 6];
 
@@ -142,7 +142,7 @@ fn block_ack_to_upper_pdu(
         local_element_index: None,
         akf_aid: meta.aid(),
         seq: sequence.next(),
-        src,
+        src: *src,
         dst: meta.src().into(),
         ttl: meta.ttl(),
         label_uuids: Vec::from_slice(meta.label_uuids())?,

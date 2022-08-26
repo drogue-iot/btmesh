@@ -2,8 +2,9 @@ use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    CompletionStatus, CompletionToken, InboundMetadata, InboundModelChannelReceiver,
-    InboundPayload, InboundChannelReceiver, Model, OutboundMetadata, OutboundChannelSender,
+    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata,
+    InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundMetadata,
+    OutboundPayload,
 };
 use btmesh_models::Message;
 use core::future::Future;
@@ -91,27 +92,6 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         self.inbound.recv()
-        /*
-        async move {
-            loop {
-                //let (_index, opcode, parameters, meta) = &*self.inbound.recv().await;
-
-                //info!("**** parse {}", opcode);
-
-                match M::parse(*opcode, parameters) {
-                    Ok(Some(message)) => {
-                        return (message, *meta);
-                    }
-                    Ok(None) => {
-                        continue;
-                    }
-                    Err(err) => {
-                        info!("problems parsing {}", err);
-                    }
-                }
-            }
-        }
-         */
     }
 
     type SendFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
@@ -125,13 +105,14 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
             let mut parameters = Vec::new();
             if message.emit_parameters(&mut parameters).is_ok() {
                 self.outbound
-                    .send((
-                        (self.element_index, self.model_identifier),
+                    .send(OutboundPayload {
+                        element_index: self.element_index,
+                        model_identifer: self.model_identifier,
                         opcode,
                         parameters,
                         meta,
-                        None,
-                    ))
+                        completion_token: None,
+                    })
                     .await
             }
 
@@ -156,13 +137,14 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
             if message.emit_parameters(&mut parameters).is_ok() {
                 info!("sending outbound");
                 self.outbound
-                    .send((
-                        (self.element_index, self.model_identifier),
+                    .send(OutboundPayload {
+                        element_index: self.element_index,
+                        model_identifer: self.model_identifier,
                         opcode,
                         parameters,
                         meta,
-                        Some(CompletionToken::new(signal)),
-                    ))
+                        completion_token: Some(CompletionToken::new(signal)),
+                    })
                     .await;
                 info!("sending outbound complete");
             }

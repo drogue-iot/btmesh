@@ -35,13 +35,13 @@ pub struct SegmentationResult {
 impl<const N: usize> InboundSegmentation<N> {
     pub fn expire_inbound(
         &mut self,
-        seq_zero: SeqZero,
+        seq_zero: &SeqZero,
         watchdog: &Watchdog,
     ) -> Option<(BlockAck, UpperMetadata)> {
         let result = self
             .current
             .values_mut()
-            .find(|e| e.seq_zero == seq_zero)
+            .find(|e| e.seq_zero == *seq_zero)
             .map(|in_flight| in_flight.expire());
 
         for e in self.current.values() {

@@ -179,15 +179,6 @@ impl ProvisionedStack {
         )?;
 
         Ok(network_pdu)
-
-        /*
-        Ok(NetworkPDU::new(
-            cleartext_pdu.ivi(),
-            cleartext_pdu.nid(),
-            obfuscated,
-            &*encrypted_and_mic,
-        )?)
-         */
     }
 
     pub fn try_decrypt_network_pdu(
@@ -249,14 +240,6 @@ impl ProvisionedStack {
 
         if crypto::network::try_decrypt_network(&network_key, &nonce, payload, &mic).is_ok() {
             let ttl = Ttl::parse(unobfuscated[0] & 0b01111111)?;
-            /*
-            let seq = Seq::parse(u32::from_be_bytes([
-                0,
-                unobfuscated[1],
-                unobfuscated[2],
-                unobfuscated[3],
-            ]))?;
-             */
 
             let src = UnicastAddress::parse([unobfuscated[4], unobfuscated[5]])?;
             let dst = Address::parse([payload[0], payload[1]]);

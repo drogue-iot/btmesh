@@ -166,7 +166,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             .read_provisioned(|config| {
                                 if let Some(src) = config.device_info().local_element_address(0) {
                                     Ok(stack.process_outbound_block_ack(
-                                        sequence, block_ack, meta, src,
+                                        sequence, block_ack, &meta, &src,
                                     )?)
                                 } else {
                                     Ok(Vec::new())
@@ -182,7 +182,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         }
                     }
 
-                    if let Some(message) = result.message {
+                    if let Some(message) = &result.message {
                         // dispatch to element(s)
                         match message {
                             Message::Access(message) => {
@@ -205,27 +205,27 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
     async fn process_outbound_payload(
         &self,
-        outbound_payload: OutboundPayload,
+        outbound_payload: &OutboundPayload,
     ) -> Result<(), DriverError> {
         let network_pdus = self
             .storage
             .read_provisioned(|config| {
                 let element_address = config
                     .device_info()
-                    .local_element_address(outbound_payload.0 .0 as u8)
+                    .local_element_address(outbound_payload.element_index as u8)
                     .ok_or(DriverError::InvalidState)?;
                 let default_ttl = config.foundation().configuration().default_ttl();
                 let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
-                    outbound_payload.1,
-                    outbound_payload.2,
-                    (element_address, outbound_payload.3, default_ttl),
+                    outbound_payload.opcode,
+                    Vec::from_slice(&outbound_payload.parameters.clone())?,
+                    (element_address, outbound_payload.meta, default_ttl),
                 );
 
                 if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
                     let network_pdus = stack.process_outbound(
                         sequence,
                         &(message.into()),
-                        outbound_payload.4,
+                        outbound_payload.completion_token.clone(),
                         &self.watchdog,
                     )?;
                     Ok(Some(network_pdus))
@@ -397,7 +397,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             return Err(err.into());
                         }
                         Either::Second(outbound_payload) => {
-                            self.process_outbound_payload(outbound_payload).await?;
+                            self.process_outbound_payload(&outbound_payload).await?;
                         }
                     },
                     Either4::Second(_) => {
@@ -407,7 +407,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         self.retransmit().await?;
                     }
                     Either4::Fourth(Some(expiration)) => {
-                        self.handle_watchdog_event(expiration.take()).await?;
+                        self.handle_watchdog_event(&expiration.take()).await?;
                     }
                     Either4::Fourth(None) => {
                         // nothing?
@@ -417,7 +417,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
-    async fn handle_watchdog_event(&self, event: WatchdogEvent) -> Result<(), DriverError> {
+    async fn handle_watchdog_event(&self, event: &WatchdogEvent) -> Result<(), DriverError> {
         match event {
             WatchdogEvent::LinkOpenTimeout => {
                 self.network.close_link(Reason::Timeout).await?;
@@ -440,7 +440,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                 Ok(Some(stack.inbound_expiration(
                                     sequence,
                                     seq_zero,
-                                    src,
+                                    &src,
                                     &self.watchdog,
                                 )?))
                             } else {

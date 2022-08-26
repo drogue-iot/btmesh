@@ -32,7 +32,6 @@ impl Dispatcher {
 
     pub fn check_if_replay(&mut self, pdu: &AccessMessage<ProvisionedStack>) -> bool {
         if let Some(replay_seq) = pdu.meta().replay_seq() {
-            info!(" ------------------------> {}", replay_seq);
             let iv_index = (pdu.meta().iv_index().value() & 0xFFFF) as u16;
 
             if let Some(entry) = self.lru.find(|e| e.src == pdu.meta().src()) {
@@ -67,7 +66,7 @@ impl Dispatcher {
 
     pub async fn dispatch(
         &mut self,
-        message: AccessMessage<ProvisionedStack>,
+        message: &AccessMessage<ProvisionedStack>,
     ) -> Result<(), DriverError> {
         info!("dispatch {}", message);
 

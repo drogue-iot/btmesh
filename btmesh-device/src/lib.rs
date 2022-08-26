@@ -39,7 +39,6 @@ pub type InboundChannelSender =
 pub type InboundChannelReceiver =
     Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
 
-//pub type InboundPayload = (Option<usize>, Opcode, Vec<u8, 380>, InboundMetadata);
 pub struct InboundPayload {
     pub element_index: Option<usize>,
     pub opcode: Opcode,
@@ -48,25 +47,32 @@ pub struct InboundPayload {
 }
 
 pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, (M, InboundMetadata), 1>;
-pub type InboundModelChannelSender<'m, M> = Sender<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
-pub type InboundModelChannelReceiver<'m, M> = Receiver<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+pub type InboundModelChannelSender<'m, M> =
+    Sender<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+pub type InboundModelChannelReceiver<'m, M> =
+    Receiver<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
 
 pub type OutboundChannel = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundChannelSender = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundChannelReceiver = Receiver<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
 
-pub type OutboundPayload = (
-    (usize, ModelIdentifier),
-    Opcode,
-    Vec<u8, 379>,
-    OutboundMetadata,
-    Option<CompletionToken>,
-);
+pub struct OutboundPayload {
+    pub element_index: usize,
+    pub model_identifer: ModelIdentifier,
+    pub opcode: Opcode,
+    pub parameters: Vec<u8, 380>,
+    pub meta: OutboundMetadata,
+    pub completion_token: Option<CompletionToken>,
+}
 
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
 
-    fn element_context(&self, index: usize, inbound: InboundChannelReceiver) -> Self::ElementContext;
+    fn element_context(
+        &self,
+        index: usize,
+        inbound: InboundChannelReceiver,
+    ) -> Self::ElementContext;
 
     type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
     where
@@ -109,7 +115,7 @@ pub trait BluetoothMeshElementContext {
         M: 'm,
         Self: 'm;
 
-    fn model_context<'m, M: Model +'m>(
+    fn model_context<'m, M: Model + 'm>(
         &'m self,
         inbound: InboundModelChannelReceiver<'m, M::Message>,
     ) -> Self::ModelContext<'m, M>;

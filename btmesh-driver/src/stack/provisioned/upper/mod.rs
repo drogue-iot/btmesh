@@ -54,9 +54,9 @@ impl ProvisionedStack {
 
     pub fn process_inbound_upper_pdu(
         &mut self,
-        mut pdu: UpperPDU<ProvisionedStack>,
+        pdu: &mut UpperPDU<ProvisionedStack>,
     ) -> Result<Message<ProvisionedStack>, DriverError> {
-        self.apply_label_uuids(&mut pdu)?;
+        self.apply_label_uuids(pdu)?;
         match pdu {
             UpperPDU::Access(access) => Ok(self.decrypt_access(access)?.into()),
             UpperPDU::Control(control) => Ok(ControlMessage::new(
@@ -181,7 +181,7 @@ impl ProvisionedStack {
 
     fn decrypt_access(
         &mut self,
-        pdu: UpperAccessPDU<ProvisionedStack>,
+        pdu: &UpperAccessPDU<ProvisionedStack>,
     ) -> Result<AccessMessage<ProvisionedStack>, DriverError> {
         if let Some(aid) = pdu.meta().aid() {
             // akf=true and an AID was provided.
