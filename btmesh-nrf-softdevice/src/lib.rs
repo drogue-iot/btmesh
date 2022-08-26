@@ -3,7 +3,6 @@
 #![feature(generic_associated_types)]
 #![feature(associated_type_defaults)]
 #![feature(future_join)]
-#![feature(future_poll_fn)]
 #![allow(dead_code)]
 
 #[cfg(not(any(feature = "nrf52833", feature = "nrf52840",)))]

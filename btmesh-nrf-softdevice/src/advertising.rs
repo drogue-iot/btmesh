@@ -45,7 +45,7 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
                     AdvertiseError::NoFreeConn => {
                         Err(BearerError::InsufficientResources)
                     },
-                    AdvertiseError::Raw(raw) => {
+                    AdvertiseError::Raw(_raw) => {
                         Err(BearerError::TransmissionFailure)
                     },
                 }

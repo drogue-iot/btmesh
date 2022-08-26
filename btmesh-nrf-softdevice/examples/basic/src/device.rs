@@ -1,11 +1,11 @@
-use btmesh_device::{join, BluetoothMeshModel, BluetoothMeshModelContext };
+use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{
     GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set,
 };
 use core::future::Future;
-use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 use embassy_futures::{select, Either};
+use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
 #[device(cid = 0x0003, pid = 0x0001, vid = 0x0001)]
 pub struct Device<'d> {
@@ -59,11 +59,11 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                let (message, meta) = ctx.receive().await;
+                let (message, _meta) = ctx.receive().await;
                 match message {
                     GenericOnOffMessage::Get => {}
-                    GenericOnOffMessage::Set(val) => {}
-                    GenericOnOffMessage::SetUnacknowledged(val) => {}
+                    GenericOnOffMessage::Set(_val) => {}
+                    GenericOnOffMessage::SetUnacknowledged(_val) => {}
                     GenericOnOffMessage::Status(_) => {
                         // not applicable
                     }
@@ -105,13 +105,15 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
                     Either::First(_) => {
                         defmt::info!("** button toggled");
                         ctx.publish(GenericOnOffMessage::SetUnacknowledged(Set {
-                            on_off: if self.button.is_high() { 128 } else {0 },
+                            on_off: if self.button.is_high() { 128 } else { 0 },
                             tid: 0,
                             transition_time: None,
-                            delay: None
-                        })).await;
+                            delay: None,
+                        }))
+                        .await
+                        .ok();
                     }
-                    Either::Second(message) => {
+                    Either::Second(_message) => {
                         defmt::info!("** message received");
                     }
                 }

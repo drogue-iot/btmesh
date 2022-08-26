@@ -1,6 +1,11 @@
 use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
-use btmesh_device::{BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext, CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata, InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundExtra, OutboundMetadata, OutboundPayload, SendExtra};
+use btmesh_device::{
+    BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
+    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata,
+    InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundExtra,
+    OutboundMetadata, OutboundPayload, SendExtra,
+};
 use btmesh_models::Message;
 use core::future::Future;
 use embassy_sync::signal::Signal;
