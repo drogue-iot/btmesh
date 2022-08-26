@@ -19,12 +19,12 @@ const SEGMENT_LOWER_PDU_SIZE: usize = SEGMENTED_ACCESS_MTU + 4;
 pub struct OutboundSegmentation {}
 
 impl OutboundSegmentation {
-    pub fn process(
+    pub fn process<const N: usize>(
         &mut self,
         sequence: &Sequence,
         pdu: &UpperPDU<ProvisionedStack>,
         is_retransmit: bool,
-    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, 8>, DriverError> {
+    ) -> Result<Vec<CleartextNetworkPDU<ProvisionedStack>, N>, DriverError> {
         let meta = NetworkMetadata::from_upper_pdu(pdu);
         let mut result = Vec::new();
 

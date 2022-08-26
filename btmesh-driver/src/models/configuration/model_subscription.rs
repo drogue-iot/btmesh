@@ -14,8 +14,8 @@ use heapless::Vec;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: ModelSubscriptionMessage,
-    meta: InboundMetadata,
+    message: &ModelSubscriptionMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match &message {
         ModelSubscriptionMessage::Add(add) | ModelSubscriptionMessage::VirtualAddressAdd(add) => {
@@ -45,9 +45,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             return respond(
                 ctx,
                 status_err,
-                add.element_address,
-                add.subscription_address,
-                add.model_identifier,
+                &add.element_address,
+                &add.subscription_address,
+                &add.model_identifier,
                 meta,
             )
             .await;
@@ -78,9 +78,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             return respond(
                 ctx,
                 status_err,
-                delete.element_address,
-                delete.subscription_address,
-                delete.model_identifier,
+                &delete.element_address,
+                &delete.subscription_address,
+                &delete.model_identifier,
                 meta,
             )
             .await;
@@ -107,9 +107,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             return respond(
                 ctx,
                 status_err,
-                delete_all.element_address,
-                SubscriptionAddress::Unassigned,
-                delete_all.model_identifier,
+                &delete_all.element_address,
+                &SubscriptionAddress::Unassigned,
+                &delete_all.model_identifier,
                 meta,
             )
             .await;
@@ -146,9 +146,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             return respond(
                 ctx,
                 status_err,
-                overwrite.element_address,
-                overwrite.subscription_address,
-                overwrite.model_identifier,
+                &overwrite.element_address,
+                &overwrite.subscription_address,
+                &overwrite.model_identifier,
                 meta,
             )
             .await;
@@ -254,17 +254,17 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 async fn respond<C: BluetoothMeshModelContext<ConfigurationServer>>(
     ctx: &C,
     (status, err): (Status, Option<DriverError>),
-    element_address: UnicastAddress,
-    subscription_address: SubscriptionAddress,
-    model_identifier: ModelIdentifier,
-    meta: InboundMetadata,
+    element_address: &UnicastAddress,
+    subscription_address: &SubscriptionAddress,
+    model_identifier: &ModelIdentifier,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     ctx.send(
         ModelSubscriptionMessage::Status(ModelSubscriptionStatusMessage {
             status,
-            element_address,
-            subscription_address,
-            model_identifier,
+            element_address: *element_address,
+            subscription_address: *subscription_address,
+            model_identifier: *model_identifier,
         })
         .into(),
         meta.reply(),

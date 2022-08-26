@@ -196,7 +196,6 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             _ => {
-                info!("weird ass combination");
                 // PDU incompatible with stack state or stack not initialized; ignore.
             }
         }

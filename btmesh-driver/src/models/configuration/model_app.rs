@@ -7,8 +7,8 @@ use btmesh_models::foundation::configuration::ConfigurationServer;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: ModelAppMessage,
-    meta: InboundMetadata,
+    message: &ModelAppMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         ModelAppMessage::Bind(bind) => {
@@ -39,7 +39,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             ctx.send(
                 ModelAppMessage::Status(ModelAppStatusMessage {
                     status,
-                    payload: bind,
+                    payload: *bind,
                 })
                 .into(),
                 meta.reply(),
@@ -79,7 +79,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             ctx.send(
                 ModelAppMessage::Status(ModelAppStatusMessage {
                     status,
-                    payload: unbind,
+                    payload: *unbind,
                 })
                 .into(),
                 meta.reply(),

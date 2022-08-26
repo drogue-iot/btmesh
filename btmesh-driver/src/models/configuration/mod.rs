@@ -39,49 +39,49 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
                 let (message, meta) = ctx.receive().await;
 
                 info!("---------------> {}", message);
-                match message {
+                match &message {
                     ConfigurationMessage::Beacon(beacon) => {
-                        beacon::dispatch(&ctx, self.storage, beacon, meta)
+                        beacon::dispatch(&ctx, self.storage, beacon, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::DefaultTTL(default_ttl) => {
-                        default_ttl::dispatch(&ctx, self.storage, default_ttl, meta)
+                        default_ttl::dispatch(&ctx, self.storage, default_ttl, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::Relay(relay) => {
-                        relay::dispatch(&ctx, self.storage, relay, meta)
+                        relay::dispatch(&ctx, self.storage, relay, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::CompositionData(composition_data) => {
-                        composition_data::dispatch(&ctx, self.storage, composition_data, meta)
+                        composition_data::dispatch(&ctx, self.storage, composition_data, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::AppKey(app_key) => {
-                        app_key::dispatch(&ctx, self.storage, app_key, meta)
+                        app_key::dispatch(&ctx, self.storage, app_key, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::ModelApp(model_app) => {
-                        model_app::dispatch(&ctx, self.storage, model_app, meta)
+                        model_app::dispatch(&ctx, self.storage, model_app, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::ModelPublication(model_publication) => {
-                        model_publication::dispatch(&ctx, self.storage, model_publication, meta)
+                        model_publication::dispatch(&ctx, self.storage, model_publication, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::ModelSubscription(model_subscription) => {
-                        model_subscription::dispatch(&ctx, self.storage, model_subscription, meta)
+                        model_subscription::dispatch(&ctx, self.storage, model_subscription, &meta)
                             .await
                             .map_err(|_| ())?;
                     }
                     ConfigurationMessage::NodeReset(node_reset) => {
-                        node_reset::dispatch(&ctx, self.storage, node_reset, meta)
+                        node_reset::dispatch(&ctx, self.storage, node_reset, &meta)
                             .await
                             .map_err(|_| ())?;
                     }

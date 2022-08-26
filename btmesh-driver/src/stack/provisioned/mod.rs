@@ -194,7 +194,7 @@ impl ProvisionedStack {
         for upper_pdu in upper_pdus {
             info!("rexmit {}", upper_pdu);
             for network_pdu in self
-                .process_outbound_upper_pdu(sequence, &upper_pdu, true)?
+                .process_outbound_upper_pdu::<8>(sequence, &upper_pdu, true)?
                 .iter()
                 .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
             {
@@ -280,7 +280,7 @@ impl ProvisionedStack {
         watchdog: &Watchdog,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         let upper_pdu = self.process_outbound_message(sequence, message)?;
-        let network_pdus = self.process_outbound_upper_pdu(sequence, &upper_pdu, false)?;
+        let network_pdus = self.process_outbound_upper_pdu::<8>(sequence, &upper_pdu, false)?;
 
         match network_pdus.len().cmp(&1) {
             Ordering::Less => { /* nothing */ }
@@ -316,7 +316,7 @@ impl ProvisionedStack {
         seq_zero: &SeqZero,
         src: &UnicastAddress,
         watchdog: &Watchdog,
-    ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
+    ) -> Result<Vec<NetworkPDU, 1>, DriverError> {
         if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
             self.process_outbound_block_ack(sequence, block_ack, &meta, src)
         } else {

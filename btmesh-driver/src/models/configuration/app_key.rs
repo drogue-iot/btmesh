@@ -7,8 +7,8 @@ use btmesh_models::foundation::configuration::ConfigurationServer;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: AppKeyMessage,
-    meta: InboundMetadata,
+    message: &AppKeyMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         AppKeyMessage::Add(add) => {

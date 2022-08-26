@@ -8,13 +8,13 @@ use btmesh_models::foundation::configuration::ConfigurationServer;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: CompositionDataMessage,
-    meta: InboundMetadata,
+    message: &CompositionDataMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     info!("COMPOSITION GET");
     match message {
         CompositionDataMessage::Get(page) => {
-            if page == 0 {
+            if *page == 0 {
                 ctx.send(
                     CompositionStatus::new(0, storage.composition()).into(),
                     meta.reply(),

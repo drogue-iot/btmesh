@@ -9,8 +9,8 @@ static SIGNAL: Signal<CompletionStatus> = Signal::new();
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: NodeResetMessage,
-    meta: InboundMetadata,
+    message: &NodeResetMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         NodeResetMessage::Reset => {

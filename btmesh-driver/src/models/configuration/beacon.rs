@@ -6,8 +6,8 @@ use btmesh_models::foundation::configuration::ConfigurationServer;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: BeaconMessage,
-    meta: InboundMetadata,
+    message: &BeaconMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         BeaconMessage::Get => {
@@ -22,13 +22,13 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             storage
                 .modify_provisioned(|config| {
                     info!("modify beacon");
-                    *config.foundation_mut().configuration_mut().beacon_mut() = beacon;
+                    *config.foundation_mut().configuration_mut().beacon_mut() = *beacon;
                     info!("modify beacon done");
                     Ok(())
                 })
                 .await?;
             info!("send reply");
-            ctx.send(BeaconMessage::Status(beacon).into(), meta.reply())
+            ctx.send(BeaconMessage::Status(*beacon).into(), meta.reply())
                 .await?;
         }
         _ => {

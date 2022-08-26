@@ -10,8 +10,8 @@ use btmesh_models::Status;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: ModelPublicationMessage,
-    meta: InboundMetadata,
+    message: &ModelPublicationMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         ModelPublicationMessage::Get(get) => {

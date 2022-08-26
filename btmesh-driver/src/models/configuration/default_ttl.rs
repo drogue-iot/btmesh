@@ -6,8 +6,8 @@ use btmesh_models::foundation::configuration::ConfigurationServer;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: DefaultTTLMessage,
-    meta: InboundMetadata,
+    message: &DefaultTTLMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         DefaultTTLMessage::Get => {
@@ -24,11 +24,11 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                     *config
                         .foundation_mut()
                         .configuration_mut()
-                        .default_ttl_mut() = default_ttl;
+                        .default_ttl_mut() = *default_ttl;
                     Ok(())
                 })
                 .await?;
-            ctx.send(DefaultTTLMessage::Status(default_ttl).into(), meta.reply())
+            ctx.send(DefaultTTLMessage::Status(*default_ttl).into(), meta.reply())
                 .await?;
         }
         _ => {

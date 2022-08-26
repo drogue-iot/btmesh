@@ -53,6 +53,7 @@ impl Message for ModelAppMessage {
     }
 }
 
+#[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelAppPayload {
     pub element_address: UnicastAddress,

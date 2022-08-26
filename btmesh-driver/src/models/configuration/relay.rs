@@ -8,8 +8,8 @@ use btmesh_models::Status;
 pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: BackingStore>(
     ctx: &C,
     storage: &Storage<B>,
-    message: RelayMessage,
-    meta: InboundMetadata,
+    message: &RelayMessage,
+    meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
     match message {
         RelayMessage::Get => {
@@ -28,7 +28,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                     if let Relay::NotSupported = relay_config.relay() {
                         Err(DriverError::FeatureNotSupported)
                     } else {
-                        *relay_config = relay;
+                        *relay_config = *relay;
                         Ok(())
                     }
                 })
@@ -37,7 +37,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let (status, err) = convert(result);
 
             if let Status::Success = status {
-                ctx.send(RelayMessage::Status(relay).into(), meta.reply())
+                ctx.send(RelayMessage::Status(*relay).into(), meta.reply())
                     .await?;
             } else {
                 ctx.send(
