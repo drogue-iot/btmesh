@@ -13,7 +13,7 @@ use btmesh_common::crypto::network::Nid;
 pub use btmesh_common::location;
 use btmesh_common::opcode::Opcode;
 pub use btmesh_common::ElementDescriptor;
-use btmesh_common::{opcode, IvIndex, ParseError, Ttl};
+use btmesh_common::{IvIndex, ParseError, Ttl};
 pub use btmesh_common::{
     CompanyIdentifier, Composition, Features, InsufficientBuffer, ModelIdentifier,
     ProductIdentifier, VersionIdentifier,
@@ -146,10 +146,12 @@ pub trait BluetoothMeshModel<M: Model> {
 
     fn parser(
         &self,
-    ) -> for<'r> fn(Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError> {
-        (M::parse as fn(Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>)
+    ) -> ParseFunction<M> {
+        M::parse as fn(Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>
     }
 }
+
+pub type ParseFunction<M> = for <'r> fn(Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
 
 pub trait BluetoothMeshModelContext<M: Model> {
     type ReceiveFuture<'f>: Future<Output = (M::Message, InboundMetadata)> + 'f

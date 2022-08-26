@@ -7,11 +7,7 @@ use darling::FromMeta;
 use proc_macro::TokenStream;
 use proc_macro2::{Ident, TokenStream as TokenStream2};
 use quote::{format_ident, quote};
-use std::sync::atomic::{AtomicUsize, Ordering};
-use syn::{AngleBracketedGenericArguments, Field, GenericArgument, GenericParam, Lifetime, Path, PathArguments, PathSegment, Type, TypePath};
-use syn::punctuated::Punctuated;
-use syn::spanned::Spanned;
-use syn::token::Colon2;
+use syn::{Field, GenericParam, Type};
 
 #[derive(FromMeta)]
 struct DeviceArgs {
@@ -194,8 +190,6 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
     result.into()
 }
-
-static MODEL_COUNTER: AtomicUsize = AtomicUsize::new(0);
 
 #[proc_macro_attribute]
 pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {

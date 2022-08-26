@@ -65,6 +65,16 @@ where
     }
 }
 
+impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Default
+    for SensorSetupServer<C, NUM_SENSORS, NUM_COLUMNS>
+where
+    C: SensorSetupConfig,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 pub const SENSOR_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1100);
 pub const SENSOR_SETUP_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1101);
 pub const SENSOR_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1102);
@@ -730,36 +740,23 @@ fn lookup_descriptor<C>(p: PropertyId) -> Option<&'static SensorDescriptor>
 where
     C: SensorConfig,
 {
-    for d in C::DESCRIPTORS {
-        if d.id == p {
-            return Some(d);
-        }
-    }
-    None
+    C::DESCRIPTORS.iter().find(|&d| d.id == p)
 }
 
 fn lookup_cadence_descriptor<C>(p: PropertyId) -> Option<&'static CadenceDescriptor>
 where
     C: SensorSetupConfig,
 {
-    for d in C::CADENCE_DESCRIPTORS {
-        if d.id == p {
-            return Some(d);
-        }
-    }
-    None
+    C::CADENCE_DESCRIPTORS.iter().find(|&d| d.id == p)
 }
 
 fn lookup_setting_descriptor<C>(p: PropertyId, s: PropertyId) -> Option<&'static SettingDescriptor>
 where
     C: SensorSetupConfig,
 {
-    for d in C::SETTING_DESCRIPTORS {
-        if d.sensor == p && d.setting == s {
-            return Some(d);
-        }
-    }
-    None
+    C::SETTING_DESCRIPTORS
+        .iter()
+        .find(|&d| d.sensor == p && d.setting == s)
 }
 
 impl ColumnGet {

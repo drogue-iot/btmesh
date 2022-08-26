@@ -189,7 +189,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                 self.dispatcher.borrow_mut().dispatch(message).await?;
                             }
                             Message::Control(message) => {
-                                stack.process_inbound_control(&message, &self.watchdog)?;
+                                stack.process_inbound_control(message, &self.watchdog)?;
                             }
                         }
                     }

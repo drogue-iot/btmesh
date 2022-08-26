@@ -62,7 +62,7 @@ impl ProvisionedStack {
             UpperPDU::Control(control) => Ok(ControlMessage::new(
                 control.opcode(),
                 control.parameters(),
-                ControlMetadata::from_upper_control_pdu(&control),
+                ControlMetadata::from_upper_control_pdu(control),
             )?
             .into()),
         }
@@ -246,7 +246,7 @@ impl ProvisionedStack {
                     AccessMetadata::from_upper_access_pdu(
                         KeyHandle::Application(application_key_handle),
                         label_uuid,
-                        &pdu,
+                        pdu,
                     ),
                 )?);
             }
@@ -280,7 +280,7 @@ impl ProvisionedStack {
             {
                 return Ok(AccessMessage::parse(
                     &bytes,
-                    AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, &pdu),
+                    AccessMetadata::from_upper_access_pdu(KeyHandle::Device, None, pdu),
                 )?);
             }
         }

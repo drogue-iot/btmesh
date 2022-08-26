@@ -71,7 +71,7 @@ impl Dispatcher {
         info!("dispatch {}", message);
 
         // TODO figure out my logic issues
-        if self.check_if_replay(&message) {
+        if self.check_if_replay(message) {
             info!("avoiding replay");
             return Ok(());
         }
