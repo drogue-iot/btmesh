@@ -63,7 +63,7 @@ impl<const N: usize> ReplayProtection<N> {
     pub fn check_upper_pdu(
         &mut self,
         meta: &UpperMetadata,
-        block_ack: BlockAck,
+        block_ack: &BlockAck,
         is_complete: bool,
     ) -> Option<BlockAck> {
         let iv_index = (meta.iv_index().value() & 0xFFFF) as u16;
@@ -89,7 +89,7 @@ impl<const N: usize> ReplayProtection<N> {
                         if let Some(replay_seq) = meta.replay_seq() {
                             entry.iv_index = iv_index;
                             entry.seq = replay_seq;
-                            entry.block_ack = block_ack;
+                            entry.block_ack = *block_ack;
                             info!("C replay not protected {}", replay_seq);
                         }
                     }
@@ -104,7 +104,7 @@ impl<const N: usize> ReplayProtection<N> {
                         seq: replay_seq,
                         src: meta.src(),
                         iv_index,
-                        block_ack,
+                        block_ack: *block_ack,
                     });
                     info!("D replay not protected {}", replay_seq);
                 }

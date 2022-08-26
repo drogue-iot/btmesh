@@ -4,7 +4,7 @@ use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
     CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata,
     InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundMetadata,
-    OutboundPayload,
+    OutboundPayload, SendExtra,
 };
 use btmesh_models::Message;
 use core::future::Future;
@@ -110,10 +110,13 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
                         model_identifer: self.model_identifier,
                         opcode,
                         parameters,
-                        meta,
-                        completion_token: None,
+                        extra: SendExtra {
+                            meta,
+                            completion_token: None,
+                        }
+                        .into(),
                     })
-                    .await
+                    .await;
             }
 
             Ok(())
@@ -135,21 +138,21 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
             let opcode = message.opcode();
             let mut parameters = Vec::new();
             if message.emit_parameters(&mut parameters).is_ok() {
-                info!("sending outbound");
                 self.outbound
                     .send(OutboundPayload {
                         element_index: self.element_index,
                         model_identifer: self.model_identifier,
                         opcode,
                         parameters,
-                        meta,
-                        completion_token: Some(CompletionToken::new(signal)),
+                        extra: SendExtra {
+                            meta,
+                            completion_token: Some(CompletionToken::new(signal)),
+                        }
+                        .into(),
                     })
                     .await;
-                info!("sending outbound complete");
             }
 
-            info!("waiting completion signal");
             signal.wait().await
         }
     }

@@ -1,6 +1,7 @@
 use crate::stack::provisioned::DriverError;
 use btmesh_common::crypto::network::{NetworkKey, Nid};
 use btmesh_device::NetworkKeyHandle;
+use btmesh_models::foundation::configuration::NetKeyIndex;
 use btmesh_pdu::provisioning::ProvisioningData;
 use heapless::Vec;
 #[cfg(feature = "serde")]
@@ -49,7 +50,7 @@ impl<const N: usize> NetworkKeys<N> {
                     false
                 }
             })
-            .map(move |(index, _)| NetworkKeyHandle(index as u8, nid))
+            .map(move |(index, _)| NetworkKeyHandle::new(NetKeyIndex::new(index as u16), nid))
     }
 
     pub(crate) fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {

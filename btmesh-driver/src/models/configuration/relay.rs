@@ -22,19 +22,19 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             Ok(())
         }
         RelayMessage::Set(relay) => {
-            let result = storage
-                .modify_provisioned(|config| {
-                    let relay_config = config.foundation_mut().configuration_mut().relay_mut();
-                    if let Relay::NotSupported = relay_config.relay() {
-                        Err(DriverError::FeatureNotSupported)
-                    } else {
-                        *relay_config = *relay;
-                        Ok(())
-                    }
-                })
-                .await;
-
-            let (status, err) = convert(result);
+            let (status, err) = convert(
+                &storage
+                    .modify_provisioned(|config| {
+                        let relay_config = config.foundation_mut().configuration_mut().relay_mut();
+                        if let Relay::NotSupported = relay_config.relay() {
+                            Err(DriverError::FeatureNotSupported)
+                        } else {
+                            *relay_config = *relay;
+                            Ok(())
+                        }
+                    })
+                    .await,
+            );
 
             if let Status::Success = status {
                 ctx.send(RelayMessage::Status(*relay).into(), meta.reply())
@@ -53,7 +53,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                 Ok(())
             }
         }
-        _ => {
+        RelayMessage::Status(_) => {
             // not applicable
             Ok(())
         }

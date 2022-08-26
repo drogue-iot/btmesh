@@ -55,6 +55,20 @@ impl<const N: usize> ApplicationKeys<N> {
             .map(move |(index, _)| ApplicationKeyHandle::new(AppKeyIndex::new(index as u16), aid))
     }
 
+    pub(crate) fn get_key_details(
+        &self,
+        index: AppKeyIndex,
+    ) -> Option<(NetKeyIndex, ApplicationKeyHandle)> {
+        if let Some((net_key_index, app_key)) = self.keys[usize::from(index)] {
+            Some((
+                net_key_index,
+                ApplicationKeyHandle::new(index, app_key.aid()),
+            ))
+        } else {
+            None
+        }
+    }
+
     pub(crate) fn get<I: Into<AppKeyIndex>>(
         &self,
         index: I,

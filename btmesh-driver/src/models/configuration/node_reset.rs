@@ -19,8 +19,8 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 
             storage.reset().await?;
         }
-        _ => {
-            // not applicable to server role
+        NodeResetMessage::Status => {
+            // not applicable
         }
     }
     Ok(())

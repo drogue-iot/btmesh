@@ -23,8 +23,8 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                 info!("SENT");
             }
         }
-        _ => {
-            // not applicable to server role
+        CompositionDataMessage::Status(_) => {
+            // not applicable
         }
     }
     Ok(())

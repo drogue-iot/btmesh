@@ -31,7 +31,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             ctx.send(DefaultTTLMessage::Status(*default_ttl).into(), meta.reply())
                 .await?;
         }
-        _ => {
+        DefaultTTLMessage::Status(_) => {
             // not applicable
         }
     }

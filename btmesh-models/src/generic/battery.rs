@@ -42,8 +42,8 @@ impl Model for GenericBatteryClient {
     const IDENTIFIER: ModelIdentifier = GENERIC_BATTERY_CLIENT;
     type Message = GenericBatteryMessage;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             GENERIC_BATTERY_STATUS => Ok(Some(GenericBatteryMessage::Status(
                 GenericBatteryStatus::parse(parameters)?,
             ))),
@@ -56,8 +56,8 @@ impl Model for GenericBatteryServer {
     const IDENTIFIER: ModelIdentifier = GENERIC_BATTERY_SERVER;
     type Message = GenericBatteryMessage;
 
-    fn parse(opcode: Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             GENERIC_BATTERY_GET => Ok(Some(GenericBatteryMessage::Get)),
             _ => Ok(None),
         }

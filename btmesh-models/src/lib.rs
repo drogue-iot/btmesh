@@ -47,7 +47,7 @@ pub trait Model {
     const SUPPORTS_PUBLICATION: bool = true;
     type Message: Message;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError>;
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError>;
 }
 
 #[derive(Copy, Clone, Debug)]

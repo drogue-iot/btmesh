@@ -2,7 +2,7 @@ use crate::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
 use btmesh_device::access_counted::AccessCounted;
-use btmesh_device::{InboundPayload, InboundChannelSender};
+use btmesh_device::{InboundChannelSender, InboundPayload};
 use btmesh_pdu::provisioned::access::AccessMessage;
 use core::cmp::Ordering;
 use heapless::Vec;
@@ -22,7 +22,10 @@ pub struct Dispatcher {
 }
 
 impl Dispatcher {
-    pub fn new(foundation_sender: InboundChannelSender, device_sender: InboundChannelSender) -> Self {
+    pub fn new(
+        foundation_sender: InboundChannelSender,
+        device_sender: InboundChannelSender,
+    ) -> Self {
         Self {
             foundation_sender,
             device_sender,
@@ -83,14 +86,12 @@ impl Dispatcher {
         let meta = message.meta().into();
 
         unsafe {
-            PAYLOAD.set(
-                InboundPayload {
-                    element_index: local_element_index.map(|index| index as usize),
-                    opcode,
-                    parameters: Vec::from_slice(parameters)?,
-                    meta,
-                }
-            );
+            PAYLOAD.set(InboundPayload {
+                element_index: local_element_index.map(|index| index as usize),
+                opcode,
+                parameters: Vec::from_slice(parameters)?,
+                meta,
+            });
         }
 
         if let Some(local_element_index) = local_element_index {

@@ -57,7 +57,7 @@ impl ProvisionedStack {
                     Some(
                         UpperAccessPDU::parse(
                             access_pdu.upper_pdu(),
-                            SzMic::Bit32,
+                            &SzMic::Bit32,
                             UpperMetadata::from_unsegmented_lower_pdu(inner),
                         )?
                         .into(),

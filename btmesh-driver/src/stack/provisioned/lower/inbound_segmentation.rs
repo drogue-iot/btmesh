@@ -370,7 +370,7 @@ impl Reassembly {
                 Ok(UpperControlPDU::parse(*opcode, &data[0..*len], meta)?.into())
             }
             Reassembly::Access { data, szmic, len } => {
-                Ok(UpperAccessPDU::parse(&data[0..*len], *szmic, meta)?.into())
+                Ok(UpperAccessPDU::parse(&data[0..*len], szmic, meta)?.into())
             }
         }
     }
@@ -386,6 +386,7 @@ mod tests {
     use btmesh_common::mic::SzMic;
     use btmesh_common::{IvIndex, Seq, SeqZero, Ttl};
     use btmesh_device::NetworkKeyHandle;
+    use btmesh_models::foundation::configuration::NetKeyIndex;
     use btmesh_pdu::provisioned::lower::access::SegmentedLowerAccessPDU;
     use btmesh_pdu::provisioned::lower::control::SegmentedLowerControlPDU;
     use btmesh_pdu::provisioned::lower::SegmentedLowerPDU;
@@ -394,7 +395,7 @@ mod tests {
 
     #[test]
     fn in_flight_is_valid_seq_zero() {
-        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
+        let network_key_handle = NetworkKeyHandle::new(NetKeyIndex::new(0), Nid::new(42));
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
         let szmic = SzMic::Bit64;
@@ -450,7 +451,7 @@ mod tests {
 
     #[test]
     fn in_flight_is_valid_pdu_type() {
-        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
+        let network_key_handle = NetworkKeyHandle::new(NetKeyIndex::new(0), Nid::new(42));
 
         let seq_zero = SeqZero::new(42);
         let seg_n = 4;
@@ -530,7 +531,7 @@ mod tests {
 
     #[test]
     fn reassembly() {
-        let network_key_handle = NetworkKeyHandle(0, Nid::new(42));
+        let network_key_handle = NetworkKeyHandle::new(NetKeyIndex::new(0), Nid::new(42));
         let mut reassembly = Reassembly::new_access(SzMic::Bit32);
 
         let pdu = SegmentedLowerAccessPDU::<ProvisionedStack>::new(

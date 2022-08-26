@@ -38,7 +38,6 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
             loop {
                 let (message, meta) = ctx.receive().await;
 
-                info!("---------------> {}", message);
                 match &message {
                     ConfigurationMessage::Beacon(beacon) => {
                         beacon::dispatch(&ctx, self.storage, beacon, &meta)
@@ -91,9 +90,9 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
     }
 }
 
-pub fn convert(input: Result<(), DriverError>) -> (Status, Option<DriverError>) {
+pub fn convert(input: &Result<(), DriverError>) -> (Status, Option<DriverError>) {
     if let Err(result) = input {
-        (&result).into()
+        (result).into()
     } else {
         (Status::Success, None)
     }

@@ -65,7 +65,7 @@ impl<S: System> From<UpperAccessPDU<S>> for UpperPDU<S> {
 }
 
 impl<S: System> UpperAccessPDU<S> {
-    pub fn parse(data: &[u8], szmic: SzMic, meta: S::UpperMetadata) -> Result<Self, ParseError> {
+    pub fn parse(data: &[u8], szmic: &SzMic, meta: S::UpperMetadata) -> Result<Self, ParseError> {
         let (payload, transmic) = data.split_at(data.len() - szmic.size());
 
         Ok(Self {

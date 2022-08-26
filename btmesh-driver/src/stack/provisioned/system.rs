@@ -316,15 +316,15 @@ impl UpperMetadata {
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AccessMetadata {
-    network_key_handle: NetworkKeyHandle,
-    iv_index: IvIndex,
-    local_element_index: Option<u8>,
-    key_handle: KeyHandle,
-    src: UnicastAddress,
-    dst: Address,
-    ttl: Ttl,
-    label_uuid: Option<LabelUuid>,
-    replay_seq: Option<Seq>,
+    pub(crate) network_key_handle: NetworkKeyHandle,
+    pub(crate) iv_index: IvIndex,
+    pub(crate) local_element_index: Option<u8>,
+    pub(crate) key_handle: KeyHandle,
+    pub(crate) src: UnicastAddress,
+    pub(crate) dst: Address,
+    pub(crate) ttl: Ttl,
+    pub(crate) label_uuid: Option<LabelUuid>,
+    pub(crate) replay_seq: Option<Seq>,
 }
 
 impl From<(UnicastAddress, OutboundMetadata, Ttl)> for AccessMetadata {

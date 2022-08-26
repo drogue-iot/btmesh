@@ -6,11 +6,13 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 use btmesh_bearer::beacon::Beacon;
+use btmesh_common::address::Address;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{
-    BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, OutboundChannel,
-    OutboundPayload,
+    BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, KeyHandle, OutboundChannel,
+    OutboundExtra, OutboundPayload,
 };
+use btmesh_models::foundation::configuration::model_publication::PublishAddress;
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
 use btmesh_pdu::provisioned::access::AccessMessage;
 use btmesh_pdu::provisioned::Message;
@@ -43,7 +45,7 @@ use crate::models::FoundationDevice;
 use crate::stack::provisioned::network::DeviceInfo;
 use crate::stack::provisioned::secrets::Secrets;
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::system::UpperMetadata;
+use crate::stack::provisioned::system::{AccessMetadata, UpperMetadata};
 use crate::stack::provisioned::{NetworkState, ProvisionedStack};
 use crate::stack::unprovisioned::{ProvisioningState, UnprovisionedStack};
 use crate::stack::Stack;
@@ -214,17 +216,68 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     .local_element_address(outbound_payload.element_index as u8)
                     .ok_or(DriverError::InvalidState)?;
                 let default_ttl = config.foundation().configuration().default_ttl();
-                let message: AccessMessage<ProvisionedStack> = AccessMessage::new(
-                    outbound_payload.opcode,
-                    Vec::from_slice(&outbound_payload.parameters.clone())?,
-                    (element_address, outbound_payload.meta, default_ttl),
-                );
+                let (message, completion_token) = match &outbound_payload.extra {
+                    OutboundExtra::Send(extra) => (
+                        Some(AccessMessage::new(
+                            outbound_payload.opcode,
+                            Vec::from_slice(&outbound_payload.parameters.clone())?,
+                            (element_address, extra.meta, default_ttl),
+                        )),
+                        extra.completion_token.clone(),
+                    ),
+                    OutboundExtra::Publish => {
+                        if let Some(publication) = config.publications().get(
+                            outbound_payload.element_index as u8,
+                            outbound_payload.model_identifer,
+                        ) {
+                            let (dst, label_uuid): (Address, _) = match publication.publish_address
+                            {
+                                PublishAddress::Unicast(addr) => (addr.into(), None),
+                                PublishAddress::Group(addr) => (addr.into(), None),
+                                PublishAddress::Virtual(addr) => {
+                                    (addr.virtual_address().into(), Some(addr))
+                                }
+                                PublishAddress::Unassigned => unreachable!(),
+                            };
 
-                if let Stack::Provisioned { stack, sequence } = &mut *self.stack.borrow_mut() {
+                            if let Some((network_key_handle, app_key_handle)) =
+                                config.secrets().get_key_pair(publication.app_key_index)
+                            {
+                                let meta = AccessMetadata {
+                                    network_key_handle,
+                                    iv_index: config.iv_index(),
+                                    local_element_index: Some(outbound_payload.element_index as u8),
+                                    key_handle: KeyHandle::Application(app_key_handle),
+                                    src: element_address,
+                                    dst,
+                                    ttl: publication.publish_ttl.unwrap_or(default_ttl),
+                                    label_uuid,
+                                    replay_seq: None,
+                                };
+                                (
+                                    Some(AccessMessage::new(
+                                        outbound_payload.opcode,
+                                        Vec::from_slice(&outbound_payload.parameters.clone())?,
+                                        meta,
+                                    )),
+                                    None,
+                                )
+                            } else {
+                                (None, None)
+                            }
+                        } else {
+                            (None, None)
+                        }
+                    }
+                };
+
+                if let (Some(message), Stack::Provisioned { stack, sequence }) =
+                    (message, &mut *self.stack.borrow_mut())
+                {
                     let network_pdus = stack.process_outbound(
                         sequence,
                         &(message.into()),
-                        outbound_payload.completion_token.clone(),
+                        completion_token,
                         &self.watchdog,
                     )?;
                     Ok(Some(network_pdus))

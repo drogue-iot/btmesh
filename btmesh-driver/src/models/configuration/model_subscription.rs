@@ -22,7 +22,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let composition = storage.composition();
 
             let status_err = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
@@ -56,7 +56,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         ModelSubscriptionMessage::Delete(delete)
         | ModelSubscriptionMessage::VirtualAddressDelete(delete) => {
             let status_err = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
@@ -87,7 +87,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         }
         ModelSubscriptionMessage::DeleteAll(delete_all) => {
             let status_err = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()
@@ -118,7 +118,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         | ModelSubscriptionMessage::VirtualAddressOverwrite(overwrite) => {
             let composition = storage.composition();
             let status_err = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()

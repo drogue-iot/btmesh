@@ -13,12 +13,12 @@ use btmesh_common::crypto::network::Nid;
 pub use btmesh_common::location;
 use btmesh_common::opcode::Opcode;
 pub use btmesh_common::ElementDescriptor;
-use btmesh_common::{IvIndex, ParseError, Ttl};
 pub use btmesh_common::{
     CompanyIdentifier, Composition, Features, InsufficientBuffer, ModelIdentifier,
     ProductIdentifier, VersionIdentifier,
 };
-use btmesh_models::foundation::configuration::AppKeyIndex;
+use btmesh_common::{IvIndex, ParseError, Ttl};
+use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 pub use btmesh_models::Model;
 use core::future::Future;
 use core::pin::Pin;
@@ -61,8 +61,23 @@ pub struct OutboundPayload {
     pub model_identifer: ModelIdentifier,
     pub opcode: Opcode,
     pub parameters: Vec<u8, 380>,
+    pub extra: OutboundExtra,
+}
+
+pub enum OutboundExtra {
+    Send(SendExtra),
+    Publish,
+}
+
+pub struct SendExtra {
     pub meta: OutboundMetadata,
     pub completion_token: Option<CompletionToken>,
+}
+
+impl From<SendExtra> for OutboundExtra {
+    fn from(inner: SendExtra) -> Self {
+        OutboundExtra::Send(inner)
+    }
 }
 
 pub trait BluetoothMeshDeviceContext {
@@ -144,14 +159,13 @@ pub trait BluetoothMeshModel<M: Model> {
         M::IDENTIFIER
     }
 
-    fn parser(
-        &self,
-    ) -> ParseFunction<M> {
-        M::parse as fn(Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>
+    fn parser(&self) -> ParseFunction<M> {
+        M::parse as fn(&Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>
     }
 }
 
-pub type ParseFunction<M> = for <'r> fn(Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
+pub type ParseFunction<M> =
+    for<'r> fn(&Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
 
 pub trait BluetoothMeshModelContext<M: Model> {
     type ReceiveFuture<'f>: Future<Output = (M::Message, InboundMetadata)> + 'f
@@ -342,11 +356,22 @@ pub enum KeyHandle {
 
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct NetworkKeyHandle(pub u8, pub Nid);
+pub struct NetworkKeyHandle {
+    index: NetKeyIndex,
+    nid: Nid,
+}
 
 impl NetworkKeyHandle {
+    pub fn new(index: NetKeyIndex, nid: Nid) -> Self {
+        Self { index, nid }
+    }
+
     pub fn nid(&self) -> Nid {
-        self.1
+        self.nid
+    }
+
+    pub fn index(&self) -> NetKeyIndex {
+        self.index
     }
 }
 

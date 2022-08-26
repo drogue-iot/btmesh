@@ -106,8 +106,8 @@ impl Model for ConfigurationServer {
     const SUPPORTS_PUBLICATION: bool = false;
     type Message = ConfigurationMessage;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             CONFIG_BEACON_GET => Ok(Some(ConfigurationMessage::Beacon(
                 BeaconMessage::parse_get(parameters)?,
             ))),
@@ -217,7 +217,7 @@ impl Model for ConfigurationClient {
     const SUPPORTS_PUBLICATION: bool = false;
     type Message = ConfigurationMessage;
 
-    fn parse(_opcode: Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+    fn parse(_opcode: &Opcode, _parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         todo!();
     }
 }
@@ -303,7 +303,7 @@ impl KeyIndex {
 }
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
+#[derive(Eq, PartialEq, PartialOrd, Copy, Clone, Debug, Hash)]
 pub struct NetKeyIndex(KeyIndex);
 
 impl NetKeyIndex {

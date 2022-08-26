@@ -226,7 +226,7 @@ impl ProvisionedStack {
             if let Some((block_ack, meta)) = &block_ack_meta {
                 if let Some(replacement_block_ack) = self.network.replay_protection.check_upper_pdu(
                     meta,
-                    *block_ack,
+                    block_ack,
                     upper_pdu.is_some(),
                 ) {
                     // we have already seen it and fully ack'd it, so just keep ack'ing for now.

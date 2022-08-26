@@ -32,7 +32,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 
             let ((status, err), details) = match result {
                 Err(err) => (
-                    convert(Err(err)),
+                    convert(&Err(err)),
                     PublicationDetails {
                         element_address: get.element_address,
                         publish_address: PublishAddress::Unassigned,
@@ -95,7 +95,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
             let composition = storage.composition();
 
             let (status, err) = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         if let Some(element_index) = config
                             .device_info()

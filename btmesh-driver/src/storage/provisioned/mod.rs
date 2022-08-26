@@ -3,7 +3,7 @@ use crate::storage::provisioned::foundation::Foundation;
 use crate::storage::provisioned::publications::Publications;
 use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
-use btmesh_common::Composition;
+use btmesh_common::{Composition, IvIndex};
 use core::hash::{Hash, Hasher};
 
 mod bindings;
@@ -121,6 +121,10 @@ impl ProvisionedConfiguration {
 
     pub(crate) fn sequence_mut(&mut self) -> &mut u32 {
         &mut self.sequence.0
+    }
+
+    pub(crate) fn iv_index(&self) -> IvIndex {
+        self.network_state.iv_index().transmission_iv_index()
     }
 
     pub(crate) fn foundation(&self) -> &Foundation {

@@ -13,7 +13,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     match message {
         AppKeyMessage::Add(add) => {
             let (status, err) = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         config.secrets_mut().add_application_key(
                             add.net_key_index(),
@@ -42,7 +42,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         AppKeyMessage::Get(_get) => {}
         AppKeyMessage::Delete(delete) => {
             let (status, err) = convert(
-                storage
+                &storage
                     .modify_provisioned(|config| {
                         config.secrets_mut().delete_application_key(
                             delete.net_key_index(),
@@ -68,7 +68,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         }
         AppKeyMessage::List(_list) => {}
         AppKeyMessage::Update(_update) => {}
-        _ => {}
+        AppKeyMessage::Status(_) => {
+            // not applicable
+        }
     }
 
     Ok(())

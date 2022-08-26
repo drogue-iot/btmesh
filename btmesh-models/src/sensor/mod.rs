@@ -426,8 +426,8 @@ where
     const IDENTIFIER: ModelIdentifier = SENSOR_SERVER;
     type Message = SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             SENSOR_DESCRIPTOR_GET => Ok(Some(SensorMessage::DescriptorGet(DescriptorGet::parse(
                 parameters,
             )?))),
@@ -451,8 +451,8 @@ where
     const IDENTIFIER: ModelIdentifier = SENSOR_CLIENT;
     type Message = SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             SENSOR_DESCRIPTOR_GET => Ok(Some(SensorMessage::DescriptorGet(DescriptorGet::parse(
                 parameters,
             )?))),
@@ -479,8 +479,8 @@ where
     const IDENTIFIER: ModelIdentifier = SENSOR_SETUP_SERVER;
     type Message = SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             SENSOR_CADENCE_GET => Ok(Some(SensorSetupMessage::CadenceGet(CadenceGet::parse(
                 parameters,
             )?))),

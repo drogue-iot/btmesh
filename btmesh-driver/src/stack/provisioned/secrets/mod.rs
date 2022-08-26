@@ -67,7 +67,7 @@ impl Secrets {
         &self,
         network_key: NetworkKeyHandle,
     ) -> Result<NetworkKey, DriverError> {
-        self.network_keys.keys[network_key.0 as usize]
+        self.network_keys.keys[usize::from(network_key.index()) as usize]
             .as_ref()
             .ok_or(DriverError::InvalidKeyHandle)
             .cloned()
@@ -78,6 +78,24 @@ impl Secrets {
             Ok(network_key)
         } else {
             Err(DriverError::InvalidKeyHandle)
+        }
+    }
+
+    pub(crate) fn get_key_pair(
+        &self,
+        app_key_index: AppKeyIndex,
+    ) -> Option<(NetworkKeyHandle, ApplicationKeyHandle)> {
+        if let Some((net_key_index, app_key_handle)) =
+            self.application_keys.get_key_details(app_key_index)
+        {
+            self.network_keys.keys[usize::from(net_key_index)].map(|net_key| {
+                (
+                    NetworkKeyHandle::new(net_key_index, net_key.nid()),
+                    app_key_handle,
+                )
+            })
+        } else {
+            None
         }
     }
 

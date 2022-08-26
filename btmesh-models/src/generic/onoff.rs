@@ -48,8 +48,8 @@ impl Model for GenericOnOffServer {
     const IDENTIFIER: ModelIdentifier = GENERIC_ONOFF_SERVER;
     type Message = GenericOnOffMessage;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             GENERIC_ON_OFF_GET => Ok(None),
             GENERIC_ON_OFF_SET => Ok(Some(GenericOnOffMessage::Set(Set::parse(parameters)?))),
             GENERIC_ON_OFF_SET_UNACKNOWLEDGE => {
@@ -67,8 +67,8 @@ impl Model for GenericOnOffClient {
     const IDENTIFIER: ModelIdentifier = GENERIC_ONOFF_CLIENT;
     type Message = GenericOnOffMessage;
 
-    fn parse(opcode: Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
-        match opcode {
+    fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
+        match *opcode {
             GENERIC_ON_OFF_STATUS => Ok(Some(GenericOnOffMessage::Status(Status::parse(
                 parameters,
             )?))),
