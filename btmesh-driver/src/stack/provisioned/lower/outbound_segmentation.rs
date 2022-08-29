@@ -91,7 +91,7 @@ impl OutboundSegmentation {
                                 pdu.meta().src(),
                                 pdu.meta().dst(),
                                 &transport_pdu,
-                                meta,
+                                meta.clone(),
                             )?)
                             .map_err(|_| InsufficientBuffer)?;
                     }

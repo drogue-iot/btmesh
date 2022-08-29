@@ -15,7 +15,7 @@ use btmesh_pdu::provisioned::upper::UpperPDU;
 use btmesh_pdu::provisioned::System;
 use heapless::Vec;
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetworkMetadata {
     iv_index: IvIndex,
@@ -75,7 +75,7 @@ impl NetworkMetadata {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct LowerMetadata {
     network_key_handle: NetworkKeyHandle,
@@ -313,7 +313,7 @@ impl UpperMetadata {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct AccessMetadata {
     pub(crate) network_key_handle: NetworkKeyHandle,
@@ -421,7 +421,7 @@ impl From<&AccessMetadata> for InboundMetadata {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ControlMetadata {}
 

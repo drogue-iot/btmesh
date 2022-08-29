@@ -11,20 +11,17 @@ pub struct TransmitQueue<const N: usize = 5> {
     queue: Vec<Option<QueueEntry>, N>,
 }
 
-#[derive(Clone)]
 enum QueueEntry {
     Nonsegmented(NonsegmentedQueueEntry),
     Segmented(SegmentedQueueEntry),
 }
 
-#[derive(Clone)]
 struct NonsegmentedQueueEntry {
     upper_pdu: UpperPDU<ProvisionedStack>,
     num_retransmit: u8,
     completion_token: Option<CompletionToken>,
 }
 
-#[derive(Clone)]
 struct SegmentedQueueEntry {
     upper_pdu: UpperPDU<ProvisionedStack>,
     acked: Acked,
@@ -34,7 +31,9 @@ struct SegmentedQueueEntry {
 impl<const N: usize> Default for TransmitQueue<N> {
     fn default() -> Self {
         let mut queue = Vec::new();
-        queue.resize(N, None).ok();
+        for _ in 0..N {
+            queue.push(None).ok();
+        }
         Self { queue }
     }
 }
