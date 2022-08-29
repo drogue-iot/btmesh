@@ -119,7 +119,6 @@ impl<B: BackingStore> Storage<B> {
         &self,
         modifier: F,
     ) -> Result<(), DriverError> {
-        self.load_if_needed().await?;
         let mut config = self.config.lock().await;
         if let Some(Configuration::Provisioned(config)) = &mut *config {
             modifier(config)?;
@@ -133,7 +132,6 @@ impl<B: BackingStore> Storage<B> {
         &self,
         reader: F,
     ) -> Result<R, DriverError> {
-        self.load_if_needed().await?;
         let config = self.config.lock().await;
         if let Some(config) = &*config {
             reader(config)
@@ -149,7 +147,6 @@ impl<B: BackingStore> Storage<B> {
         &self,
         reader: F,
     ) -> Result<R, DriverError> {
-        self.load_if_needed().await?;
         let config = self.config.lock().await;
         if let Some(Configuration::Provisioned(config)) = &*config {
             return reader(config);
@@ -157,19 +154,7 @@ impl<B: BackingStore> Storage<B> {
         Err(DriverError::InvalidState)
     }
 
-    #[allow(clippy::await_holding_refcell_ref)]
-    async fn load_if_needed(&self) -> Result<(), StorageError> {
-        let mut locked_config = self.config.lock().await;
-        if locked_config.is_none() {
-            let loaded_config = self.backing_store.borrow_mut().load().await?;
-            locked_config.replace(Configuration::Provisioned(loaded_config));
-        }
-
-        Ok(())
-    }
-
     pub async fn is_provisioned(&self) -> Result<bool, StorageError> {
-        self.load_if_needed().await?;
         Ok(matches!(
             &*self.config.lock().await,
             Some(Configuration::Provisioned(..))
@@ -177,7 +162,6 @@ impl<B: BackingStore> Storage<B> {
     }
 
     pub async fn is_unprovisioned(&self) -> Result<bool, StorageError> {
-        self.load_if_needed().await?;
         Ok(matches!(
             &*self.config.lock().await,
             Some(Configuration::Unprovisioned(..))
