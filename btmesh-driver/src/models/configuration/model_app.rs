@@ -22,7 +22,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                                 .local_element_index(bind.element_address.into())
                             {
                                 config.bindings_mut().bind(
-                                    composition,
+                                    &composition.as_ref().unwrap(),
                                     element_index,
                                     bind.model_identifier,
                                     bind.app_key_index,
@@ -62,7 +62,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                                 .local_element_index(unbind.element_address.into())
                             {
                                 config.bindings_mut().unbind(
-                                    composition,
+                                    &composition.as_ref().unwrap(),
                                     element_index,
                                     unbind.model_identifier,
                                     unbind.app_key_index,

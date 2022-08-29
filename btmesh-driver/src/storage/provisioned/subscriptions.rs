@@ -33,7 +33,7 @@ impl<const N: usize> Subscriptions<N> {
 
     pub fn add(
         &mut self,
-        composition: Composition,
+        composition: &Composition,
         element_index: u8,
         model_identifier: ModelIdentifier,
         address: SubscriptionAddress,

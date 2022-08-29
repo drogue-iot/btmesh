@@ -16,7 +16,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         CompositionDataMessage::Get(page) => {
             if *page == 0 {
                 ctx.send(
-                    CompositionStatus::new(0, storage.composition()).into(),
+                    CompositionStatus::new(0, &storage.composition().as_ref().unwrap()).into(),
                     meta.reply(),
                 )
                 .await?;

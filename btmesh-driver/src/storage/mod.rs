@@ -3,6 +3,7 @@ use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::DriverError;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;
+use core::cell::Ref;
 use core::cell::RefCell;
 use core::future::Future;
 use core::hash::Hash;
@@ -198,11 +199,11 @@ impl<B: BackingStore> Storage<B> {
         self.capabilities.borrow_mut().replace(capabilities);
     }
 
-    pub fn composition(&self) -> Composition {
-        unwrap!(self.composition.borrow().clone())
+    pub fn composition(&self) -> Ref<'_, Option<Composition>> {
+        self.composition.borrow()
     }
 
-    pub(crate) fn set_composition(&self, composition: Composition) {
-        self.composition.borrow_mut().replace(composition);
+    pub(crate) fn set_composition(&self, composition: &Composition) {
+        self.composition.borrow_mut().replace(composition.clone());
     }
 }

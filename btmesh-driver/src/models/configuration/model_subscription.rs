@@ -29,7 +29,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                             .local_element_index(add.element_address.into())
                         {
                             config.subscriptions_mut().add(
-                                composition,
+                                &composition.as_ref().unwrap(),
                                 element_index,
                                 add.model_identifier,
                                 add.subscription_address,
@@ -130,7 +130,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                                 overwrite.subscription_address,
                             )?;
                             config.subscriptions_mut().add(
-                                composition,
+                                &composition.as_ref().unwrap(),
                                 element_index,
                                 overwrite.model_identifier,
                                 overwrite.subscription_address,

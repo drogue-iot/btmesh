@@ -36,7 +36,7 @@ impl<const N: usize> Bindings<N> {
 
     pub fn bind(
         &mut self,
-        composition: Composition,
+        composition: &Composition,
         element_index: u8,
         model_identifier: ModelIdentifier,
         app_key_index: AppKeyIndex,
@@ -56,7 +56,7 @@ impl<const N: usize> Bindings<N> {
 
     pub fn unbind(
         &mut self,
-        composition: Composition,
+        composition: &Composition,
         element_index: u8,
         model_identifier: ModelIdentifier,
         app_key_index: AppKeyIndex,

@@ -1,7 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 
 use core::array::TryFromSliceError;
-use core::ops::{Add, BitAnd, Deref, Index, Sub};
+use core::ops::{Add, BitAnd, Deref, Index, IndexMut, Sub};
 use heapless::Vec;
 use rand_core::RngCore;
 
@@ -492,6 +492,12 @@ impl Index<u8> for Composition {
     }
 }
 
+impl IndexMut<u8> for Composition {
+    fn index_mut(&mut self, index: u8) -> &mut Self::Output {
+        &mut self.elements[index as usize]
+    }
+}
+
 impl Composition {
     pub fn new(
         cid: CompanyIdentifier,
@@ -545,8 +551,8 @@ impl Composition {
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ElementDescriptor {
-    pub(crate) loc: Location,
-    pub(crate) models: Vec<ModelIdentifier, 4>,
+    pub loc: Location,
+    pub models: Vec<ModelIdentifier, 4>,
 }
 
 impl ElementDescriptor {

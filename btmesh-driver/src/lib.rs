@@ -6,7 +6,7 @@
 #![allow(clippy::await_holding_refcell_ref)]
 
 use btmesh_bearer::beacon::Beacon;
-use btmesh_common::address::Address;
+use btmesh_common::{address::Address, ElementDescriptor};
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{
     BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, KeyHandle, OutboundChannel,
@@ -361,7 +361,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         network.run()
     }
 
-    async fn run_driver(&self, composition: Composition) -> Result<(), DriverError> {
+    async fn run_driver(&self, composition: &mut Composition) -> Result<(), DriverError> {
         info!("btmesh: starting up");
 
         let capabilities = Capabilities {
@@ -369,9 +369,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             ..Default::default()
         };
 
-        let composition = enhance_composition(composition)?;
+        enhance_composition(composition)?;
 
-        self.storage.set_composition(composition.clone());
+        self.storage.set_composition(composition);
         self.storage.set_capabilities(capabilities);
 
         self.storage.init().await?;
@@ -515,7 +515,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         &'r mut self,
         device: &'r mut D,
     ) -> Result<(), DriverError> {
-        let composition = device.composition();
+        let mut composition = device.composition();
 
         let mut foundation_device = FoundationDevice::new(self.storage);
 
@@ -524,7 +524,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
             Self::run_device(device, DEVICE_INBOUND.receiver()),
         );
-        let driver_fut = self.run_driver(composition);
+        let driver_fut = self.run_driver(&mut composition);
 
         // if the device or the driver is `Ready` then stuff is just done, stop.
         match select3(network_fut, driver_fut, device_fut).await {
@@ -592,17 +592,10 @@ static DEVICE_INBOUND: InboundChannel = InboundChannel::new();
 
 static OUTBOUND: OutboundChannel = OutboundChannel::new();
 
-fn enhance_composition(composition: Composition) -> Result<Composition, DriverError> {
-    let mut enhanced = Composition::new(composition.cid(), composition.pid(), composition.vid());
-
-    for (i, element) in composition.elements_iter().enumerate() {
-        let mut element = element.clone();
-        if i == 0 {
-            element.add_model(CONFIGURATION_SERVER);
-        }
-        enhanced
-            .add_element(element)
-            .map_err(|_| DriverError::InsufficientSpace)?;
+fn enhance_composition(composition: &mut Composition) -> Result<(), DriverError> {
+    if composition.number_of_elements() > 0 {
+        composition[0].add_model(CONFIGURATION_SERVER);
     }
-    Ok(enhanced)
+
+    Ok(())
 }

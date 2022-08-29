@@ -65,8 +65,11 @@ impl From<CompositionStatus> for CompositionDataMessage {
 }
 
 impl CompositionStatus {
-    pub fn new(page: u8, data: Composition) -> Self {
-        Self { page, data }
+    pub fn new(page: u8, data: &Composition) -> Self {
+        Self {
+            page,
+            data: data.clone(),
+        }
     }
 
     fn emit_parameters<const N: usize>(
