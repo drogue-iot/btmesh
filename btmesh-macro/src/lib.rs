@@ -305,7 +305,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
         fanout.extend(quote! {
             if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
-                #ch_sender_name.try_send( (model_message, message.meta.clone()) ).ok();
+                #ch_sender_name.try_send( (model_message, message.meta) ).ok();
             }
         });
 
