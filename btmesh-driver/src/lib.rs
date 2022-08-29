@@ -448,7 +448,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                             return Err(err.into());
                         }
                         Either::Second(outbound_payload) => {
-                            self.process_outbound_payload(&outbound_payload).await?;
+                            if let DeviceState::Provisioned = device_state {
+                                self.process_outbound_payload(&outbound_payload).await?;
+                            }
                         }
                     },
                     Either4::Second(_) => {
