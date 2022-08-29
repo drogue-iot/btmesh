@@ -227,7 +227,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     OutboundExtra::Send(extra) => (
                         Some(AccessMessage::new(
                             outbound_payload.opcode,
-                            Vec::from_slice(&outbound_payload.parameters.clone())?,
+                            Vec::from_slice(&outbound_payload.parameters)?,
                             (element_address, extra.meta, default_ttl),
                         )),
                         extra.completion_token.clone(),
@@ -262,7 +262,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                     replay_seq: None,
                                 };
                                 (
-                                    Some(AccessMessage::new(
+                                    Some(AccessMessage::<ProvisionedStack>::new(
                                         outbound_payload.opcode,
                                         Vec::from_slice(&outbound_payload.parameters.clone())?,
                                         meta,
@@ -281,9 +281,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 if let (Some(message), Stack::Provisioned { stack, sequence }) =
                     (message, &mut *self.stack.borrow_mut())
                 {
+                    let message = message.into();
                     let network_pdus = stack.process_outbound(
                         sequence,
-                        &(message.into()),
+                        &message,
                         completion_token,
                         &self.watchdog,
                     )?;
@@ -297,7 +298,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         if let Some(network_pdus) = network_pdus {
             for pdu in network_pdus {
                 //debug!("outbound network pdu: {}", pdu);
-                self.network.transmit(&(pdu.into()), false).await?;
+                let pdu = pdu.into();
+                self.receive_pdu(&pdu).await.ok();
+                self.network.transmit(&pdu, false).await?;
             }
         }
         Ok(())
