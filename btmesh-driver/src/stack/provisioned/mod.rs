@@ -189,7 +189,7 @@ impl ProvisionedStack {
     pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 16>, DriverError> {
         let mut pdus = Vec::new();
 
-        let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 16> = self.transmit_queue.iter().collect();
+        let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 5> = self.transmit_queue.iter().collect();
 
         for upper_pdu in upper_pdus {
             info!("rexmit {}", upper_pdu);
