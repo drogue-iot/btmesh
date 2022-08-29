@@ -4,8 +4,8 @@ cargo size --release | tail -n 2 > memusage.txt
 echo "Stack" >> memusage.txt
 cargo call-stack --bin basic --format top 2> callstack.error | head -n 20 >> memusage.txt
 
-max=$(head -4 memusage.txt | tail -1 | cut -f 1 -w)
-bss=$(head -2 memusage.txt  | tail -1  | cut -f 4 -w)
+max=$(head -4 memusage.txt | tail -1 | tr -s ' ' | cut -f 1 -d ' ')
+bss=$(head -2 memusage.txt  | tail -1  | tr -s ' ' | cut -f 4 -d ' ')
 
 ram=$(dc -e "$bss $max + 1024 / p")
 
