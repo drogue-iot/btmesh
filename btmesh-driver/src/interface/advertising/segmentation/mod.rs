@@ -72,6 +72,6 @@ impl Segmentation {
     }
 
     pub fn process_outbound(&self, pdu: &ProvisioningPDU) -> Result<OutboundSegments, BearerError> {
-        OutboundSegments::new(pdu.clone())
+        OutboundSegments::new(pdu)
     }
 }

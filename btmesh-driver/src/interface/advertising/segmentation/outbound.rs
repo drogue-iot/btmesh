@@ -16,7 +16,7 @@ pub struct OutboundSegments {
 }
 
 impl OutboundSegments {
-    pub fn new(pdu: ProvisioningPDU) -> Result<Self, BearerError> {
+    pub fn new(pdu: &ProvisioningPDU) -> Result<Self, BearerError> {
         let mut data = Vec::new();
         pdu.emit(&mut data)?;
         let fcs = fcs(&data);
