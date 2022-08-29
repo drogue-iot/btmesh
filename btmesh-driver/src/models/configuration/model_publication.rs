@@ -104,7 +104,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                             .local_element_index(set.details.element_address.into())
                         {
                             config.publications_mut().set(
-                                &composition.as_ref().unwrap(),
+                                composition.as_ref().unwrap(),
                                 element_index,
                                 set.details,
                             )?;

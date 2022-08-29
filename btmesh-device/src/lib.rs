@@ -40,7 +40,8 @@ pub type InboundChannelReceiver =
     Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
 
 pub struct InboundPayload {
-    pub element_index: Option<usize>,
+    pub element_index: usize,
+    pub model_identifier: Option<ModelIdentifier>,
     pub opcode: Opcode,
     pub parameters: Vec<u8, 380>,
     pub meta: InboundMetadata,

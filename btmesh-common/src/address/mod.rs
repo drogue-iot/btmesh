@@ -142,5 +142,9 @@ mod tests {
             Address::parse([0xFF, 0x0A]),
             Address::Group(GroupAddress::RFU(0xFF_0A))
         );
+        assert_eq!(
+            Address::parse([0xC0, 0x00]),
+            Address::Group(GroupAddress::Normal(0xC0_00))
+        );
     }
 }

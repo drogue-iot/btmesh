@@ -6,10 +6,10 @@ use crate::{Configuration, DeviceInfo, NetworkState, Secrets};
 use btmesh_common::{Composition, IvIndex};
 use core::hash::{Hash, Hasher};
 
-mod bindings;
-mod foundation;
-mod publications;
-mod subscriptions;
+pub(crate) mod bindings;
+pub(crate) mod foundation;
+pub(crate) mod publications;
+pub(crate) mod subscriptions;
 
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]

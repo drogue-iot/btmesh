@@ -5,6 +5,7 @@ use crate::address::{Address, InvalidAddress};
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub enum GroupAddress {
     RFU(u16),
+    Normal(u16),
     AllProxies,
     AllFriends,
     AllRelays,
@@ -15,6 +16,7 @@ impl GroupAddress {
     pub fn as_bytes(&self) -> [u8; 2] {
         match self {
             GroupAddress::RFU(bytes) => bytes.to_be_bytes(),
+            GroupAddress::Normal(bytes) => bytes.to_be_bytes(),
             GroupAddress::AllProxies => [0xFF, 0xFC],
             GroupAddress::AllFriends => [0xFF, 0xFD],
             GroupAddress::AllRelays => [0xFF, 0xFE],
@@ -47,7 +49,8 @@ impl GroupAddress {
             [0xFF, 0xFD] => Self::AllFriends,
             [0xFF, 0xFE] => Self::AllRelays,
             [0xFF, 0xFF] => Self::AllNodes,
-            _ => Self::RFU(u16::from_be_bytes(data)),
+            [0xFF, _] => Self::RFU(u16::from_be_bytes(data)),
+            _ => Self::Normal(u16::from_be_bytes(data)),
         }
     }
 }

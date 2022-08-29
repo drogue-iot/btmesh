@@ -111,8 +111,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
             let #ctx_name = ctx.element_context(#i, #element_channel_name.receiver() );
         });
         fanout.extend(quote! {
-            if matches!(target_element_index, Some(#i)) || matches!(target_element_index, None) {
-                //defmt::info!("sending to element {}", stringify!(#field_name) );
+            if target_element_index == #i {
                 #element_channel_name.send(message.clone()).await;
             }
         });

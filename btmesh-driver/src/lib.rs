@@ -4,9 +4,10 @@
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 #![allow(clippy::await_holding_refcell_ref)]
+#![feature(async_closure)]
 
 use btmesh_bearer::beacon::Beacon;
-use btmesh_common::{address::Address, ElementDescriptor};
+use btmesh_common::address::Address;
 use btmesh_common::{Composition, Seq, Uuid};
 use btmesh_device::{
     BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, KeyHandle, OutboundChannel,
@@ -157,10 +158,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
-                debug!("inbound network pdu: {}", pdu);
+                //debug!("inbound network pdu: {}", pdu);
                 if let Some(result) = stack.process_inbound_network_pdu(pdu, &self.watchdog)? {
                     if let Some((block_ack, meta)) = result.block_ack {
-                        debug!("we have outbound block_ack");
                         // send outbound block-ack
 
                         let network_pdus = self
@@ -186,9 +186,16 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
                     if let Some(message) = &result.message {
                         // dispatch to element(s)
+                        let subscriptions = self
+                            .storage
+                            .read_provisioned(|config| Ok(config.subscriptions().clone()))
+                            .await?;
                         match message {
                             Message::Access(message) => {
-                                self.dispatcher.borrow_mut().dispatch(message).await?;
+                                self.dispatcher
+                                    .borrow_mut()
+                                    .dispatch(message, &subscriptions)
+                                    .await?;
                             }
                             Message::Control(message) => {
                                 stack.process_inbound_control(message, &self.watchdog)?;
@@ -412,7 +419,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     };
 
                     if changed {
-                        config.display(&composition);
+                        config.display(composition);
                         last_displayed_hash.replace(current_hash);
                     }
 

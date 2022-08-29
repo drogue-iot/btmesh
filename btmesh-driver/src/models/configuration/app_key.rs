@@ -10,6 +10,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     message: &AppKeyMessage,
     meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
+    info!("app-key add");
     match message {
         AppKeyMessage::Add(add) => {
             let (status, err) = convert(

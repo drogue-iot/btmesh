@@ -170,11 +170,10 @@ impl ModelSubscriptionPayload {
     pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() >= 6 {
             let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
-            let subscription_address = SubscriptionAddress::Unicast(UnicastAddress::parse([
-                parameters[3],
-                parameters[2],
-            ])?);
-            let model_identifier = ModelIdentifier::parse(&parameters[9..])?;
+            let subscription_address = Address::parse([parameters[3], parameters[2]])
+                .try_into()
+                .map_err(|_| ParseError::InvalidValue)?;
+            let model_identifier = ModelIdentifier::parse(&parameters[4..])?;
             Ok(Self {
                 element_address,
                 subscription_address,
@@ -317,8 +316,10 @@ impl ModelSubscriptionStatusMessage {
                 xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
                 xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
             }
-            SubscriptionAddress::Group(_addr) => {
-                todo!("group address")
+            SubscriptionAddress::Group(addr) => {
+                let addr_bytes = addr.as_bytes();
+                xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
+                xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
             }
             SubscriptionAddress::Label(addr) => {
                 let addr_bytes = addr.virtual_address().as_bytes();

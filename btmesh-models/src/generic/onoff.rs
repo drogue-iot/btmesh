@@ -145,6 +145,12 @@ pub struct Status {
     pub remaining_time: u8,
 }
 
+impl From<Status> for GenericOnOffMessage {
+    fn from(inner: Status) -> Self {
+        GenericOnOffMessage::Status(inner)
+    }
+}
+
 impl Status {
     fn emit_parameters<const N: usize>(
         &self,

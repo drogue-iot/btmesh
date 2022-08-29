@@ -8,7 +8,7 @@ use core::cell::RefCell;
 use core::future::Future;
 use core::hash::Hash;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::mutex::Mutex;
+use embassy_sync::mutex::{Mutex, MutexGuard};
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -126,6 +126,10 @@ impl<B: BackingStore> Storage<B> {
         }
 
         Ok(())
+    }
+
+    pub async fn get(&self) -> MutexGuard<'_, CriticalSectionRawMutex, Option<Configuration>> {
+        self.config.lock().await
     }
 
     pub async fn read<F: FnOnce(&Configuration) -> Result<R, DriverError>, R>(

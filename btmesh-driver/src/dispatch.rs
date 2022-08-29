@@ -1,8 +1,11 @@
+use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::Seq;
 use btmesh_device::access_counted::AccessCounted;
 use btmesh_device::{InboundChannelSender, InboundPayload};
+use btmesh_models::foundation::configuration::ConfigurationServer;
+use btmesh_models::Model;
 use btmesh_pdu::provisioned::access::AccessMessage;
 use core::cmp::Ordering;
 use heapless::Vec;
@@ -70,12 +73,10 @@ impl Dispatcher {
     pub async fn dispatch(
         &mut self,
         message: &AccessMessage<ProvisionedStack>,
+        subscriptions: &Subscriptions,
     ) -> Result<(), DriverError> {
-        info!("dispatch {}", message);
-
         // TODO figure out my logic issues
         if self.check_if_replay(message) {
-            info!("avoiding replay");
             return Ok(());
         }
 
@@ -85,43 +86,52 @@ impl Dispatcher {
 
         let meta = message.meta().into();
 
-        unsafe {
-            PAYLOAD.set(InboundPayload {
-                element_index: local_element_index.map(|index| index as usize),
-                opcode,
-                parameters: Vec::from_slice(parameters)?,
-                meta,
-            });
-        }
-
         if let Some(local_element_index) = local_element_index {
-            info!("dispatch to {}", local_element_index);
-            if local_element_index == 0 {
-                self.foundation_sender
-                    .send(unsafe { PAYLOAD.get() })
-                    //.send((Some(0usize), opcode, Vec::from_slice(parameters)?, meta))
-                    .await;
+            // unicast to an element
+            unsafe {
+                PAYLOAD.set(InboundPayload {
+                    element_index: local_element_index as usize,
+                    model_identifier: None,
+                    opcode,
+                    parameters: Vec::from_slice(parameters)?,
+                    meta,
+                });
             }
-            self.device_sender
-                .send(unsafe { PAYLOAD.get() })
-                //.send(( Some(local_element_index as usize), opcode, Vec::from_slice(parameters)?, meta,
-                .await;
+            if local_element_index == 0 {
+                self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
+            }
+            self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+
+            unsafe {
+                PAYLOAD.wait().await;
+            }
         } else {
-            self.foundation_sender
-                .send(unsafe { PAYLOAD.get() })
-                //.send((None, opcode, Vec::from_slice(parameters)?, meta))
-                .await;
-            self.device_sender
-                .send(unsafe { PAYLOAD.get() })
-                //.send((None, opcode, Vec::from_slice(parameters)?, meta))
-                .await;
-        }
+            // not unicast, check subscriptions.
+            for subscription in subscriptions.subscriptions_for(meta.dst())? {
+                unsafe {
+                    PAYLOAD.set(InboundPayload {
+                        element_index: subscription.element_index as usize,
+                        model_identifier: Some(subscription.model_identifier),
+                        opcode,
+                        parameters: Vec::from_slice(parameters)?,
+                        meta,
+                    });
+                }
 
-        unsafe {
-            PAYLOAD.wait().await;
-        }
+                // only dispatch to foundation if actually foundational subscription.
+                if subscription.element_index == 0
+                    && subscription.model_identifier == ConfigurationServer::IDENTIFIER
+                {
+                    self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
+                }
 
-        info!("dispatch complete");
+                self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+
+                unsafe {
+                    PAYLOAD.wait().await;
+                }
+            }
+        }
 
         Ok(())
     }

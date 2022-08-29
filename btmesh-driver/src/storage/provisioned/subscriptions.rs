@@ -1,4 +1,5 @@
 use crate::DriverError;
+use btmesh_common::address::Address;
 use btmesh_common::{Composition, ModelIdentifier};
 use btmesh_models::foundation::configuration::model_subscription::SubscriptionAddress;
 use heapless::Vec;
@@ -145,13 +146,34 @@ impl<const N: usize> Subscriptions<N> {
             }
         })
     }
+
+    pub fn subscriptions_for(
+        &self,
+        dst: Address,
+    ) -> Result<impl Iterator<Item = &Subscription> + '_, DriverError> {
+        if let Ok(subscription_dst) = dst.try_into() {
+            Ok(self
+                .entries
+                .iter()
+                .filter(move |e| {
+                    if let Some(slot) = e {
+                        slot.address == subscription_dst
+                    } else {
+                        false
+                    }
+                })
+                .flatten())
+        } else {
+            Err(DriverError::InvalidAddress)
+        }
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug, Hash)]
 pub struct Subscription {
-    element_index: u8,
-    model_identifier: ModelIdentifier,
-    address: SubscriptionAddress,
+    pub element_index: u8,
+    pub model_identifier: ModelIdentifier,
+    pub address: SubscriptionAddress,
 }
