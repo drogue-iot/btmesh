@@ -50,7 +50,7 @@ pub trait BackingStore {
 #[allow(clippy::large_enum_variant)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-#[derive(Clone, Hash, Debug)]
+#[derive(Hash, Debug)]
 pub enum Configuration {
     Unprovisioned(UnprovisionedConfiguration),
     Provisioned(ProvisionedConfiguration),
@@ -70,17 +70,17 @@ pub struct Storage<B: BackingStore> {
     capabilities: RefCell<Option<Capabilities>>,
     composition: RefCell<Option<Composition>>,
     config: Mutex<CriticalSectionRawMutex, Option<Configuration>>,
-    default_config: Configuration,
+    default_config: UnprovisionedConfiguration,
 }
 
 impl<B: BackingStore> Storage<B> {
-    pub fn new(backing_store: B, upc: UnprovisionedConfiguration) -> Self {
+    pub fn new(backing_store: B, default_config: UnprovisionedConfiguration) -> Self {
         Self {
             backing_store: RefCell::new(backing_store),
             capabilities: RefCell::new(None),
             composition: RefCell::new(None),
             config: Mutex::new(None),
-            default_config: Configuration::Unprovisioned(upc),
+            default_config,
         }
     }
 
@@ -100,7 +100,7 @@ impl<B: BackingStore> Storage<B> {
             backing_store.store(&config).await?;
             locked_config.replace(Configuration::Provisioned(config));
         } else {
-            locked_config.replace(self.default_config.clone());
+            locked_config.replace(Configuration::Unprovisioned(self.default_config.clone()));
         }
         Ok(())
     }
@@ -186,7 +186,7 @@ impl<B: BackingStore> Storage<B> {
     pub async fn reset(&self) -> Result<(), StorageError> {
         let mut locked_config = self.config.lock().await;
         self.backing_store.borrow_mut().clear().await?;
-        locked_config.replace(self.default_config.clone());
+        locked_config.replace(Configuration::Unprovisioned(self.default_config.clone()));
         Ok(())
     }
 
