@@ -9,7 +9,7 @@ use heapless::Vec;
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Clone, Debug, Hash)]
-pub struct Publications<const N: usize = 16> {
+pub struct Publications<const N: usize = 8> {
     entries: Vec<Option<Publication>, N>,
 }
 
