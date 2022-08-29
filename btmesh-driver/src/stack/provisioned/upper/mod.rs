@@ -193,12 +193,15 @@ impl ProvisionedStack {
                 pdu.meta().iv_index(),
             );
 
+            let mut bytes: Vec<_, 380> = Vec::new();
             let mut decrypt_result = None;
 
             'outer: for application_key_handle in self.secrets.application_keys_by_aid(aid) {
                 let application_key = self.secrets.application_key(application_key_handle)?;
                 if pdu.meta().label_uuids().is_empty() {
-                    let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
+                    bytes.clear();
+                    bytes
+                        .extend_from_slice(pdu.payload())
                         .map_err(|_| DriverError::InsufficientSpace)?;
                     if crypto::application::try_decrypt_application_key(
                         &application_key,
@@ -218,7 +221,9 @@ impl ProvisionedStack {
                     // more than a single execution is exceedingly low,
                     // but never zero.
                     for label_uuid in pdu.meta().label_uuids() {
-                        let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
+                        bytes.clear();
+                        bytes
+                            .extend_from_slice(pdu.payload())
                             .map_err(|_| DriverError::InsufficientSpace)?;
                         if crypto::application::try_decrypt_application_key(
                             &application_key,
