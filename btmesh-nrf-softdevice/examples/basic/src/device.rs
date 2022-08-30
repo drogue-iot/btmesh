@@ -124,7 +124,7 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
                     Either::First(_) => {
                         defmt::info!("** button toggled");
                         ctx.publish(GenericOnOffMessage::SetUnacknowledged(Set {
-                            on_off: if self.button.is_high() { 128 } else { 0 },
+                            on_off: if self.button.is_high() { 1 } else { 0 },
                             tid: 0,
                             transition_time: None,
                             delay: None,

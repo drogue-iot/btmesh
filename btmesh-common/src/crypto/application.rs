@@ -49,10 +49,36 @@ impl From<u8> for Aid {
 
 #[derive(Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
-#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 pub struct ApplicationKey {
     application_key: [u8; 16],
     aid: Aid,
+}
+
+#[cfg(feature = "defmt")]
+impl ::defmt::Format for ApplicationKey {
+    fn format(&self, fmt: ::defmt::Formatter) {
+        ::defmt::write!(
+            fmt,
+            "0x{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X}{:02X} {}",
+            self.application_key[0],
+            self.application_key[1],
+            self.application_key[2],
+            self.application_key[3],
+            self.application_key[4],
+            self.application_key[5],
+            self.application_key[6],
+            self.application_key[7],
+            self.application_key[8],
+            self.application_key[9],
+            self.application_key[10],
+            self.application_key[11],
+            self.application_key[12],
+            self.application_key[13],
+            self.application_key[14],
+            self.application_key[15],
+            self.aid,
+        )
+    }
 }
 
 impl ApplicationKey {

@@ -44,13 +44,6 @@ pub trait NetworkInterfaces {
     /// Transmit data on all of the network interfaces.
     fn transmit<'m>(&'m self, pdu: &'m PDU, is_retransmit: bool) -> Self::TransmitFuture<'m>;
 
-    type RetransmitFuture<'m>: Future<Output = Result<(), NetworkError>> + 'm
-    where
-        Self: 'm;
-
-    /// Retransmit any necessary network-level packets held by the interfaces.
-    fn retransmit(&self) -> Self::RetransmitFuture<'_>;
-
     type BeaconFuture<'m>: Future<Output = Result<(), NetworkError>> + 'm
     where
         Self: 'm;
@@ -153,14 +146,6 @@ impl<AB: AdvertisingBearer, GB: GattBearer<MTU>, const MTU: usize> NetworkInterf
         }
     }
 
-    type RetransmitFuture<'m> = impl Future<Output = Result<(), NetworkError>> + 'm
-    where
-    Self: 'm;
-
-    fn retransmit(&self) -> Self::RetransmitFuture<'_> {
-        async move { Ok(self.advertising_interface.retransmit().await?) }
-    }
-
     type BeaconFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm
     where
     Self: 'm;
@@ -237,14 +222,6 @@ impl<B: AdvertisingBearer> NetworkInterfaces for AdvertisingOnlyNetworkInterface
 
     fn transmit<'m>(&'m self, pdu: &'m PDU, _is_retransmit: bool) -> Self::TransmitFuture<'m> {
         async move { Ok(self.interface.transmit(pdu).await?) }
-    }
-
-    type RetransmitFuture<'m> = impl Future<Output = Result<(), NetworkError>> + 'm
-    where
-    Self: 'm;
-
-    fn retransmit(&self) -> Self::RetransmitFuture<'_> {
-        async move { Ok(self.interface.retransmit().await?) }
     }
 
     type BeaconFuture<'m> = impl Future<Output=Result<(), NetworkError>> + 'm

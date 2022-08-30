@@ -158,13 +158,12 @@ impl ProvisionedStack {
 
                 let application_key = self.secrets.application_key(key_handle)?;
 
-                let mut bytes = [0; 379];
                 let mut transmic = TransMic::new32();
 
                 crypto::application::encrypt_application_key(
                     &application_key,
                     nonce,
-                    &mut bytes,
+                    &mut payload,
                     &mut transmic,
                     message.meta().label_uuid(),
                 )
