@@ -1,13 +1,14 @@
 use crate::stack::provisioned::system::NetworkMetadata;
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
 use btmesh_common::address::{Address, UnicastAddress};
-use btmesh_common::crypto::network::{NetMic, NetworkKey, Nid};
+use btmesh_common::crypto::network::NetMic;
 use btmesh_common::crypto::nonce::NetworkNonce;
 use btmesh_common::{crypto, Ctl, IvIndex, Seq, Ttl};
 use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use heapless::Vec;
 
 use crate::stack::provisioned::network::replay_protection::ReplayProtection;
+use crate::Secrets;
 use btmesh_device::NetworkKeyHandle;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
@@ -79,6 +80,7 @@ impl NetworkDriver {
 }
 
 impl ProvisionedStack {
+    /*
     fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
         self.secrets.network_keys_by_nid(nid)
     }
@@ -86,6 +88,7 @@ impl ProvisionedStack {
     fn network_key(&self, handle: NetworkKeyHandle) -> Result<NetworkKey, DriverError> {
         self.secrets.network_key(handle)
     }
+     */
 
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
         self.network.replay_protection.check_network_pdu(pdu);
@@ -93,6 +96,7 @@ impl ProvisionedStack {
 
     pub fn encrypt_network_pdu(
         &mut self,
+        secrets: &Secrets,
         cleartext_pdu: &CleartextNetworkPDU<ProvisionedStack>,
     ) -> Result<NetworkPDU, DriverError> {
         let ctl_ttl = match cleartext_pdu.ctl() {
@@ -110,7 +114,7 @@ impl ProvisionedStack {
             .extend_from_slice(cleartext_pdu.transport_pdu())
             .map_err(|_| DriverError::InsufficientSpace)?;
 
-        let network_key = self.network_key(cleartext_pdu.meta().network_key_handle())?;
+        let network_key = secrets.network_key(cleartext_pdu.meta().network_key_handle())?;
 
         let nonce = NetworkNonce::new(
             ctl_ttl,
@@ -183,12 +187,15 @@ impl ProvisionedStack {
 
     pub fn try_decrypt_network_pdu(
         &mut self,
+        secrets: &Secrets,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
     ) -> Result<Option<CleartextNetworkPDU<ProvisionedStack>>, DriverError> {
         let mut result = None;
-        for network_key in self.network_keys_by_nid(pdu.nid()) {
-            if let Ok(pdu) = self.try_decrypt_network_pdu_with_key(pdu, iv_index, network_key) {
+        for network_key in secrets.network_keys_by_nid(pdu.nid()) {
+            if let Ok(pdu) =
+                self.try_decrypt_network_pdu_with_key(secrets, pdu, iv_index, network_key)
+            {
                 result.replace(pdu);
                 break;
             }
@@ -203,11 +210,12 @@ impl ProvisionedStack {
 
     pub fn try_decrypt_network_pdu_with_key(
         &self,
+        secrets: &Secrets,
         pdu: &NetworkPDU,
         iv_index: IvIndex,
         network_key_handle: NetworkKeyHandle,
     ) -> Result<CleartextNetworkPDU<ProvisionedStack>, DriverError> {
-        let network_key = self.network_key(network_key_handle)?;
+        let network_key = secrets.network_key(network_key_handle)?;
         let mut encrypted_and_mic = Vec::<_, 28>::from_slice(pdu.encrypted_and_mic())
             .map_err(|_| DriverError::InsufficientSpace)?;
         let privacy_plaintext = crypto::privacy_plaintext(iv_index, &encrypted_and_mic);

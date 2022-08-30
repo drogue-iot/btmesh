@@ -7,7 +7,7 @@ use btmesh_pdu::provisioned::upper::UpperPDU;
 use embassy_time::{Duration, Instant};
 use heapless::Vec;
 
-pub struct TransmitQueue<const N: usize = 5> {
+pub struct TransmitQueue<const N: usize = 8> {
     queue: Vec<Option<QueueEntry>, N>,
 }
 
@@ -61,7 +61,6 @@ impl<const N: usize> TransmitQueue<N> {
         let seq_zero = upper_pdu.meta().seq().into();
 
         if let Some(slot) = slot {
-            debug!("added to retransmit queue {}", seq_zero);
             slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
                 upper_pdu,
                 acked: Acked::new(seq_zero, num_segments),

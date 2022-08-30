@@ -1,6 +1,7 @@
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{AccessMetadata, ControlMetadata, UpperMetadata};
 use crate::stack::provisioned::{DriverError, ProvisionedStack};
+use crate::Secrets;
 use btmesh_common::address::{Address, LabelUuid};
 use btmesh_common::crypto;
 use btmesh_common::crypto::nonce::{ApplicationNonce, DeviceNonce};
@@ -54,11 +55,12 @@ impl ProvisionedStack {
 
     pub fn process_inbound_upper_pdu(
         &mut self,
+        secrets: &Secrets,
         pdu: &mut UpperPDU<ProvisionedStack>,
     ) -> Result<Message<ProvisionedStack>, DriverError> {
         self.apply_label_uuids(pdu)?;
         match pdu {
-            UpperPDU::Access(access) => Ok(self.decrypt_access(access)?.into()),
+            UpperPDU::Access(access) => Ok(self.decrypt_access(secrets, access)?.into()),
             UpperPDU::Control(control) => Ok(ControlMessage::new(
                 control.opcode(),
                 control.parameters(),
@@ -70,11 +72,12 @@ impl ProvisionedStack {
 
     pub fn process_outbound_message(
         &mut self,
+        secrets: &Secrets,
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
     ) -> Result<UpperPDU<ProvisionedStack>, DriverError> {
         match message {
-            Message::Access(access) => Ok(self.encrypt_access(sequence, access)?.into()),
+            Message::Access(access) => Ok(self.encrypt_access(secrets, sequence, access)?.into()),
             Message::Control(_control) => {
                 todo!()
             }
@@ -108,6 +111,7 @@ impl ProvisionedStack {
 
     fn encrypt_access(
         &mut self,
+        secrets: &Secrets,
         sequence: &Sequence,
         message: &AccessMessage<ProvisionedStack>,
     ) -> Result<UpperAccessPDU<ProvisionedStack>, DriverError> {
@@ -126,7 +130,7 @@ impl ProvisionedStack {
                     message.meta().iv_index(),
                 );
 
-                let device_key = self.secrets.device_key();
+                let device_key = secrets.device_key();
 
                 let mut transmic = TransMic::new32();
 
@@ -156,7 +160,7 @@ impl ProvisionedStack {
                     message.meta().iv_index(),
                 );
 
-                let application_key = self.secrets.application_key(key_handle)?;
+                let application_key = secrets.application_key(key_handle)?;
 
                 let mut transmic = TransMic::new32();
 
@@ -180,6 +184,7 @@ impl ProvisionedStack {
 
     fn decrypt_access(
         &mut self,
+        secrets: &Secrets,
         pdu: &UpperAccessPDU<ProvisionedStack>,
     ) -> Result<AccessMessage<ProvisionedStack>, DriverError> {
         if let Some(aid) = pdu.meta().aid() {
@@ -195,8 +200,8 @@ impl ProvisionedStack {
             let mut bytes: Vec<_, 380> = Vec::new();
             let mut decrypt_result = None;
 
-            'outer: for application_key_handle in self.secrets.application_keys_by_aid(aid) {
-                let application_key = self.secrets.application_key(application_key_handle)?;
+            'outer: for application_key_handle in secrets.application_keys_by_aid(aid) {
+                let application_key = secrets.application_key(application_key_handle)?;
                 if pdu.meta().label_uuids().is_empty() {
                     bytes.clear();
                     bytes
@@ -269,7 +274,7 @@ impl ProvisionedStack {
                 pdu.meta().iv_index(),
             );
 
-            let device_key = self.secrets.device_key();
+            let device_key = secrets.device_key();
 
             let mut bytes = Vec::<_, 380>::from_slice(pdu.payload())
                 .map_err(|_| DriverError::InsufficientSpace)?;

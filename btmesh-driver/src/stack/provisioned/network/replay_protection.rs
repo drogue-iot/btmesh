@@ -74,10 +74,8 @@ impl<const N: usize> ReplayProtection<N> {
                 Ordering::Equal => {
                     if let Some(replay_seq) = meta.replay_seq() {
                         if replay_seq == entry.seq {
-                            info!("A replay protected {}", replay_seq);
                             Some(entry.block_ack)
                         } else {
-                            info!("B replay not protected {}", replay_seq);
                             None
                         }
                     } else {
@@ -90,10 +88,8 @@ impl<const N: usize> ReplayProtection<N> {
                             entry.iv_index = iv_index;
                             entry.seq = replay_seq;
                             entry.block_ack = *block_ack;
-                            info!("C replay not protected {}", replay_seq);
                         }
                     }
-                    info!("C.5");
                     None
                 }
             }
@@ -106,10 +102,8 @@ impl<const N: usize> ReplayProtection<N> {
                         iv_index,
                         block_ack: *block_ack,
                     });
-                    info!("D replay not protected {}", replay_seq);
                 }
             }
-            info!("D.5");
             None
         }
     }

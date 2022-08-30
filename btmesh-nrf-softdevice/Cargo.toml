@@ -75,6 +75,8 @@ low_power = [
 embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "529535194d4b5d58b31fd6a7541176105e3c63f7" }
 embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "529535194d4b5d58b31fd6a7541176105e3c63f7" }
 embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "529535194d4b5d58b31fd6a7541176105e3c63f7" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "529535194d4b5d58b31fd6a7541176105e3c63f7" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "529535194d4b5d58b31fd6a7541176105e3c63f7" }
 nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "5dabeac5d85d6ebf184b034054e827fca19a89ab" }
 nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "5dabeac5d85d6ebf184b034054e827fca19a89ab" }
 nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "5dabeac5d85d6ebf184b034054e827fca19a89ab" }

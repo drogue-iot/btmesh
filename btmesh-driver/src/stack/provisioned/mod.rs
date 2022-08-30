@@ -21,7 +21,6 @@ use btmesh_common::address::UnicastAddress;
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::control::ControlMessage;
 use btmesh_pdu::provisioned::upper::control::ControlOpcode;
-use btmesh_pdu::provisioned::upper::UpperPDU;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
@@ -101,7 +100,6 @@ impl From<ProvisioningData> for IvIndexState {
 
 pub struct ProvisionedStack {
     network_state: NetworkState,
-    secrets: Secrets,
     upper: UpperDriver,
     lower: LowerDriver,
     network: NetworkDriver,
@@ -114,7 +112,6 @@ impl From<&ProvisionedConfiguration> for ProvisionedStack {
     fn from(content: &ProvisionedConfiguration) -> Self {
         Self {
             network_state: *content.network_state(),
-            secrets: content.secrets().clone(),
             upper: Default::default(),
             lower: Default::default(),
             network: NetworkDriver::new(*content.device_info()),
@@ -154,9 +151,8 @@ impl
 }
 
 impl ProvisionedStack {
-    pub fn new(device_info: DeviceInfo, secrets: Secrets, network_state: NetworkState) -> Self {
+    pub fn new(device_info: DeviceInfo, network_state: NetworkState) -> Self {
         Self {
-            secrets,
             network_state,
             upper: Default::default(),
             lower: Default::default(),
@@ -186,31 +182,31 @@ impl ProvisionedStack {
         Some(Timer::after(Duration::from_millis(200)))
     }
 
-    pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 16>, DriverError> {
-        info!("rx 1");
+    pub fn retransmit(
+        &mut self,
+        secrets: &Secrets,
+        sequence: &Sequence,
+    ) -> Result<Vec<NetworkPDU, 16>, DriverError> {
         let mut pdus = Vec::new();
 
-        let upper_pdus: Vec<_, 5> = self.transmit_queue.iter().collect();
-        info!("rx 2");
+        let upper_pdus: Vec<_, 8> = self.transmit_queue.iter().collect();
 
         for upper_pdu in upper_pdus {
-            info!("rx 3");
             for network_pdu in self
                 .process_outbound_upper_pdu::<8>(sequence, &upper_pdu, true)?
                 .iter()
-                .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
+                .map_while(|pdu| self.encrypt_network_pdu(secrets, pdu).ok())
             {
-                info!("rx 4");
                 pdus.push(network_pdu)
                     .map_err(|_| DriverError::InsufficientSpace)?;
             }
         }
-        info!("rx 5");
         Ok(pdus)
     }
 
     pub fn process_inbound_network_pdu(
         &mut self,
+        secrets: &Secrets,
         network_pdu: &NetworkPDU,
         watchdog: &Watchdog,
     ) -> Result<Option<ReceiveResult>, DriverError> {
@@ -219,7 +215,9 @@ impl ProvisionedStack {
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
 
-        if let Some(cleartext_network_pdu) = self.try_decrypt_network_pdu(network_pdu, iv_index)? {
+        if let Some(cleartext_network_pdu) =
+            self.try_decrypt_network_pdu(secrets, network_pdu, iv_index)?
+        {
             if cleartext_network_pdu.meta().is_replay_protected() {
                 return Ok(None);
             }
@@ -241,7 +239,7 @@ impl ProvisionedStack {
             }
 
             let message = if let Some(upper_pdu) = &mut upper_pdu {
-                Some(self.process_inbound_upper_pdu(upper_pdu)?)
+                Some(self.process_inbound_upper_pdu(secrets, upper_pdu)?)
             } else {
                 None
             };
@@ -251,10 +249,6 @@ impl ProvisionedStack {
             // nothing doing, bad result, nothing parsed, keep on truckin'
             Ok(None)
         }
-    }
-
-    pub(crate) fn secrets(&self) -> &Secrets {
-        &self.secrets
     }
 
     // todo: remove this once we match more control messages.
@@ -278,12 +272,13 @@ impl ProvisionedStack {
 
     pub fn process_outbound(
         &mut self,
+        secrets: &Secrets,
         sequence: &Sequence,
         message: &Message<ProvisionedStack>,
         completion_token: Option<CompletionToken>,
         watchdog: &Watchdog,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
-        let upper_pdu = self.process_outbound_message(sequence, message)?;
+        let upper_pdu = self.process_outbound_message(secrets, sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu::<8>(sequence, &upper_pdu, false)?;
 
         match network_pdus.len().cmp(&1) {
@@ -304,7 +299,7 @@ impl ProvisionedStack {
 
         let network_pdus = network_pdus
             .iter()
-            .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
+            .map_while(|pdu| self.encrypt_network_pdu(secrets, pdu).ok())
             .collect();
 
         Ok(network_pdus)
@@ -316,13 +311,14 @@ impl ProvisionedStack {
 
     pub fn inbound_expiration(
         &mut self,
+        secrets: &Secrets,
         sequence: &Sequence,
         seq_zero: &SeqZero,
         src: &UnicastAddress,
         watchdog: &Watchdog,
     ) -> Result<Vec<NetworkPDU, 1>, DriverError> {
         if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
-            self.process_outbound_block_ack(sequence, block_ack, &meta, src)
+            self.process_outbound_block_ack(secrets, sequence, block_ack, &meta, src)
         } else {
             Ok(Vec::new())
         }

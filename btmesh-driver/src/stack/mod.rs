@@ -1,7 +1,4 @@
 use crate::stack::unprovisioned::UnprovisionedStack;
-use crate::storage::provisioned::ProvisionedConfiguration;
-use crate::storage::unprovisioned::UnprovisionedConfiguration;
-use crate::storage::Configuration;
 use crate::util::deadline::DeadlineFuture;
 use crate::{DeviceState, ProvisionedStack, Sequence};
 use btmesh_common::Uuid;
@@ -77,6 +74,7 @@ impl Stack {
     }
 }
 
+/*
 impl TryFrom<&Stack> for Configuration {
     type Error = ();
 
@@ -89,7 +87,6 @@ impl TryFrom<&Stack> for Configuration {
             Stack::Provisioned { stack, sequence } => Ok(ProvisionedConfiguration::new(
                 sequence.current(),
                 stack.network_state(),
-                stack.secrets().clone(),
                 stack.device_info(),
                 Default::default(),
             )
@@ -97,3 +94,5 @@ impl TryFrom<&Stack> for Configuration {
         }
     }
 }
+
+ */

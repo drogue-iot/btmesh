@@ -43,6 +43,8 @@ impl From<&DriverError> for (Status, Option<DriverError>) {
             DriverError::Storage(_) => (Status::StorageFailure, Some(*err)),
             DriverError::InsufficientSpace => (Status::InsufficientResources, None),
             DriverError::FeatureNotSupported => (Status::FeatureNotSupported, None),
+            DriverError::AppKeyIndexAlreadyStored => (Status::KeyIndexAlreadyStored, None),
+            DriverError::NetKeyIndexAlreadyStored => (Status::KeyIndexAlreadyStored, None),
             _ => (Status::UnspecifiedError, Some(*err)),
         }
     }

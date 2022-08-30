@@ -94,11 +94,15 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         ModelPublicationMessage::Set(set) | ModelPublicationMessage::VirtualAddressSet(set) => {
             let composition = storage.composition();
 
-            info!("==================> {}", set.details.element_address);
-
             let (status, err) = convert(
                 &storage
                     .modify_provisioned(|config| {
+                        if !config
+                            .secrets()
+                            .has_application_key(set.details.app_key_index)
+                        {
+                            return Err(DriverError::InvalidAppKeyIndex);
+                        }
                         if let Some(element_index) = config
                             .device_info()
                             .local_element_index(set.details.element_address.into())
@@ -110,7 +114,6 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                             )?;
                             Ok(())
                         } else {
-                            info!("invalid element address?");
                             Err(DriverError::InvalidElementAddress)
                         }
                     })

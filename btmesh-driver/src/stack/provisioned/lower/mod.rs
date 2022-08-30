@@ -6,7 +6,7 @@ use crate::stack::provisioned::lower::outbound_segmentation::OutboundSegmentatio
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
-use crate::{DriverError, Watchdog};
+use crate::{DriverError, Secrets, Watchdog};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
 use btmesh_common::{InsufficientBuffer, SeqZero};
@@ -84,22 +84,21 @@ impl ProvisionedStack {
 
     pub fn process_outbound_block_ack(
         &mut self,
+        secrets: &Secrets,
         sequence: &Sequence,
         block_ack: BlockAck,
         meta: &UpperMetadata,
         src: &UnicastAddress,
     ) -> Result<Vec<NetworkPDU, 1>, DriverError> {
-        info!("** process block ack {}", block_ack);
         let network_pdus: Vec<_, 1> = self.process_outbound_upper_pdu(
             sequence,
             &block_ack_to_upper_pdu(sequence, block_ack, meta, src)?,
             false,
         )?;
 
-        info!("** process block ack PDUs {}", network_pdus);
         let network_pdus = network_pdus
             .iter()
-            .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
+            .map_while(|pdu| self.encrypt_network_pdu(secrets, pdu).ok())
             .collect();
 
         Ok(network_pdus)
@@ -125,7 +124,6 @@ fn block_ack_to_upper_pdu(
 ) -> Result<UpperPDU<ProvisionedStack>, InsufficientBuffer> {
     let mut parameters = [0; 6];
 
-    info!("ACK {}", block_ack.seq_zero().value());
     let seq_zero = ((block_ack.seq_zero().value() & 0b0111111111111111) << 2).to_be_bytes();
     parameters[0] = seq_zero[0];
     parameters[1] = seq_zero[1];

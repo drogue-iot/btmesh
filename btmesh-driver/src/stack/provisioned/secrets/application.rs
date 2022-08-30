@@ -73,7 +73,10 @@ impl<const N: usize> ApplicationKeys<N> {
         &self,
         index: I,
     ) -> Result<ApplicationKey, DriverError> {
-        if let Some(entry) = self.keys[usize::from(index.into())] {
+        let index = index.into();
+        info!("get app-key {}", index);
+        info!(" --> {}", self.keys);
+        if let Some(entry) = self.keys[usize::from(index)] {
             Ok(entry.1)
         } else {
             Err(DriverError::InvalidAppKeyIndex)

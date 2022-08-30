@@ -11,7 +11,6 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     message: &CompositionDataMessage,
     meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
-    info!("COMPOSITION GET");
     match message {
         CompositionDataMessage::Get(page) => {
             if *page == 0 {
@@ -20,7 +19,6 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                     meta.reply(),
                 )
                 .await?;
-                info!("SENT");
             }
         }
         CompositionDataMessage::Status(_) => {
