@@ -26,6 +26,7 @@ use core::task::{Context, Poll};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_sync::signal::Signal;
+use embassy_time::Duration;
 pub use futures::future::join;
 pub use futures::future::select;
 pub use futures::future::Either;
@@ -42,16 +43,37 @@ pub type InboundChannelReceiver =
 pub struct InboundPayload {
     pub element_index: usize,
     pub model_identifier: Option<ModelIdentifier>,
+    pub body: InboundBody,
+}
+
+#[allow(clippy::large_enum_variant)]
+pub enum InboundBody {
+    Control(Control),
+    Message(InboundMessage),
+}
+
+#[derive(Copy, Clone)]
+pub enum Control {
+    Shutdown,
+    PublicationDetails(Option<Duration>),
+}
+
+pub struct InboundMessage {
     pub opcode: Opcode,
     pub parameters: Vec<u8, 380>,
     pub meta: InboundMetadata,
 }
 
-pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
 pub type InboundModelChannelSender<'m, M> =
-    Sender<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+    Sender<'m, CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
 pub type InboundModelChannelReceiver<'m, M> =
-    Receiver<'m, CriticalSectionRawMutex, (M, InboundMetadata), 1>;
+    Receiver<'m, CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
+
+pub enum InboundModelPayload<M> {
+    Message(M, InboundMetadata),
+    Control(Control),
+}
 
 pub type OutboundChannel = Channel<CriticalSectionRawMutex, OutboundPayload, 1>;
 pub type OutboundChannelSender = Sender<'static, CriticalSectionRawMutex, OutboundPayload, 1>;
@@ -169,7 +191,7 @@ pub type ParseFunction<M> =
     for<'r> fn(&Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
 
 pub trait BluetoothMeshModelContext<M: Model> {
-    type ReceiveFuture<'f>: Future<Output = (M::Message, InboundMetadata)> + 'f
+    type ReceiveFuture<'f>: Future<Output = InboundModelPayload<M::Message>> + 'f
     where
         Self: 'f,
         M: 'f;

@@ -2,8 +2,8 @@ use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundMetadata,
-    InboundModelChannelReceiver, InboundPayload, Model, OutboundChannelSender, OutboundExtra,
+    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundModelChannelReceiver,
+    InboundModelPayload, InboundPayload, Model, OutboundChannelSender, OutboundExtra,
     OutboundMetadata, OutboundPayload, SendExtra,
 };
 use btmesh_models::Message;
@@ -85,7 +85,7 @@ pub(crate) struct ModelContext<'m, M: Model> {
 }
 
 impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
-    type ReceiveFuture<'f> = impl Future<Output = (M::Message, InboundMetadata)> + 'f
+    type ReceiveFuture<'f> = impl Future<Output = InboundModelPayload<M::Message>> + 'f
     where
         Self: 'f,
         M: 'f;

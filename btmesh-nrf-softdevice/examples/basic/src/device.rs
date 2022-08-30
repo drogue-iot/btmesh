@@ -1,4 +1,4 @@
-use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
+use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext, InboundModelPayload};
 use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set, Status};
 use core::future::Future;
@@ -58,33 +58,35 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
-                let (message, meta) = ctx.receive().await;
-                match message {
-                    GenericOnOffMessage::Get => {}
-                    GenericOnOffMessage::Set(val) => {
-                        let present_on_off =
-                        if val.on_off == 0 {
-                            self.led.set_high();
-                            0
-                        } else {
-                            self.led.set_low();
-                            1
-                        };
-                        ctx.send(Status {
-                            present_on_off,
-                            target_on_off: present_on_off,
-                            remaining_time: 0
-                        }.into(), meta.reply()).await;
-                    }
-                    GenericOnOffMessage::SetUnacknowledged(val) => {
-                        if val.on_off == 0 {
-                            self.led.set_high();
-                        } else {
-                            self.led.set_low();
+                let payload = ctx.receive().await;
+                if let InboundModelPayload::Message(message, meta) = payload {
+                    match message {
+                        GenericOnOffMessage::Get => {}
+                        GenericOnOffMessage::Set(val) => {
+                            let present_on_off =
+                                if val.on_off == 0 {
+                                    self.led.set_high();
+                                    0
+                                } else {
+                                    self.led.set_low();
+                                    1
+                                };
+                            ctx.send(Status {
+                                present_on_off,
+                                target_on_off: present_on_off,
+                                remaining_time: 0
+                            }.into(), meta.reply()).await;
                         }
-                    }
-                    GenericOnOffMessage::Status(_) => {
-                        // not applicable
+                        GenericOnOffMessage::SetUnacknowledged(val) => {
+                            if val.on_off == 0 {
+                                self.led.set_high();
+                            } else {
+                                self.led.set_low();
+                            }
+                        }
+                        GenericOnOffMessage::Status(_) => {
+                            // not applicable
+                        }
                     }
                 }
             }

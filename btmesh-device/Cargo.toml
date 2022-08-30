@@ -10,6 +10,7 @@ heapless = { version = "=0.7.13", features = ["defmt-impl"] }
 btmesh-common = { path = "../btmesh-common"}
 btmesh-models = { path = "../btmesh-models"}
 embassy-sync = { version = "0.1.0", default-features = false }
+embassy-time = { version = "0.1.0", default-features = false }
 embassy-futures = { version = "0.1.0", default-features = false }
 futures = { version = "0.3.21", default-features = false }
 

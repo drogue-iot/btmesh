@@ -1,13 +1,14 @@
 use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::{DriverError, ProvisionedStack};
 use btmesh_common::address::UnicastAddress;
-use btmesh_common::Seq;
+use btmesh_common::{ModelIdentifier, Seq};
 use btmesh_device::access_counted::AccessCounted;
-use btmesh_device::{InboundChannelSender, InboundPayload};
+use btmesh_device::{Control, InboundBody, InboundChannelSender, InboundMessage, InboundPayload};
 use btmesh_models::foundation::configuration::ConfigurationServer;
 use btmesh_models::Model;
 use btmesh_pdu::provisioned::access::AccessMessage;
 use core::cmp::Ordering;
+use embassy_time::Duration;
 use heapless::Vec;
 use uluru::LRUCache;
 
@@ -92,9 +93,11 @@ impl Dispatcher {
                 PAYLOAD.set(InboundPayload {
                     element_index: local_element_index as usize,
                     model_identifier: None,
-                    opcode,
-                    parameters: Vec::from_slice(parameters)?,
-                    meta,
+                    body: InboundBody::Message(InboundMessage {
+                        opcode,
+                        parameters: Vec::from_slice(parameters)?,
+                        meta,
+                    }),
                 });
             }
             if local_element_index == 0 {
@@ -112,9 +115,11 @@ impl Dispatcher {
                     PAYLOAD.set(InboundPayload {
                         element_index: subscription.element_index as usize,
                         model_identifier: Some(subscription.model_identifier),
-                        opcode,
-                        parameters: Vec::from_slice(parameters)?,
-                        meta,
+                        body: InboundBody::Message(InboundMessage {
+                            opcode,
+                            parameters: Vec::from_slice(parameters)?,
+                            meta,
+                        }),
                     });
                 }
 
@@ -134,6 +139,31 @@ impl Dispatcher {
         }
 
         Ok(())
+    }
+
+    pub async fn dispatch_publish(
+        &self,
+        element_index: u8,
+        model_identifier: ModelIdentifier,
+        duration: Option<Duration>,
+    ) {
+        unsafe {
+            PAYLOAD.set(InboundPayload {
+                element_index: element_index as usize,
+                model_identifier: Some(model_identifier),
+                body: InboundBody::Control(Control::PublicationDetails(duration)),
+            });
+        }
+
+        if element_index == 0 && model_identifier == ConfigurationServer::IDENTIFIER {
+            self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
+        }
+
+        self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+
+        unsafe {
+            PAYLOAD.wait().await;
+        }
     }
 }
 

@@ -4,6 +4,8 @@ use btmesh_models::foundation::configuration::model_publication::{
     PublicationDetails, PublishAddress,
 };
 use btmesh_models::foundation::configuration::AppKeyIndex;
+use core::hash::{Hash, Hasher};
+use embassy_time::Duration;
 use heapless::Vec;
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
@@ -38,6 +40,10 @@ impl<const N: usize> Publications<N> {
                 }
             }
         }
+    }
+
+    pub fn iter_mut(&mut self) -> impl Iterator<Item = &mut Publication> {
+        self.entries.iter_mut().flatten()
     }
 
     pub fn get(&self, element_index: u8, model_identifier: ModelIdentifier) -> Option<Publication> {
@@ -95,10 +101,11 @@ impl<const N: usize> Publications<N> {
                     app_key_index: details.app_key_index,
                     credential_flag: details.credential_flag,
                     publish_ttl: details.publish_ttl,
-                    publish_period: details.publish_period,
+                    publish_period: details.publish_period.into(),
                     publish_retransmit_count: details.publish_retransmit_count,
                     publish_retransmit_interval_steps: details.publish_retransmit_interval_steps,
                     model_identifier: details.model_identifier,
+                    notified: TransientNotified::default(),
                 });
                 Ok(())
             } else {
@@ -119,8 +126,92 @@ pub struct Publication {
     pub app_key_index: AppKeyIndex,
     pub credential_flag: bool,
     pub publish_ttl: Option<Ttl>,
-    pub publish_period: u8,
+    pub publish_period: PublishPeriod,
     pub publish_retransmit_count: u8,
     pub publish_retransmit_interval_steps: u8,
     pub model_identifier: ModelIdentifier,
+    #[cfg_attr(feature = "serde", serde(skip))]
+    pub notified: TransientNotified,
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[derive(Copy, Clone, Debug, Hash)]
+pub enum Resolution {
+    Milliseconds100,
+    Seconds1,
+    Seconds10,
+    Minutes10,
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[derive(Copy, Clone, Debug, Hash)]
+pub struct PublishPeriod {
+    period: u8,
+}
+
+impl PublishPeriod {
+    pub fn new(period: u8) -> Self {
+        Self { period }
+    }
+
+    pub fn resolution(&self) -> Resolution {
+        let resolution = self.period & 0b11;
+        match resolution {
+            0b00 => Resolution::Milliseconds100,
+            0b01 => Resolution::Seconds1,
+            0b10 => Resolution::Seconds10,
+            0b11 => Resolution::Minutes10,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn steps(&self) -> u8 {
+        (self.period & 0b11111100) >> 2
+    }
+
+    pub fn duration(&self) -> Option<Duration> {
+        let steps = self.steps();
+        if steps == 0 {
+            None
+        } else {
+            Some(match self.resolution() {
+                Resolution::Milliseconds100 => Duration::from_millis(steps as u64 * 100),
+                Resolution::Seconds1 => Duration::from_secs(steps as u64),
+                Resolution::Seconds10 => Duration::from_secs(steps as u64 * 10),
+                Resolution::Minutes10 => Duration::from_secs(steps as u64 * 60 * 10),
+            })
+        }
+    }
+}
+
+impl From<PublishPeriod> for u8 {
+    fn from(val: PublishPeriod) -> Self {
+        val.period
+    }
+}
+
+impl From<u8> for PublishPeriod {
+    fn from(period: u8) -> Self {
+        Self { period }
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[derive(Clone, Debug, Default)]
+pub struct TransientNotified(bool);
+
+impl TransientNotified {
+    pub fn is_notified(&self) -> bool {
+        self.0
+    }
+
+    pub fn mark_notified(&mut self) {
+        self.0 = true
+    }
+}
+
+impl Hash for TransientNotified {
+    fn hash<H: Hasher>(&self, _state: &mut H) {}
 }

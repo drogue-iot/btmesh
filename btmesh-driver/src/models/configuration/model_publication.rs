@@ -67,7 +67,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                         app_key_index: publication.app_key_index,
                         credential_flag: publication.credential_flag,
                         publish_ttl: publication.publish_ttl,
-                        publish_period: publication.publish_period,
+                        publish_period: publication.publish_period.into(),
                         publish_retransmit_count: publication.publish_retransmit_count,
                         publish_retransmit_interval_steps: publication
                             .publish_retransmit_interval_steps,

@@ -303,8 +303,15 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         });
 
         fanout.extend(quote! {
-            if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
-                #ch_sender_name.try_send( (model_message, message.meta) ).ok();
+            match &message.body {
+                ::btmesh_device::InboundBody::Message(message) => {
+                    if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
+                        #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Message(model_message, message.meta) ).ok();
+                    }
+                }
+                ::btmesh_device::InboundBody::Control(control) => {
+                    #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Control(*control) ).ok();
+                }
             }
         });
 

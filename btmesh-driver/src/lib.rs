@@ -468,6 +468,32 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let device_state = self.stack.borrow().device_state();
 
             if let Some(device_state) = device_state {
+                let mut config = self.storage.get().await;
+                if let Some(Configuration::Provisioned(config)) = &mut *config {
+                    for publication in config
+                        .publications_mut()
+                        .iter_mut()
+                        .filter(|e| !e.notified.is_notified())
+                    {
+                        debug!(
+                            "notify publisher {} {} {}",
+                            publication.element_index,
+                            publication.model_identifier,
+                            publication.publish_period.duration()
+                        );
+                        self.dispatcher
+                            .borrow()
+                            .dispatch_publish(
+                                publication.element_index,
+                                publication.model_identifier,
+                                publication.publish_period.duration(),
+                            )
+                            .await;
+                        publication.notified.mark_notified();
+                    }
+                }
+                drop(config);
+
                 let receive_fut = self.network.receive(&device_state, &self.watchdog);
                 let transmit_fut = OUTBOUND.recv();
                 let io_fut = select(receive_fut, transmit_fut);
