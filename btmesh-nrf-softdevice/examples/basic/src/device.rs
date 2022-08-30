@@ -116,21 +116,23 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
         ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
+            let mut tid = 0;
             loop {
                 let button_fut = self.button.wait_for_any_edge();
                 let message_fut = ctx.receive();
 
                 match select(button_fut, message_fut).await {
                     Either::First(_) => {
-                        defmt::info!("** button toggled");
-                        ctx.publish(GenericOnOffMessage::SetUnacknowledged(Set {
-                            on_off: if self.button.is_high() { 1 } else { 0 },
-                            tid: 0,
+                        defmt::info!("** button toggled {}", tid);
+                        ctx.publish(GenericOnOffMessage::Set(Set {
+                            on_off: if self.button.is_high() { 0 } else { 1 },
+                            tid,
                             transition_time: None,
                             delay: None,
                         }))
                         .await
                         .ok();
+                        tid += 1;
                     }
                     Either::Second(_message) => {
                         defmt::info!("** message received");

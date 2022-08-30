@@ -307,6 +307,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
     }
 
     async fn retransmit(&self) -> Result<(), DriverError> {
+        info!("start re-xmit");
         match &mut *self.stack.borrow_mut() {
             Stack::None => {}
             Stack::Unprovisioned { stack, .. } => {
@@ -315,11 +316,15 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
             }
             Stack::Provisioned { stack, sequence } => {
-                for pdu in stack.retransmit(sequence)? {
+                let pdus = stack.retransmit(sequence)?;
+                info!("head to network");
+                for pdu in pdus {
                     self.network.transmit(&(pdu.into()), true).await?;
                 }
+                info!("done with network");
             }
         }
+        info!("end re-xmit");
         Ok(())
     }
 

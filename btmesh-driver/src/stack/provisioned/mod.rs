@@ -187,21 +187,25 @@ impl ProvisionedStack {
     }
 
     pub fn retransmit(&mut self, sequence: &Sequence) -> Result<Vec<NetworkPDU, 16>, DriverError> {
+        info!("rx 1");
         let mut pdus = Vec::new();
 
-        let upper_pdus: Vec<UpperPDU<ProvisionedStack>, 5> = self.transmit_queue.iter().collect();
+        let upper_pdus: Vec<_, 5> = self.transmit_queue.iter().collect();
+        info!("rx 2");
 
         for upper_pdu in upper_pdus {
-            info!("rexmit {}", upper_pdu);
+            info!("rx 3");
             for network_pdu in self
                 .process_outbound_upper_pdu::<8>(sequence, &upper_pdu, true)?
                 .iter()
                 .map_while(|pdu| self.encrypt_network_pdu(pdu).ok())
             {
+                info!("rx 4");
                 pdus.push(network_pdu)
                     .map_err(|_| DriverError::InsufficientSpace)?;
             }
         }
+        info!("rx 5");
         Ok(pdus)
     }
 
