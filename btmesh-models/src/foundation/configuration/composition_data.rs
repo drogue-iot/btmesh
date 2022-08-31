@@ -92,11 +92,11 @@ impl CompositionStatus {
 
             let sig_models_len: usize = element
                 .models_iter()
-                .filter(|e| matches!(e, ModelIdentifier::SIG(_)))
+                .filter(|e| matches!(e.model_identifier, ModelIdentifier::SIG(_)))
                 .count();
             let vendor_models_len = element
                 .models_iter()
-                .filter(|e| matches!(e, ModelIdentifier::Vendor(..)))
+                .filter(|e| matches!(e.model_identifier, ModelIdentifier::Vendor(..)))
                 .count();
 
             xmit.push(sig_models_len as u8)
@@ -106,16 +106,16 @@ impl CompositionStatus {
 
             for model in element
                 .models_iter()
-                .filter(|e| matches!(e, ModelIdentifier::SIG(_)))
+                .filter(|e| matches!(e.model_identifier, ModelIdentifier::SIG(_)))
             {
-                model.emit(xmit)?
+                model.model_identifier.emit(xmit)?
             }
 
             for model in element
                 .models_iter()
-                .filter(|e| matches!(e, ModelIdentifier::Vendor(..)))
+                .filter(|e| matches!(e.model_identifier, ModelIdentifier::Vendor(..)))
             {
-                model.emit(xmit)?
+                model.model_identifier.emit(xmit)?
             }
         }
         Ok(())

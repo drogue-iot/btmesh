@@ -8,7 +8,7 @@ use ccm::consts::U13;
 use ccm::consts::U4;
 use ccm::consts::U8;
 use ccm::Ccm;
-use cmac::crypto_mac::{InvalidKeyLength, Output};
+use cmac::crypto_mac::{InvalidKeyLength, Key, Output};
 use cmac::{Cmac, Mac, NewMac};
 use core::convert::TryInto;
 use heapless::Vec;
@@ -26,7 +26,8 @@ pub fn s1(input: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {
 }
 
 pub fn aes_cmac(key: &[u8], input: &[u8]) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {
-    let mut mac = Cmac::<Aes128>::new_from_slice(key)?;
+    let key = Key::<Cmac<Aes128>>::from_slice(key);
+    let mut mac = Cmac::<Aes128>::new(key);
     mac.update(input);
     Ok(mac.finalize())
 }

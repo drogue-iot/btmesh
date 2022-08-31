@@ -191,7 +191,7 @@ impl<B: BackingStore> Storage<B> {
         self.composition.borrow()
     }
 
-    pub(crate) fn set_composition(&self, composition: &Composition) {
-        self.composition.borrow_mut().replace(composition.clone());
+    pub(crate) fn set_composition(&self, composition: Composition) {
+        self.composition.borrow_mut().replace(composition);
     }
 }

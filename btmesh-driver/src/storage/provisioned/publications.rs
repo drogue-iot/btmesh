@@ -1,10 +1,11 @@
 use crate::DriverError;
 use btmesh_common::{Composition, ModelIdentifier, Ttl};
+use btmesh_device::PublicationCadence;
 use btmesh_models::foundation::configuration::model_publication::{
     PublicationDetails, PublishAddress,
 };
 use btmesh_models::foundation::configuration::AppKeyIndex;
-use core::hash::{Hash, Hasher};
+use core::hash::Hash;
 use embassy_time::Duration;
 use heapless::Vec;
 
@@ -28,11 +29,12 @@ impl<const N: usize> Publications<N> {
         info!("== publications ==");
         for (index, element) in composition.elements_iter().enumerate() {
             info!("elements[{}]", index);
-            for model_identifier in element.models_iter() {
-                if let Some(publication) = self.get(index as u8, *model_identifier) {
+            for model_descriptor in element.models_iter() {
+                if let Some(publication) = self.get(index as u8, model_descriptor.model_identifier)
+                {
                     info!(
                         "  {} --> {} {}/{}",
-                        model_identifier,
+                        model_descriptor.model_identifier,
                         publication.publish_address,
                         publication.publish_ttl,
                         publication.publish_period
@@ -105,7 +107,6 @@ impl<const N: usize> Publications<N> {
                     publish_retransmit_count: details.publish_retransmit_count,
                     publish_retransmit_interval_steps: details.publish_retransmit_interval_steps,
                     model_identifier: details.model_identifier,
-                    notified: TransientNotified::default(),
                 });
                 Ok(())
             } else {
@@ -130,8 +131,6 @@ pub struct Publication {
     pub publish_retransmit_count: u8,
     pub publish_retransmit_interval_steps: u8,
     pub model_identifier: ModelIdentifier,
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub notified: TransientNotified,
 }
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
@@ -171,12 +170,12 @@ impl PublishPeriod {
         (self.period & 0b11111100) >> 2
     }
 
-    pub fn duration(&self) -> Option<Duration> {
+    pub fn cadence(&self) -> PublicationCadence {
         let steps = self.steps();
         if steps == 0 {
-            None
+            PublicationCadence::OnChange
         } else {
-            Some(match self.resolution() {
+            PublicationCadence::Periodic(match self.resolution() {
                 Resolution::Milliseconds100 => Duration::from_millis(steps as u64 * 100),
                 Resolution::Seconds1 => Duration::from_secs(steps as u64),
                 Resolution::Seconds10 => Duration::from_secs(steps as u64 * 10),
@@ -196,22 +195,4 @@ impl From<u8> for PublishPeriod {
     fn from(period: u8) -> Self {
         Self { period }
     }
-}
-
-#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-#[derive(Clone, Debug, Default)]
-pub struct TransientNotified(bool);
-
-impl TransientNotified {
-    pub fn is_notified(&self) -> bool {
-        self.0
-    }
-
-    pub fn mark_notified(&mut self) {
-        self.0 = true
-    }
-}
-
-impl Hash for TransientNotified {
-    fn hash<H: Hasher>(&self, _state: &mut H) {}
 }

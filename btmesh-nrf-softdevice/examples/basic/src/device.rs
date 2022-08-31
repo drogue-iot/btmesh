@@ -1,8 +1,9 @@
 use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext, InboundModelPayload};
 use btmesh_macro::{device, element};
-use btmesh_models::generic::onoff::{GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set, Status};
+use btmesh_models::generic::onoff::{
+    GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set, Status,
+};
 use core::future::Future;
-use defmt::info;
 use embassy_futures::{select, Either};
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
@@ -63,19 +64,23 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
                     match message {
                         GenericOnOffMessage::Get => {}
                         GenericOnOffMessage::Set(val) => {
-                            let present_on_off =
-                                if val.on_off == 0 {
-                                    self.led.set_high();
-                                    0
-                                } else {
-                                    self.led.set_low();
-                                    1
-                                };
-                            ctx.send(Status {
-                                present_on_off,
-                                target_on_off: present_on_off,
-                                remaining_time: 0
-                            }.into(), meta.reply()).await;
+                            let present_on_off = if val.on_off == 0 {
+                                self.led.set_high();
+                                0
+                            } else {
+                                self.led.set_low();
+                                1
+                            };
+                            ctx.send(
+                                Status {
+                                    present_on_off,
+                                    target_on_off: present_on_off,
+                                    remaining_time: 0,
+                                }
+                                .into(),
+                                meta.reply(),
+                            )
+                            .await;
                         }
                         GenericOnOffMessage::SetUnacknowledged(val) => {
                             if val.on_off == 0 {

@@ -4,7 +4,7 @@ mod outbound_segmentation;
 use crate::stack::provisioned::lower::inbound_segmentation::InboundSegmentation;
 use crate::stack::provisioned::lower::outbound_segmentation::OutboundSegmentation;
 use crate::stack::provisioned::sequence::Sequence;
-use crate::stack::provisioned::system::{LowerMetadata, UpperMetadata};
+use crate::stack::provisioned::system::{LowerMetadata, NetworkMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
 use crate::{DriverError, Secrets, Watchdog};
 use btmesh_common::address::UnicastAddress;
@@ -89,19 +89,16 @@ impl ProvisionedStack {
         block_ack: BlockAck,
         meta: &UpperMetadata,
         src: &UnicastAddress,
-    ) -> Result<Vec<NetworkPDU, 1>, DriverError> {
-        let network_pdus: Vec<_, 1> = self.process_outbound_upper_pdu(
-            sequence,
-            &block_ack_to_upper_pdu(sequence, block_ack, meta, src)?,
-            false,
-        )?;
+    ) -> Result<Option<NetworkPDU>, DriverError> {
+        let pdu = &block_ack_to_upper_pdu(sequence, block_ack, meta, src)?;
+        let meta = NetworkMetadata::from_upper_control_pdu(pdu);
 
-        let network_pdus = network_pdus
-            .iter()
-            .map_while(|pdu| self.encrypt_network_pdu(secrets, pdu).ok())
-            .collect();
+        let network_pdu = self
+            .lower
+            .outbound_segmentation
+            .process_unsegmented_control(sequence, pdu, meta)?;
 
-        Ok(network_pdus)
+        Ok(Some(self.encrypt_network_pdu(secrets, &network_pdu)?))
     }
 
     pub fn process_outbound_upper_pdu<const N: usize>(
@@ -121,7 +118,7 @@ fn block_ack_to_upper_pdu(
     block_ack: BlockAck,
     meta: &UpperMetadata,
     src: &UnicastAddress,
-) -> Result<UpperPDU<ProvisionedStack>, InsufficientBuffer> {
+) -> Result<UpperControlPDU<ProvisionedStack>, InsufficientBuffer> {
     let mut parameters = [0; 6];
 
     let seq_zero = ((block_ack.seq_zero().value() & 0b0111111111111111) << 2).to_be_bytes();
@@ -148,5 +145,5 @@ fn block_ack_to_upper_pdu(
         replay_seq: None,
     };
 
-    Ok(UpperControlPDU::new(ControlOpcode::SegmentAcknowledgement, &parameters, meta)?.into())
+    UpperControlPDU::new(ControlOpcode::SegmentAcknowledgement, &parameters, meta)
 }

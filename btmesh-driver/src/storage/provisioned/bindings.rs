@@ -24,11 +24,16 @@ impl<const N: usize> Bindings<N> {
         for (index, element) in composition.elements_iter().enumerate() {
             info!("elements[{}]", index);
             let element_bindings = &self.elements[index];
-            for model_identifier in element.models_iter() {
-                if let Some(app_key_index) = element_bindings.binding_for(model_identifier) {
-                    info!("  {} - app_key_index: {}", model_identifier, app_key_index);
+            for model_descriptor in element.models_iter() {
+                if let Some(app_key_index) =
+                    element_bindings.binding_for(&model_descriptor.model_identifier)
+                {
+                    info!(
+                        "  {} - app_key_index: {}",
+                        model_descriptor.model_identifier, app_key_index
+                    );
                 } else {
-                    info!("  {}", model_identifier);
+                    info!("  {}", model_descriptor.model_identifier);
                 }
             }
         }

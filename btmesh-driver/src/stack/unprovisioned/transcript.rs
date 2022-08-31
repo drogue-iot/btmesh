@@ -74,7 +74,7 @@ impl Transcript {
     }
 
     fn confirmation_inputs(&self) -> &[u8] {
-        self.confirmation_inputs.as_slice()
+        &self.confirmation_inputs
     }
 
     pub(crate) fn confirmation_salt(&self) -> Result<Output<Cmac<Aes128>>, InvalidKeyLength> {

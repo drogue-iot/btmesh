@@ -316,11 +316,11 @@ impl ProvisionedStack {
         seq_zero: &SeqZero,
         src: &UnicastAddress,
         watchdog: &Watchdog,
-    ) -> Result<Vec<NetworkPDU, 1>, DriverError> {
+    ) -> Result<Option<NetworkPDU>, DriverError> {
         if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
             self.process_outbound_block_ack(secrets, sequence, block_ack, &meta, src)
         } else {
-            Ok(Vec::new())
+            Ok(None)
         }
     }
 }

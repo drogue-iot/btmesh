@@ -131,9 +131,9 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
 
         impl #generics ::btmesh_device::BluetoothMeshDevice for #struct_name #generic_params {
 
-            fn composition(&self) -> ::btmesh_device::Composition {
+            fn composition(&self) -> ::btmesh_device::Composition<::btmesh_device::CompositionExtra> {
                 use ::btmesh_device::BluetoothMeshElement;
-                let mut composition = ::btmesh_device::Composition::new(
+                let mut composition = ::btmesh_device::Composition::<::btmesh_device::CompositionExtra>::new(
                     ::btmesh_device::CompanyIdentifier(#cid),
                     ::btmesh_device::ProductIdentifier(#pid),
                     ::btmesh_device::VersionIdentifier(#vid),
@@ -326,7 +326,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
 
     element_impl.extend(quote!(
         impl #generics ::btmesh_device::BluetoothMeshElement for #struct_name #generic_params {
-            fn populate(&self, composition: &mut ::btmesh_device::Composition) {
+            fn populate(&self, composition: &mut ::btmesh_device::Composition<::btmesh_device::CompositionExtra>) {
                 #populate
                 composition.add_element(descriptor).ok();
             }

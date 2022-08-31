@@ -10,8 +10,8 @@ use btmesh_bearer::beacon::Beacon;
 use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::{Composition, Seq, Ttl, Uuid};
 use btmesh_device::{
-    BluetoothMeshDevice, CompletionToken, InboundChannel, InboundChannelReceiver, KeyHandle,
-    OutboundChannel, OutboundExtra, OutboundPayload, SendExtra,
+    BluetoothMeshDevice, CompletionToken, CompositionExtra, InboundChannel, InboundChannelReceiver,
+    KeyHandle, OutboundChannel, OutboundExtra, OutboundPayload, PublicationCadence, SendExtra,
 };
 use btmesh_models::foundation::configuration::model_publication::PublishAddress;
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
@@ -24,8 +24,6 @@ use btmesh_pdu::PDU;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::{select, select3, select4, Either, Either3, Either4};
-use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
-use embassy_sync::mutex::MutexGuard;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
@@ -165,11 +163,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         stack: &mut ProvisionedStack,
         sequence: &Sequence,
     ) -> Result<(), DriverError> {
-        info!("rnp 1");
-        let (network_pdus, result) = self
+        let (network_pdu, result) = self
             .storage
             .read_provisioned(|config| {
-                info!("rnp 2");
                 let result = if let Some(result) =
                     stack.process_inbound_network_pdu(config.secrets(), pdu, &self.watchdog)?
                 {
@@ -177,13 +173,13 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         // send outbound block-ack
                         let network_pdus =
                             if let Some(src) = config.device_info().local_element_address(0) {
-                                Some(stack.process_outbound_block_ack(
+                                stack.process_outbound_block_ack(
                                     config.secrets(),
                                     sequence,
                                     *block_ack,
                                     meta,
                                     &src,
-                                )?)
+                                )?
                             } else {
                                 None
                             };
@@ -198,19 +194,15 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             })
             .await?;
 
-        info!("rnp 3");
-        if let Some(network_pdus) = network_pdus {
-            info!("rnp 4");
-            for pdu in network_pdus {
-                self.network.transmit(&pdu.into(), false).await.ok();
-            }
+        if let Some(network_pdu) = network_pdu {
+            self.network
+                .transmit(&(network_pdu.into()), false)
+                .await
+                .ok();
         }
 
-        info!("rnp 5");
         if let Some(result) = result {
-            info!("rnp 6");
             if let Some(message) = &result.message {
-                info!("rnp 7");
                 // dispatch to element(s)
                 let subscriptions = self
                     .storage
@@ -455,23 +447,42 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
     async fn notify_publications(
         &self,
-        config: &mut MutexGuard<'_, CriticalSectionRawMutex, Option<Configuration>>,
+        config: &Option<Configuration>,
+        composition: &mut Composition<CompositionExtra>,
     ) {
-        if let Some(Configuration::Provisioned(config)) = &mut **config {
-            for publication in config
-                .publications_mut()
-                .iter_mut()
-                .filter(|e| !e.notified.is_notified())
-            {
-                self.dispatcher
-                    .borrow()
-                    .dispatch_publish(
-                        publication.element_index,
-                        publication.model_identifier,
-                        publication.publish_period.duration(),
-                    )
-                    .await;
-                publication.notified.mark_notified();
+        if let Some(Configuration::Provisioned(config)) = config {
+            for (element_index, element) in composition.elements_iter_mut().enumerate() {
+                for model_descriptor in element.models_iter_mut() {
+                    if let Some(publication) = config
+                        .publications()
+                        .get(element_index as u8, model_descriptor.model_identifier)
+                    {
+                        let pub_cadence = publication.publish_period.cadence();
+
+                        if model_descriptor.extra.publication_cadence != pub_cadence {
+                            self.dispatcher
+                                .borrow()
+                                .dispatch_publish(
+                                    element_index as u8,
+                                    model_descriptor.model_identifier,
+                                    pub_cadence,
+                                )
+                                .await;
+                            model_descriptor.extra.publication_cadence = pub_cadence;
+                        }
+                    } else if model_descriptor.extra.publication_cadence != PublicationCadence::None
+                    {
+                        self.dispatcher
+                            .borrow()
+                            .dispatch_publish(
+                                element_index as u8,
+                                model_descriptor.model_identifier,
+                                PublicationCadence::None,
+                            )
+                            .await;
+                        model_descriptor.extra.publication_cadence = PublicationCadence::None;
+                    }
+                }
             }
         }
     }
@@ -519,7 +530,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
-    async fn run_driver(&self, composition: &mut Composition) -> Result<(), DriverError> {
+    async fn run_driver(
+        &self,
+        composition: &mut Composition<CompositionExtra>,
+    ) -> Result<(), DriverError> {
         info!("btmesh: starting up");
 
         let capabilities = Capabilities {
@@ -529,7 +543,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         enhance_composition(composition)?;
 
-        self.storage.set_composition(composition);
+        let simplified_composition = composition.simplify();
+
+        self.storage.set_composition(simplified_composition.clone());
         self.storage.set_capabilities(capabilities);
 
         self.storage.init().await?;
@@ -537,7 +553,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         let mut last_displayed_hash = None;
 
         loop {
-            let mut config = self.storage.lock().await;
+            let config = self.storage.lock().await;
             if config.is_none() {
                 return Err(DriverError::InvalidState);
             }
@@ -545,7 +561,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             if let Some(config) = &*config {
                 self.reconfigure_stack(config);
                 last_displayed_hash.replace(Self::display_configuration(
-                    composition,
+                    &simplified_composition,
                     config,
                     last_displayed_hash,
                 ));
@@ -554,7 +570,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let device_state = self.stack.borrow().device_state();
 
             if let Some(device_state) = device_state {
-                self.notify_publications(&mut config).await;
+                self.notify_publications(&config, composition).await;
 
                 drop(config);
 
@@ -621,27 +637,25 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     stack, sequence, ..
                 } = &mut *self.stack.borrow_mut()
                 {
-                    let network_pdus = self
+                    let network_pdu = self
                         .storage
                         .read_provisioned(|config| {
                             if let Some(src) = config.device_info().local_element_address(0) {
-                                Ok(Some(stack.inbound_expiration(
+                                Ok(stack.inbound_expiration(
                                     config.secrets(),
                                     sequence,
                                     seq_zero,
                                     &src,
                                     &self.watchdog,
-                                )?))
+                                )?)
                             } else {
                                 Ok(None)
                             }
                         })
                         .await?;
 
-                    if let Some(network_pdus) = network_pdus {
-                        for network_pdu in network_pdus {
-                            self.network.transmit(&network_pdu.into(), false).await.ok();
-                        }
+                    if let Some(network_pdu) = network_pdu {
+                        self.network.transmit(&network_pdu.into(), false).await.ok();
                     }
                 }
             }
@@ -729,7 +743,7 @@ static DEVICE_INBOUND: InboundChannel = InboundChannel::new();
 
 static OUTBOUND: OutboundChannel = OutboundChannel::new();
 
-fn enhance_composition(composition: &mut Composition) -> Result<(), DriverError> {
+fn enhance_composition<X: Default>(composition: &mut Composition<X>) -> Result<(), DriverError> {
     if composition.number_of_elements() > 0 {
         composition[0].add_model(CONFIGURATION_SERVER);
     }

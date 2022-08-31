@@ -55,7 +55,14 @@ pub enum InboundBody {
 #[derive(Copy, Clone)]
 pub enum Control {
     Shutdown,
-    PublicationDetails(Option<Duration>),
+    PublicationCadence(PublicationCadence),
+}
+
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum PublicationCadence {
+    None,
+    OnChange,
+    Periodic(Duration),
 }
 
 pub struct InboundMessage {
@@ -120,7 +127,7 @@ pub trait BluetoothMeshDeviceContext {
 }
 
 pub trait BluetoothMeshDevice {
-    fn composition(&self) -> Composition;
+    fn composition(&self) -> Composition<CompositionExtra>;
 
     type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
     where
@@ -134,7 +141,7 @@ pub trait BluetoothMeshDevice {
 }
 
 pub trait BluetoothMeshElement {
-    fn populate(&self, composition: &mut Composition);
+    fn populate(&self, composition: &mut Composition<CompositionExtra>);
 
     type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
     where
@@ -418,5 +425,17 @@ impl ApplicationKeyHandle {
 impl From<ApplicationKeyHandle> for AppKeyIndex {
     fn from(handle: ApplicationKeyHandle) -> Self {
         handle.index
+    }
+}
+
+pub struct CompositionExtra {
+    pub publication_cadence: PublicationCadence,
+}
+
+impl Default for CompositionExtra {
+    fn default() -> Self {
+        Self {
+            publication_cadence: PublicationCadence::None,
+        }
     }
 }

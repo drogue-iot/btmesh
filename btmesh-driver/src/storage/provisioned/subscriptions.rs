@@ -24,9 +24,9 @@ impl<const N: usize> Subscriptions<N> {
         info!("== subscriptions ==");
         for (index, element) in composition.elements_iter().enumerate() {
             info!("elements[{}]", index);
-            for model_identifier in element.models_iter() {
-                for address in self.iter(index as u8, *model_identifier) {
-                    info!("  {} <-- {}", model_identifier, address);
+            for model_descriptor in element.models_iter() {
+                for address in self.iter(index as u8, model_descriptor.model_identifier) {
+                    info!("  {} <-- {}", model_descriptor.model_identifier, address);
                 }
             }
         }

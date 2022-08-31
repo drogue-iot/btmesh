@@ -475,36 +475,31 @@ impl defmt::Format for ModelIdentifier {
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct Composition {
+pub struct Composition<X: Default = ()> {
     pub(crate) cid: CompanyIdentifier,
     pub(crate) pid: ProductIdentifier,
     pub(crate) vid: VersionIdentifier,
     pub(crate) crpl: u16,
     pub(crate) features: Features,
-    pub(crate) elements: Vec<ElementDescriptor, 4>,
+    pub(crate) elements: Vec<ElementDescriptor<X>, 4>,
 }
 
-impl Index<u8> for Composition {
-    type Output = ElementDescriptor;
+impl<X: Default> Index<u8> for Composition<X> {
+    type Output = ElementDescriptor<X>;
 
     fn index(&self, index: u8) -> &Self::Output {
         &self.elements[index as usize]
     }
 }
 
-impl IndexMut<u8> for Composition {
+impl<X: Default> IndexMut<u8> for Composition<X> {
     fn index_mut(&mut self, index: u8) -> &mut Self::Output {
         &mut self.elements[index as usize]
     }
 }
 
-impl Composition {
-    pub fn new(
-        cid: CompanyIdentifier,
-        pid: ProductIdentifier,
-        vid: VersionIdentifier,
-        //features: Features,
-    ) -> Self {
+impl<X: Default> Composition<X> {
+    pub fn new(cid: CompanyIdentifier, pid: ProductIdentifier, vid: VersionIdentifier) -> Self {
         Self {
             cid,
             pid,
@@ -515,7 +510,21 @@ impl Composition {
         }
     }
 
-    pub fn add_element(&mut self, element: ElementDescriptor) -> Result<(), ElementDescriptor> {
+    pub fn simplify(&self) -> Composition<()> {
+        Composition {
+            cid: self.cid,
+            pid: self.pid,
+            vid: self.vid,
+            crpl: self.crpl,
+            features: self.features,
+            elements: self.elements.iter().map(|e| e.simplify()).collect(),
+        }
+    }
+
+    pub fn add_element(
+        &mut self,
+        element: ElementDescriptor<X>,
+    ) -> Result<(), ElementDescriptor<X>> {
         self.elements.push(element)
     }
 
@@ -543,19 +552,23 @@ impl Composition {
         self.features
     }
 
-    pub fn elements_iter(&self) -> impl Iterator<Item = &ElementDescriptor> + '_ {
+    pub fn elements_iter(&self) -> impl Iterator<Item = &ElementDescriptor<X>> + '_ {
         self.elements.iter()
+    }
+
+    pub fn elements_iter_mut(&mut self) -> impl Iterator<Item = &mut ElementDescriptor<X>> + '_ {
+        self.elements.iter_mut()
     }
 }
 
 #[derive(Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub struct ElementDescriptor {
+pub struct ElementDescriptor<X: Default = ()> {
     pub loc: Location,
-    pub models: Vec<ModelIdentifier, 4>,
+    pub models: Vec<ModelDescriptor<X>, 4>,
 }
 
-impl ElementDescriptor {
+impl<X: Default> ElementDescriptor<X> {
     pub fn new(loc: Location) -> Self {
         Self {
             loc,
@@ -563,21 +576,53 @@ impl ElementDescriptor {
         }
     }
 
-    pub fn add_model(&mut self, model: ModelIdentifier) {
-        self.models.push(model).ok();
+    pub fn simplify(&self) -> ElementDescriptor<()> {
+        ElementDescriptor {
+            loc: self.loc,
+            models: self
+                .models
+                .iter()
+                .map(|e| ModelDescriptor {
+                    model_identifier: e.model_identifier,
+                    extra: (),
+                })
+                .collect(),
+        }
+    }
+
+    pub fn add_model(&mut self, model_identifier: ModelIdentifier) {
+        self.models
+            .push(ModelDescriptor {
+                model_identifier,
+                extra: X::default(),
+            })
+            .ok();
     }
 
     pub fn loc(&self) -> Location {
         self.loc
     }
 
-    pub fn models_iter(&self) -> impl Iterator<Item = &ModelIdentifier> + '_ {
+    pub fn models_iter(&self) -> impl Iterator<Item = &ModelDescriptor<X>> + '_ {
         self.models.iter()
     }
 
-    pub fn has_model(&self, model_identifier: ModelIdentifier) -> bool {
-        self.models.iter().any(|e| *e == model_identifier)
+    pub fn models_iter_mut(&mut self) -> impl Iterator<Item = &mut ModelDescriptor<X>> + '_ {
+        self.models.iter_mut()
     }
+
+    pub fn has_model(&self, model_identifier: ModelIdentifier) -> bool {
+        self.models
+            .iter()
+            .any(|e| e.model_identifier == model_identifier)
+    }
+}
+
+#[derive(Clone)]
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+pub struct ModelDescriptor<X = ()> {
+    pub model_identifier: ModelIdentifier,
+    pub extra: X,
 }
 
 #[derive(Copy, Clone)]

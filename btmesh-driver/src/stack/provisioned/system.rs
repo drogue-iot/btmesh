@@ -73,6 +73,16 @@ impl NetworkMetadata {
             network_key_handle: pdu.meta().network_key_handle(),
         }
     }
+
+    pub fn from_upper_control_pdu(pdu: &UpperControlPDU<ProvisionedStack>) -> Self {
+        Self {
+            iv_index: pdu.meta().iv_index(),
+            replay_protected: false,
+            should_relay: false,
+            local_element_index: pdu.meta().local_element_index(),
+            network_key_handle: pdu.meta().network_key_handle(),
+        }
+    }
 }
 
 #[derive(Clone)]
