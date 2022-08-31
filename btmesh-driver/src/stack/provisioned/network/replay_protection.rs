@@ -22,7 +22,7 @@ struct UpperCacheEntry {
 }
 
 #[derive(Default)]
-pub struct ReplayProtection<const N: usize = 100> {
+pub struct ReplayProtection<const N: usize = 32> {
     network: LRUCache<NetworkCacheEntry, N>,
     upper: LRUCache<UpperCacheEntry, N>,
 }
