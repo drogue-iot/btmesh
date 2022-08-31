@@ -16,13 +16,16 @@ use btmesh_device::{
 use btmesh_models::foundation::configuration::model_publication::PublishAddress;
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
 use btmesh_pdu::provisioned::access::AccessMessage;
+use btmesh_pdu::provisioned::network::NetworkPDU;
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::generic::Reason;
-use btmesh_pdu::provisioning::Capabilities;
+use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::{select, select3, select4, Either, Either3, Either4};
+use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+use embassy_sync::mutex::MutexGuard;
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
@@ -113,115 +116,126 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
+    async fn receive_provisioning_pdu(
+        &self,
+        pdu: &ProvisioningPDU,
+        stack: &mut UnprovisionedStack,
+    ) -> Result<(), DriverError> {
+        if let Some(provisioning_state) = stack.process(pdu, &mut *self.rng.borrow_mut())? {
+            match provisioning_state {
+                ProvisioningState::Failed => {
+                    warn!("provisioning failed");
+                    *stack = UnprovisionedStack::new(self.storage.capabilities());
+                }
+                ProvisioningState::Response(pdu) => {
+                    debug!("outbound provisioning pdu: {}", pdu);
+                    self.network.transmit(&(pdu.into()), false).await?;
+                }
+                ProvisioningState::Data(device_key, provisioning_data, pdu) => {
+                    debug!("received provisioning data: {}", provisioning_data);
+                    let primary_unicast_addr = provisioning_data.unicast_address;
+                    let device_info = DeviceInfo::new(
+                        primary_unicast_addr,
+                        self.storage.capabilities().number_of_elements,
+                    );
+                    let secrets = (device_key, provisioning_data).into();
+                    let network_state = provisioning_data.into();
+
+                    let pdu = pdu.into();
+                    debug!("sending provisioning complete response");
+                    for retransmit in 0..5 {
+                        self.network.transmit(&pdu, retransmit != 0).await?;
+                        Timer::after(Duration::from_millis(100)).await;
+                    }
+                    debug!("adjusting into fully provisioned state");
+
+                    let provisioned_config: ProvisionedConfiguration =
+                        (device_info, secrets, network_state).into();
+                    self.storage.provision(provisioned_config).await?;
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    async fn receive_network_pdu(&self, pdu: &NetworkPDU, stack: &mut ProvisionedStack, sequence: &Sequence) -> Result<(), DriverError> {
+        //debug!("inbound network pdu: {}", pdu);
+        let (network_pdus, result) = self
+            .storage
+            .read_provisioned(|config| {
+                let result = if let Some(result) =
+                    stack.process_inbound_network_pdu(config.secrets(), pdu, &self.watchdog)?
+                {
+                    if let Some((block_ack, meta)) = &result.block_ack {
+                        // send outbound block-ack
+                        let network_pdus =
+                            if let Some(src) = config.device_info().local_element_address(0) {
+                                Some(stack.process_outbound_block_ack(
+                                    config.secrets(),
+                                    sequence,
+                                    *block_ack,
+                                    meta,
+                                    &src,
+                                )?)
+                            } else {
+                                None
+                            };
+                        (network_pdus, Some(result))
+                    } else {
+                        (None, Some(result))
+                    }
+                } else {
+                    (None, None)
+                };
+                Ok(result)
+            })
+            .await?;
+
+        if let Some(network_pdus) = network_pdus {
+            for network_pdu in network_pdus {
+                self.network
+                    .transmit(&PDU::Network(network_pdu), false)
+                    .await
+                    .ok();
+            }
+        }
+
+        if let Some(result) = result {
+            if let Some(message) = &result.message {
+                // dispatch to element(s)
+                let subscriptions = self
+                    .storage
+                    .read_provisioned(|config| Ok(config.subscriptions().clone()))
+                    .await?;
+                match message {
+                    Message::Access(message) => {
+                        self.dispatcher
+                            .borrow_mut()
+                            .dispatch(message, &subscriptions)
+                            .await?;
+                    }
+                    Message::Control(message) => {
+                        stack.process_inbound_control(message, &self.watchdog)?;
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     async fn receive_pdu(&self, pdu: &PDU) -> Result<(), DriverError> {
         let mut current_stack = &mut *self.stack.borrow_mut();
 
         match (&pdu, &mut current_stack) {
-            (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, uuid }) => {
-                debug!("inbound provisioning pdu: {}", pdu);
-                if let Some(provisioning_state) = stack.process(pdu, &mut *self.rng.borrow_mut())? {
-                    match provisioning_state {
-                        ProvisioningState::Failed => {
-                            warn!("provisioning failed");
-                            *current_stack = Stack::Unprovisioned {
-                                stack: UnprovisionedStack::new(self.storage.capabilities()),
-                                uuid: *uuid,
-                            };
-                        }
-                        ProvisioningState::Response(pdu) => {
-                            debug!("outbound provisioning pdu: {}", pdu);
-                            self.network.transmit(&(pdu.into()), false).await?;
-                        }
-                        ProvisioningState::Data(device_key, provisioning_data, pdu) => {
-                            debug!("received provisioning data: {}", provisioning_data);
-                            let primary_unicast_addr = provisioning_data.unicast_address;
-                            let device_info = DeviceInfo::new(
-                                primary_unicast_addr,
-                                self.storage.capabilities().number_of_elements,
-                            );
-                            let secrets = (device_key, provisioning_data).into();
-                            let network_state = provisioning_data.into();
-
-                            let pdu = pdu.into();
-                            debug!("sending provisioning complete response");
-                            for retransmit in 0..5 {
-                                self.network.transmit(&pdu, retransmit != 0).await?;
-                                Timer::after(Duration::from_millis(100)).await;
-                            }
-                            debug!("adjusting into fully provisioned state");
-
-                            let provisioned_config: ProvisionedConfiguration =
-                                (device_info, secrets, network_state).into();
-                            self.storage.provision(provisioned_config).await?;
-                        }
-                    }
-                }
+            (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, .. }) => {
+                //debug!("inbound provisioning pdu: {}", pdu);
+                self.receive_provisioning_pdu(pdu, stack).await?;
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
                 //debug!("inbound network pdu: {}", pdu);
-                let (network_pdus, result) = self
-                    .storage
-                    .read_provisioned(|config| {
-                        let result = if let Some(result) = stack.process_inbound_network_pdu(
-                            config.secrets(),
-                            pdu,
-                            &self.watchdog,
-                        )? {
-                            if let Some((block_ack, meta)) = &result.block_ack {
-                                // send outbound block-ack
-                                let network_pdus = if let Some(src) =
-                                    config.device_info().local_element_address(0)
-                                {
-                                    Some(stack.process_outbound_block_ack(
-                                        config.secrets(),
-                                        sequence,
-                                        *block_ack,
-                                        meta,
-                                        &src,
-                                    )?)
-                                } else {
-                                    None
-                                };
-                                (network_pdus, Some(result))
-                            } else {
-                                (None, Some(result))
-                            }
-                        } else {
-                            (None, None)
-                        };
-                        Ok(result)
-                    })
-                    .await?;
-
-                if let Some(network_pdus) = network_pdus {
-                    for network_pdu in network_pdus {
-                        self.network
-                            .transmit(&PDU::Network(network_pdu), false)
-                            .await
-                            .ok();
-                    }
-                }
-
-                if let Some(result) = result {
-                    if let Some(message) = &result.message {
-                        // dispatch to element(s)
-                        let subscriptions = self
-                            .storage
-                            .read_provisioned(|config| Ok(config.subscriptions().clone()))
-                            .await?;
-                        match message {
-                            Message::Access(message) => {
-                                self.dispatcher
-                                    .borrow_mut()
-                                    .dispatch(message, &subscriptions)
-                                    .await?;
-                            }
-                            Message::Control(message) => {
-                                stack.process_inbound_control(message, &self.watchdog)?;
-                            }
-                        }
-                    }
-                }
+                self.receive_network_pdu(pdu, stack, sequence).await?;
             }
             _ => {
                 // PDU incompatible with stack state or stack not initialized; ignore.
@@ -401,6 +415,72 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         network.run()
     }
 
+    async fn notify_publications(
+        &self,
+        config: &mut MutexGuard<'_, CriticalSectionRawMutex, Option<Configuration>>,
+    ) {
+        if let Some(Configuration::Provisioned(config)) = &mut **config {
+            for publication in config
+                .publications_mut()
+                .iter_mut()
+                .filter(|e| !e.notified.is_notified())
+            {
+                self.dispatcher
+                    .borrow()
+                    .dispatch_publish(
+                        publication.element_index,
+                        publication.model_identifier,
+                        publication.publish_period.duration(),
+                    )
+                    .await;
+                publication.notified.mark_notified();
+            }
+        }
+    }
+
+    fn display_configuration(
+        composition: &Composition,
+        config: &Configuration,
+        last_displayed_hash: Option<u64>,
+    ) -> u64 {
+        let current_hash = hash_of(config);
+
+        let changed = match last_displayed_hash {
+            Some(previous_hash) => current_hash != previous_hash,
+            None => true,
+        };
+
+        if changed {
+            config.display(composition);
+        }
+        current_hash
+    }
+
+    fn reconfigure_stack(&self, config: &Configuration) {
+        let mut stack = self.stack.borrow_mut();
+
+        match (&*stack, config) {
+            (Stack::None, Configuration::Unprovisioned(config))
+            | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
+                *stack = Stack::Unprovisioned {
+                    stack: UnprovisionedStack::new(self.storage.capabilities()),
+                    uuid: config.uuid,
+                };
+                self.network.reset();
+            }
+            (Stack::None, Configuration::Provisioned(config))
+            | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
+                *stack = Stack::Provisioned {
+                    sequence: Sequence::new(Seq::new(config.sequence())),
+                    stack: config.into(),
+                };
+            }
+            _ => {
+                // unchanged, don't reconfigure the stack.
+            }
+        }
+    }
+
     async fn run_driver(&self, composition: &mut Composition) -> Result<(), DriverError> {
         info!("btmesh: starting up");
 
@@ -419,79 +499,25 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         let mut last_displayed_hash = None;
 
         loop {
-            let result = self
-                .storage
-                .read(|config| {
-                    let mut stack = self.stack.borrow_mut();
+            let mut config = self.storage.lock().await;
+            if config.is_none() {
+                return Err(DriverError::InvalidState);
+            }
 
-                    match (&*stack, &config) {
-                        (Stack::None, Configuration::Unprovisioned(config))
-                        | (Stack::Provisioned { .. }, Configuration::Unprovisioned(config)) => {
-                            *stack = Stack::Unprovisioned {
-                                stack: UnprovisionedStack::new(self.storage.capabilities()),
-                                uuid: config.uuid,
-                            };
-                            self.network.reset();
-                        }
-                        (Stack::None, Configuration::Provisioned(config))
-                        | (Stack::Unprovisioned { .. }, Configuration::Provisioned(config)) => {
-                            *stack = Stack::Provisioned {
-                                sequence: Sequence::new(Seq::new(config.sequence())),
-                                stack: config.into(),
-                            };
-                        }
-                        _ => {
-                            // unchanged, don't reconfigure the stack.
-                        }
-                    }
-
-                    let current_hash = hash_of(&config);
-
-                    let changed = match last_displayed_hash {
-                        Some(previous_hash) => current_hash != previous_hash,
-                        None => true,
-                    };
-
-                    if changed {
-                        config.display(composition);
-                        last_displayed_hash.replace(current_hash);
-                    }
-
-                    Ok(())
-                })
-                .await;
-            if result.is_err() {
-                self.network.reset();
-                continue;
+            if let Some(config) = &*config {
+                self.reconfigure_stack(config);
+                last_displayed_hash.replace(Self::display_configuration(
+                    composition,
+                    config,
+                    last_displayed_hash,
+                ));
             }
 
             let device_state = self.stack.borrow().device_state();
 
             if let Some(device_state) = device_state {
-                let mut config = self.storage.get().await;
-                if let Some(Configuration::Provisioned(config)) = &mut *config {
-                    for publication in config
-                        .publications_mut()
-                        .iter_mut()
-                        .filter(|e| !e.notified.is_notified())
-                    {
-                        debug!(
-                            "notify publisher {} {} {}",
-                            publication.element_index,
-                            publication.model_identifier,
-                            publication.publish_period.duration()
-                        );
-                        self.dispatcher
-                            .borrow()
-                            .dispatch_publish(
-                                publication.element_index,
-                                publication.model_identifier,
-                                publication.publish_period.duration(),
-                            )
-                            .await;
-                        publication.notified.mark_notified();
-                    }
-                }
+                self.notify_publications(&mut config).await;
+
                 drop(config);
 
                 let receive_fut = self.network.receive(&device_state, &self.watchdog);

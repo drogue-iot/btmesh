@@ -128,7 +128,7 @@ impl<B: BackingStore> Storage<B> {
         Ok(())
     }
 
-    pub async fn get(&self) -> MutexGuard<'_, CriticalSectionRawMutex, Option<Configuration>> {
+    pub async fn lock(&self) -> MutexGuard<'_, CriticalSectionRawMutex, Option<Configuration>> {
         self.config.lock().await
     }
 
