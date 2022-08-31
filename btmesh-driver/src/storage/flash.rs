@@ -19,6 +19,7 @@ pub struct FlashBackingStore<F: AsyncNorFlash, const PAGE_SIZE: u32 = 4096> {
     base_address: u32,
     latest_load: LatestLoad,
     sequence_threshold: u32,
+    buffer: AlignedBuffer<USEFUL_BUFFER_SIZE>,
 }
 
 impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
@@ -28,6 +29,7 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
             base_address,
             latest_load: LatestLoad::None,
             sequence_threshold,
+            buffer: AlignedBuffer([0; USEFUL_BUFFER_SIZE]),
         }
     }
 }
@@ -47,14 +49,13 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
 
     fn load(&mut self) -> Self::LoadFuture<'_> {
         async move {
-            let mut bytes = [0; USEFUL_BUFFER_SIZE];
             self.flash
-                .read(self.base_address, &mut bytes)
+                .read(self.base_address, &mut self.buffer.0)
                 .await
                 .map_err(|_| StorageError::Load)?;
 
             let config: ProvisionedConfiguration =
-                from_bytes(&bytes).map_err(|_| StorageError::Serialization)?;
+                from_bytes(&self.buffer.0).map_err(|_| StorageError::Serialization)?;
 
             let hash = hash_of(&config);
             self.latest_load = LatestLoad::Provisioned {
@@ -69,14 +70,13 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
     fn store<'f>(&'f mut self, config: &'f ProvisionedConfiguration) -> Self::StoreFuture<'f> {
         async move {
             if should_writeback(self.latest_load, config, self.sequence_threshold) {
-                let mut bytes = AlignedBuffer([0; USEFUL_BUFFER_SIZE]);
-                to_slice(config, &mut bytes.0).map_err(|_| StorageError::Serialization)?;
+                to_slice(config, &mut self.buffer.0).map_err(|_| StorageError::Serialization)?;
                 self.flash
                     .erase(self.base_address, self.base_address + PAGE_SIZE)
                     .await
                     .map_err(|_| StorageError::Store)?;
                 self.flash
-                    .write(self.base_address, &bytes.0)
+                    .write(self.base_address, &self.buffer.0)
                     .await
                     .map_err(|_| StorageError::Store)?;
 
