@@ -80,16 +80,6 @@ impl NetworkDriver {
 }
 
 impl ProvisionedStack {
-    /*
-    fn network_keys_by_nid(&self, nid: Nid) -> impl Iterator<Item = NetworkKeyHandle> + '_ {
-        self.secrets.network_keys_by_nid(nid)
-    }
-
-    fn network_key(&self, handle: NetworkKeyHandle) -> Result<NetworkKey, DriverError> {
-        self.secrets.network_key(handle)
-    }
-     */
-
     pub fn validate_cleartext_network_pdu(&mut self, pdu: &mut CleartextNetworkPDU<Self>) {
         self.network.replay_protection.check_network_pdu(pdu);
     }
