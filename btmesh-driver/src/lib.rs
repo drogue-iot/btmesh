@@ -94,7 +94,7 @@ pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: Back
     network: N,
     rng: RefCell<R>,
     storage: &'s Storage<B>,
-    dispatcher: RefCell<Dispatcher>,
+    dispatcher: RefCell<Dispatcher<'s>>,
     watchdog: Watchdog,
 }
 
@@ -106,8 +106,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             rng: RefCell::new(rng),
             storage,
             dispatcher: RefCell::new(Dispatcher::new(
-                FOUNDATION_INBOUND.sender(),
-                DEVICE_INBOUND.sender(),
+                INBOUND.publisher().unwrap(),
             )),
             watchdog: Default::default(),
         }
@@ -370,30 +369,26 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         Ok(())
     }
 
-    fn next_beacon(&self) -> BeaconFuture<'_, N, R, B> {
-        async move {
-            if let Some(next_beacon_deadline) = self.stack.borrow().next_beacon_deadline() {
-                next_beacon_deadline.await
-            } else {
-                pending().await
-            }
+    async fn next_beacon(&self) {
+        if let Some(next_beacon_deadline) = self.stack.borrow().next_beacon_deadline() {
+            next_beacon_deadline.await;
+        } else {
+            pending().await
         }
     }
 
-    fn next_retransmit(&self) -> RetransmitFuture<'_, N, R, B> {
-        async move {
-            if let Some(next_retransmit) = self.stack.borrow().next_retransmit() {
-                next_retransmit.await
-            } else {
-                pending().await
-            }
+    async fn next_retransmit(&self) {
+        if let Some(next_retransmit) = self.stack.borrow().next_retransmit() {
+            next_retransmit.await
+        } else {
+            pending().await
         }
     }
 
-    fn run_device<D: BluetoothMeshDevice>(
-        device: &mut D,
-        receiver: InboundChannelReceiver,
-    ) -> impl Future<Output = Result<(), ()>> + '_ {
+    fn run_device<'m, D: BluetoothMeshDevice>(
+        device: &'m mut D,
+        receiver: &'m InboundChannel,
+    ) -> impl Future<Output = Result<(), ()>> + 'm {
         device.run(DeviceContext::new(receiver, OUTBOUND.sender()))
     }
 
@@ -596,8 +591,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
             let network_fut = Self::run_network(&self.network);
             let device_fut = select(
-                Self::run_device(&mut foundation_device, FOUNDATION_INBOUND.receiver()),
-                Self::run_device(device, DEVICE_INBOUND.receiver()),
+                Self::run_device(&mut foundation_device, &INBOUND),
+                Self::run_device(device, &INBOUND),
             );
             let driver_fut = self.run_driver(&mut composition);
 
@@ -641,28 +636,12 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
     }
 }
 
-type BeaconFuture<'f, N, R, B>
-where
-    N: NetworkInterfaces + 'f,
-    R: CryptoRng + RngCore + 'f,
-    B: BackingStore + 'f,
-= impl Future<Output = ()> + 'f;
-
-type RetransmitFuture<'f, N, R, B>
-where
-    N: NetworkInterfaces + 'f,
-    R: CryptoRng + RngCore + 'f,
-    B: BackingStore + 'f,
-= impl Future<Output = ()> + 'f;
-
 pub enum DeviceState {
     Unprovisioned { uuid: Uuid, in_progress: bool },
     Provisioned,
 }
 
-static FOUNDATION_INBOUND: InboundChannel = InboundChannel::new();
-static DEVICE_INBOUND: InboundChannel = InboundChannel::new();
-
+static INBOUND: InboundChannel = InboundChannel::new();
 static OUTBOUND: OutboundChannel = OutboundChannel::new();
 
 fn enhance_composition(composition: &mut Composition) -> Result<(), DriverError> {

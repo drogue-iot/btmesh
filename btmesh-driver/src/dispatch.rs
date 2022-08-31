@@ -19,20 +19,17 @@ struct CacheEntry {
     iv_index: u16,
 }
 
-pub struct Dispatcher {
-    foundation_sender: InboundChannelSender,
-    device_sender: InboundChannelSender,
+pub struct Dispatcher<'a> {
+    publisher: InboundChannelSender<'a>,
     lru: LRUCache<CacheEntry, 32>,
 }
 
-impl Dispatcher {
+impl<'a> Dispatcher<'a> {
     pub fn new(
-        foundation_sender: InboundChannelSender,
-        device_sender: InboundChannelSender,
+        publisher: InboundChannelSender<'a>,
     ) -> Self {
         Self {
-            foundation_sender,
-            device_sender,
+            publisher,
             lru: Default::default(),
         }
     }
@@ -98,10 +95,7 @@ impl Dispatcher {
                     }),
                 });
             }
-            if local_element_index == 0 {
-                self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
-            }
-            self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+            self.publisher.publish(unsafe { PAYLOAD.get() }).await;
 
             unsafe {
                 PAYLOAD.wait().await;
@@ -129,13 +123,13 @@ impl Dispatcher {
                 }
 
                 // only dispatch to foundation if actually foundational subscription.
-                if subscription.element_index == 0
+                /*if subscription.element_index == 0
                     && subscription.model_identifier == ConfigurationServer::IDENTIFIER
                 {
                     self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
-                }
+                }*/
 
-                self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+                self.publisher.publish(unsafe { PAYLOAD.get() }).await;
 
                 unsafe {
                     PAYLOAD.wait().await;
@@ -160,11 +154,12 @@ impl Dispatcher {
             });
         }
 
+        /*
         if element_index == 0 && model_identifier == ConfigurationServer::IDENTIFIER {
             self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
-        }
+        }*/
 
-        self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+        self.publisher.publish(unsafe { PAYLOAD.get() }).await;
 
         unsafe {
             PAYLOAD.wait().await;

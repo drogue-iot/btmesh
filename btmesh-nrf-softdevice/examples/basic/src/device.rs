@@ -54,7 +54,7 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
 
     fn run<'run, C: BluetoothMeshModelContext<GenericOnOffServer> + 'run>(
         &'run mut self,
-        ctx: C,
+        mut ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {
@@ -115,7 +115,7 @@ impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
     #[allow(clippy::await_holding_refcell_ref)]
     fn run<'run, C: BluetoothMeshModelContext<GenericOnOffClient> + 'run>(
         &'run mut self,
-        ctx: C,
+        mut ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
             let mut tid = 0;

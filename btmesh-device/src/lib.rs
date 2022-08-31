@@ -25,6 +25,7 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
+pub use embassy_sync::pubsub::{PubSubChannel, Publisher, Subscriber};
 use embassy_sync::signal::Signal;
 use embassy_time::Duration;
 pub use futures::future::join;
@@ -34,11 +35,11 @@ pub use futures::pin_mut;
 use heapless::Vec;
 
 pub type InboundChannel =
-    Channel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
-pub type InboundChannelSender =
-    Sender<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
-pub type InboundChannelReceiver =
-    Receiver<'static, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
+    PubSubChannel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1, 4, 4>;
+pub type InboundChannelSender<'m> =
+    Publisher<'m, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1, 4, 4>;
+pub type InboundChannelReceiver<'m> =
+    Subscriber<'m, CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1, 4, 4>;
 
 pub struct InboundPayload {
     pub element_index: usize,
@@ -63,12 +64,6 @@ pub struct InboundMessage {
     pub parameters: Vec<u8, 379>,
     pub meta: InboundMetadata,
 }
-
-pub type InboundModelChannel<M> = Channel<CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
-pub type InboundModelChannelSender<'m, M> =
-    Sender<'m, CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
-pub type InboundModelChannelReceiver<'m, M> =
-    Receiver<'m, CriticalSectionRawMutex, InboundModelPayload<M>, 1>;
 
 pub enum InboundModelPayload<M> {
     Message(M, InboundMetadata),
@@ -106,17 +101,7 @@ impl From<SendExtra> for OutboundExtra {
 pub trait BluetoothMeshDeviceContext {
     type ElementContext: BluetoothMeshElementContext;
 
-    fn element_context(
-        &self,
-        index: usize,
-        inbound: InboundChannelReceiver,
-    ) -> Self::ElementContext;
-
-    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-        Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    fn element_context(&self, index: usize) -> Self::ElementContext;
 }
 
 pub trait BluetoothMeshDevice {
@@ -148,21 +133,9 @@ pub trait BluetoothMeshElement {
 }
 
 pub trait BluetoothMeshElementContext {
-    type ModelContext<'m, M: Model>: BluetoothMeshModelContext<M>
-    where
-        M: 'm,
-        Self: 'm;
+    type ModelContext<M: Model>: BluetoothMeshModelContext<M>;
 
-    fn model_context<'m, M: Model + 'm>(
-        &'m self,
-        inbound: InboundModelChannelReceiver<'m, M::Message>,
-    ) -> Self::ModelContext<'m, M>;
-
-    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-        Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    fn model_context<M: Model>(&self) -> Self::ModelContext<M>;
 }
 
 pub trait BluetoothMeshModel<M: Model> {
@@ -181,10 +154,6 @@ pub trait BluetoothMeshModel<M: Model> {
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER
     }
-
-    fn parser(&self) -> ParseFunction<M> {
-        M::parse as fn(&Opcode, &[u8]) -> Result<Option<M::Message>, ParseError>
-    }
 }
 
 pub type ParseFunction<M> =
@@ -196,7 +165,7 @@ pub trait BluetoothMeshModelContext<M: Model> {
         Self: 'f,
         M: 'f;
 
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    fn receive(&mut self) -> Self::ReceiveFuture<'_>;
 
     type SendFuture<'f>: Future<Output = Result<(), ()>> + 'f
     where

@@ -97,23 +97,9 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
             self.#field_name.populate(&mut composition);
         });
 
-        let element_channel_name = format_ident!(
-            "{}",
-            field.ident.as_ref().unwrap().to_string().to_uppercase()
-        );
-
-        static_channels.extend( quote!{
-            static #element_channel_name: ::btmesh_device::InboundChannel = ::btmesh_device::InboundChannel::new();
-        });
-
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            let #ctx_name = ctx.element_context(#i, #element_channel_name.receiver() );
-        });
-        fanout.extend(quote! {
-            if target_element_index == #i {
-                #element_channel_name.send(message.clone()).await;
-            }
+            let #ctx_name = ctx.element_context(#i);
         });
         ctor_params.extend(quote! {
             ::btmesh_device::BluetoothMeshElement::run(&mut self.#field_name, #ctx_name),
@@ -151,18 +137,9 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 use btmesh_device::BluetoothMeshElementContext;
                 async move {
                     #run_prolog
-                    ::btmesh_device::join(
-                        async move {
-                            loop {
-                                let message = ctx.receive().await;
-                                let target_element_index = message.element_index;
-                                #fanout
-                            }
-                        },
-                        #future_struct_name::new(
-                            #ctor_params
-                        ),
-                    ).await.1.ok();
+                    #future_struct_name::new(
+                        #ctor_params
+                    ).await.ok();
 
                     Ok(())
                 }
@@ -287,32 +264,9 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
             descriptor.add_model( self.#field_name.model_identifier() );
         });
 
-        let ch_name = format_ident!("{}_ch", field_name);
-        let ch_sender_name = format_ident!("{}_sender", field_name);
-        let ch_receiver_name = format_ident!("{}_receiver", field_name);
-        let ch_parser_name = format_ident!("{}_parser", field_name);
-
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
-            let #ch_name = ::btmesh_device::InboundModelChannel::new();
-            let #ch_sender_name = #ch_name.sender();
-            let #ch_receiver_name = #ch_name.receiver();
-            let #ch_parser_name = self.#field_name.parser();
-
-            let #ctx_name = ctx.model_context(#ch_receiver_name );
-        });
-
-        fanout.extend(quote! {
-            match &message.body {
-                ::btmesh_device::InboundBody::Message(message) => {
-                    if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
-                        #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Message(model_message, message.meta) ).ok();
-                    }
-                }
-                ::btmesh_device::InboundBody::Control(control) => {
-                    #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Control(*control) ).ok();
-                }
-            }
+            let #ctx_name = ctx.model_context();
         });
 
         ctor_params.extend(quote! {
@@ -339,17 +293,9 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                                 use btmesh_device::BluetoothMeshElementContext;
                 async move {
                     #run_prolog
-                    ::btmesh_device::join(
-                        async {
-                            loop {
-                                let message = ctx.receive().await;
-                                #fanout
-                            }
-                        },
-                        #future_struct_name::new(
-                            #ctor_params
-                        ),
-                    ).await.1.ok();
+                    #future_struct_name::new(
+                        #ctor_params
+                    ).await.ok();
 
                     Ok(())
                 }

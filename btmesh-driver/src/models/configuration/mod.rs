@@ -32,7 +32,7 @@ impl<'s, B: BackingStore + 's> BluetoothMeshModel<ConfigurationServer> for Confi
 
     fn run<'run, C: BluetoothMeshModelContext<ConfigurationServer> + 'run>(
         &'run mut self,
-        ctx: C,
+        mut ctx: C,
     ) -> Self::RunFuture<'_, C> {
         async move {
             loop {

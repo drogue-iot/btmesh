@@ -1,9 +1,10 @@
 use btmesh_common::ModelIdentifier;
 use btmesh_device::access_counted::AccessCountedHandle;
 use btmesh_device::{
+    InboundChannel,
     BluetoothMeshDeviceContext, BluetoothMeshElementContext, BluetoothMeshModelContext,
-    CompletionStatus, CompletionToken, InboundChannelReceiver, InboundModelChannelReceiver,
-    InboundModelPayload, InboundPayload, Model, OutboundChannelSender, OutboundExtra,
+    CompletionStatus, CompletionToken, InboundChannelReceiver,
+    InboundModelPayload, InboundPayload, InboundBody, Model, OutboundChannelSender, OutboundExtra,
     OutboundMetadata, OutboundPayload, SendExtra,
 };
 use btmesh_models::Message;
@@ -11,87 +12,82 @@ use core::future::Future;
 use embassy_sync::signal::Signal;
 use heapless::Vec;
 
-pub(crate) struct DeviceContext {
-    inbound: InboundChannelReceiver,
+pub(crate) struct DeviceContext<'a> {
+    inbound: &'a InboundChannel,
     outbound: OutboundChannelSender,
 }
 
-impl DeviceContext {
-    pub fn new(inbound: InboundChannelReceiver, outbound: OutboundChannelSender) -> Self {
+impl<'a> DeviceContext<'a> {
+    pub fn new(inbound: &'a InboundChannel, outbound: OutboundChannelSender) -> Self {
         Self { inbound, outbound }
     }
 }
 
-impl BluetoothMeshDeviceContext for DeviceContext {
-    type ElementContext = ElementContext;
+impl<'a> BluetoothMeshDeviceContext for DeviceContext<'a> {
+    type ElementContext = ElementContext<'a>;
 
     fn element_context(
         &self,
         element_index: usize,
-        inbound: InboundChannelReceiver,
     ) -> Self::ElementContext {
         ElementContext {
             element_index,
-            inbound,
+            inbound: self.inbound,
             outbound: self.outbound.clone(),
         }
     }
-
-    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
-        where
-            Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
-    }
 }
 
-pub(crate) struct ElementContext {
+pub(crate) struct ElementContext<'a> {
     element_index: usize,
-    inbound: InboundChannelReceiver,
+    inbound: &'a InboundChannel,
     outbound: OutboundChannelSender,
 }
 
-impl BluetoothMeshElementContext for ElementContext {
-    type ModelContext<'m, M: Model> = ModelContext<'m, M>
-        where M: 'm, Self: 'm;
+impl<'a> BluetoothMeshElementContext for ElementContext<'a> {
+    type ModelContext<M: Model> = ModelContext<'a>;
 
-    fn model_context<'m, M: Model + 'm>(
-        &'m self,
-        inbound: InboundModelChannelReceiver<'m, M::Message>,
-    ) -> Self::ModelContext<'m, M> {
+    fn model_context<M: Model>(&self) -> Self::ModelContext<M> {
         ModelContext {
             element_index: self.element_index,
             model_identifier: M::IDENTIFIER,
-            inbound,
+            inbound: self.inbound.subscriber().unwrap(),
             outbound: self.outbound.clone(),
         }
     }
-
-    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-    Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
-    }
 }
 
-pub(crate) struct ModelContext<'m, M: Model> {
+pub(crate) struct ModelContext<'a> {
     element_index: usize,
     model_identifier: ModelIdentifier,
-    inbound: InboundModelChannelReceiver<'m, M::Message>,
+    inbound: InboundChannelReceiver<'a>,
     outbound: OutboundChannelSender,
 }
 
-impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
+impl<'a, M: Model> BluetoothMeshModelContext<M> for ModelContext<'a> {
     type ReceiveFuture<'f> = impl Future<Output = InboundModelPayload<M::Message>> + 'f
     where
         Self: 'f,
         M: 'f;
 
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
+    fn receive(&mut self) -> Self::ReceiveFuture<'_> {
+        async move {
+            loop {
+                let message = self.inbound.next_message_pure().await;
+                if message.element_index == self.element_index {
+                    match &message.body {
+                        InboundBody::Message(message) => {
+                            if let Ok(Some(model_message)) = M::parse(&message.opcode, &message.parameters) {
+                                return InboundModelPayload::Message(model_message, message.meta);
+                            }
+                        }
+                        InboundBody::Control(control) => {
+                            return InboundModelPayload::Control(*control);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     type SendFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
