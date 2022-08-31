@@ -6,7 +6,7 @@ use embedded_storage_async::nor_flash::AsyncNorFlash;
 use postcard::{from_bytes, to_slice};
 
 #[repr(align(4))]
-struct AlignedBytePage([u8; 4096]);
+struct AlignedBuffer<const N: usize>([u8; N]);
 
 #[derive(Copy, Clone)]
 pub enum LatestLoad {
@@ -14,14 +14,14 @@ pub enum LatestLoad {
     Provisioned { hash: u64, sequence: u32 },
 }
 
-pub struct FlashBackingStore<F: AsyncNorFlash> {
+pub struct FlashBackingStore<F: AsyncNorFlash, const PAGE_SIZE: u32 = 4096> {
     flash: F,
     base_address: u32,
     latest_load: LatestLoad,
     sequence_threshold: u32,
 }
 
-impl<F: AsyncNorFlash> FlashBackingStore<F> {
+impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
     pub fn new(flash: F, base_address: u32, sequence_threshold: u32) -> Self {
         Self {
             flash,
@@ -32,7 +32,9 @@ impl<F: AsyncNorFlash> FlashBackingStore<F> {
     }
 }
 
-impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
+const USEFUL_BUFFER_SIZE: usize = 2048;
+
+impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<F, PAGE_SIZE> {
     type LoadFuture<'m> =  impl Future<Output = Result<ProvisionedConfiguration, StorageError>> + 'm
         where
             Self: 'm;
@@ -45,7 +47,7 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
 
     fn load(&mut self) -> Self::LoadFuture<'_> {
         async move {
-            let mut bytes = [0; 4096];
+            let mut bytes = [0; USEFUL_BUFFER_SIZE];
             self.flash
                 .read(self.base_address, &mut bytes)
                 .await
@@ -67,10 +69,10 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
     fn store<'f>(&'f mut self, config: &'f ProvisionedConfiguration) -> Self::StoreFuture<'f> {
         async move {
             if should_writeback(self.latest_load, config, self.sequence_threshold) {
-                let mut bytes = AlignedBytePage([0; 4096]);
+                let mut bytes = AlignedBuffer([0; USEFUL_BUFFER_SIZE]);
                 to_slice(config, &mut bytes.0).map_err(|_| StorageError::Serialization)?;
                 self.flash
-                    .erase(self.base_address, self.base_address + 4096)
+                    .erase(self.base_address, self.base_address + PAGE_SIZE)
                     .await
                     .map_err(|_| StorageError::Store)?;
                 self.flash
@@ -90,7 +92,10 @@ impl<F: AsyncNorFlash> BackingStore for FlashBackingStore<F> {
     fn clear(&mut self) -> Self::ClearFuture<'_> {
         async move {
             self.flash
-                .erase(self.base_address, self.base_address + 4096)
+                .erase(
+                    self.base_address,
+                    self.base_address + USEFUL_BUFFER_SIZE as u32,
+                )
                 .await
                 .map_err(|_| StorageError::Store)?;
             self.latest_load = LatestLoad::None;

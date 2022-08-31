@@ -7,11 +7,11 @@
 #![feature(async_closure)]
 
 use btmesh_bearer::beacon::Beacon;
-use btmesh_common::address::Address;
-use btmesh_common::{Composition, Seq, Uuid};
+use btmesh_common::address::{Address, UnicastAddress};
+use btmesh_common::{Composition, Seq, Ttl, Uuid};
 use btmesh_device::{
-    BluetoothMeshDevice, InboundChannel, InboundChannelReceiver, KeyHandle, OutboundChannel,
-    OutboundExtra, OutboundPayload,
+    BluetoothMeshDevice, CompletionToken, InboundChannel, InboundChannelReceiver, KeyHandle,
+    OutboundChannel, OutboundExtra, OutboundPayload, SendExtra,
 };
 use btmesh_models::foundation::configuration::model_publication::PublishAddress;
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
@@ -159,11 +159,17 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         Ok(())
     }
 
-    async fn receive_network_pdu(&self, pdu: &NetworkPDU, stack: &mut ProvisionedStack, sequence: &Sequence) -> Result<(), DriverError> {
-        //debug!("inbound network pdu: {}", pdu);
+    async fn receive_network_pdu(
+        &self,
+        pdu: &NetworkPDU,
+        stack: &mut ProvisionedStack,
+        sequence: &Sequence,
+    ) -> Result<(), DriverError> {
+        info!("rnp 1");
         let (network_pdus, result) = self
             .storage
             .read_provisioned(|config| {
+                info!("rnp 2");
                 let result = if let Some(result) =
                     stack.process_inbound_network_pdu(config.secrets(), pdu, &self.watchdog)?
                 {
@@ -192,17 +198,19 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             })
             .await?;
 
+        info!("rnp 3");
         if let Some(network_pdus) = network_pdus {
-            for network_pdu in network_pdus {
-                self.network
-                    .transmit(&PDU::Network(network_pdu), false)
-                    .await
-                    .ok();
+            info!("rnp 4");
+            for pdu in network_pdus {
+                self.network.transmit(&pdu.into(), false).await.ok();
             }
         }
 
+        info!("rnp 5");
         if let Some(result) = result {
+            info!("rnp 6");
             if let Some(message) = &result.message {
+                info!("rnp 7");
                 // dispatch to element(s)
                 let subscriptions = self
                     .storage
@@ -230,11 +238,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
         match (&pdu, &mut current_stack) {
             (PDU::Provisioning(pdu), Stack::Unprovisioned { stack, .. }) => {
-                //debug!("inbound provisioning pdu: {}", pdu);
+                debug!("inbound provisioning pdu: {}", pdu);
                 self.receive_provisioning_pdu(pdu, stack).await?;
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
-                //debug!("inbound network pdu: {}", pdu);
                 self.receive_network_pdu(pdu, stack, sequence).await?;
             }
             _ => {
@@ -244,97 +251,128 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         Ok(())
     }
 
+    fn process_outbound_send(
+        &self,
+        element_address: UnicastAddress,
+        default_ttl: Ttl,
+        outbound_payload: &OutboundPayload,
+        extra: &SendExtra,
+    ) -> Result<
+        (
+            Option<AccessMessage<ProvisionedStack>>,
+            Option<CompletionToken>,
+        ),
+        DriverError,
+    > {
+        Ok((
+            Some(AccessMessage::new(
+                outbound_payload.opcode,
+                Vec::from_slice(&outbound_payload.parameters)?,
+                (element_address, extra.meta, default_ttl),
+            )),
+            extra.completion_token.clone(),
+        ))
+    }
+
+    fn process_outbound_publish(
+        &self,
+        config: &ProvisionedConfiguration,
+        element_address: UnicastAddress,
+        default_ttl: Ttl,
+        outbound_payload: &OutboundPayload,
+    ) -> Result<
+        (
+            Option<AccessMessage<ProvisionedStack>>,
+            Option<CompletionToken>,
+        ),
+        DriverError,
+    > {
+        if let Some(publication) = config.publications().get(
+            outbound_payload.element_index as u8,
+            outbound_payload.model_identifer,
+        ) {
+            let (dst, label_uuid): (Address, _) = match publication.publish_address {
+                PublishAddress::Unicast(addr) => (addr.into(), None),
+                PublishAddress::Group(addr) => (addr.into(), None),
+                PublishAddress::Virtual(addr) => (addr.virtual_address().into(), Some(addr)),
+                PublishAddress::Unassigned => unreachable!(),
+            };
+
+            if let Some((network_key_handle, app_key_handle)) =
+                config.secrets().get_key_pair(publication.app_key_index)
+            {
+                let meta = AccessMetadata {
+                    network_key_handle,
+                    iv_index: config.iv_index(),
+                    local_element_index: Some(outbound_payload.element_index as u8),
+                    key_handle: KeyHandle::Application(app_key_handle),
+                    src: element_address,
+                    dst,
+                    ttl: publication.publish_ttl.unwrap_or(default_ttl),
+                    label_uuid,
+                    replay_seq: None,
+                };
+                Ok((
+                    Some(AccessMessage::<ProvisionedStack>::new(
+                        outbound_payload.opcode,
+                        Vec::from_slice(&outbound_payload.parameters.clone())?,
+                        meta,
+                    )),
+                    None,
+                ))
+            } else {
+                Ok((None, None))
+            }
+        } else {
+            Ok((None, None))
+        }
+    }
+
     async fn process_outbound_payload(
         &self,
         outbound_payload: &OutboundPayload,
     ) -> Result<(), DriverError> {
-        let network_pdus = self
-            .storage
-            .read_provisioned(|config| {
-                let element_address = config
-                    .device_info()
-                    .local_element_address(outbound_payload.element_index as u8)
-                    .ok_or(DriverError::InvalidState)?;
-                let default_ttl = config.foundation().configuration().default_ttl();
-                let (message, completion_token) = match &outbound_payload.extra {
-                    OutboundExtra::Send(extra) => (
-                        Some(AccessMessage::new(
-                            outbound_payload.opcode,
-                            Vec::from_slice(&outbound_payload.parameters)?,
-                            (element_address, extra.meta, default_ttl),
-                        )),
-                        extra.completion_token.clone(),
-                    ),
-                    OutboundExtra::Publish => {
-                        if let Some(publication) = config.publications().get(
-                            outbound_payload.element_index as u8,
-                            outbound_payload.model_identifer,
-                        ) {
-                            let (dst, label_uuid): (Address, _) = match publication.publish_address
-                            {
-                                PublishAddress::Unicast(addr) => (addr.into(), None),
-                                PublishAddress::Group(addr) => (addr.into(), None),
-                                PublishAddress::Virtual(addr) => {
-                                    (addr.virtual_address().into(), Some(addr))
-                                }
-                                PublishAddress::Unassigned => unreachable!(),
-                            };
+        let locked_config = self.storage.lock().await;
 
-                            if let Some((network_key_handle, app_key_handle)) =
-                                config.secrets().get_key_pair(publication.app_key_index)
-                            {
-                                let meta = AccessMetadata {
-                                    network_key_handle,
-                                    iv_index: config.iv_index(),
-                                    local_element_index: Some(outbound_payload.element_index as u8),
-                                    key_handle: KeyHandle::Application(app_key_handle),
-                                    src: element_address,
-                                    dst,
-                                    ttl: publication.publish_ttl.unwrap_or(default_ttl),
-                                    label_uuid,
-                                    replay_seq: None,
-                                };
-                                (
-                                    Some(AccessMessage::<ProvisionedStack>::new(
-                                        outbound_payload.opcode,
-                                        Vec::from_slice(&outbound_payload.parameters.clone())?,
-                                        meta,
-                                    )),
-                                    None,
-                                )
-                            } else {
-                                (None, None)
-                            }
-                        } else {
-                            (None, None)
-                        }
-                    }
-                };
+        if let Some(Configuration::Provisioned(config)) = &*locked_config {
+            let element_address = config
+                .device_info()
+                .local_element_address(outbound_payload.element_index as u8)
+                .ok_or(DriverError::InvalidState)?;
+            let default_ttl = config.foundation().configuration().default_ttl();
+            let (message, completion_token) = match &outbound_payload.extra {
+                OutboundExtra::Send(extra) => self.process_outbound_send(
+                    element_address,
+                    default_ttl,
+                    outbound_payload,
+                    extra,
+                )?,
+                OutboundExtra::Publish => self.process_outbound_publish(
+                    config,
+                    element_address,
+                    default_ttl,
+                    outbound_payload,
+                )?,
+            };
 
-                if let (Some(message), Stack::Provisioned { stack, sequence }) =
-                    (message, &mut *self.stack.borrow_mut())
-                {
-                    let message = message.into();
-                    let network_pdus = stack.process_outbound(
-                        config.secrets(),
-                        sequence,
-                        &message,
-                        completion_token,
-                        &self.watchdog,
-                    )?;
-                    Ok(Some(network_pdus))
-                } else {
-                    Ok(None)
+            if let (Some(message), Stack::Provisioned { stack, sequence }) =
+                (message, &mut *self.stack.borrow_mut())
+            {
+                let message = message.into();
+                let pdus = stack.process_outbound(
+                    config.secrets(),
+                    sequence,
+                    &message,
+                    completion_token,
+                    &self.watchdog,
+                )?;
+
+                drop(locked_config);
+                for pdu in pdus {
+                    self.receive_network_pdu(&pdu, stack, sequence).await?;
+                    let pdu = pdu.into();
+                    self.network.transmit(&pdu, false).await?;
                 }
-            })
-            .await?;
-
-        if let Some(network_pdus) = network_pdus {
-            for pdu in network_pdus {
-                //debug!("outbound network pdu: {}", pdu);
-                let pdu = pdu.into();
-                self.receive_pdu(&pdu).await.ok();
-                self.network.transmit(&pdu, false).await?;
             }
         }
         Ok(())
