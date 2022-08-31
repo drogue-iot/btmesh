@@ -337,11 +337,11 @@ impl Reassembly {
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
-                        .clone_from_slice(pdu.segment_m());
+                        .copy_from_slice(pdu.segment_m());
                 } else {
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..=SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
-                        .clone_from_slice(pdu.segment_m());
+                        .copy_from_slice(pdu.segment_m());
                 }
             }
             (Reassembly::Control { data, len, .. }, SegmentedLowerPDU::Control(pdu)) => {
@@ -352,11 +352,11 @@ impl Reassembly {
                     *len = SEGMENT_SIZE * (pdu.seg_n() as usize) + pdu.segment_m().len();
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..SEGMENT_SIZE * pdu.seg_o() as usize + pdu.segment_m().len()]
-                        .clone_from_slice(pdu.segment_m());
+                        .copy_from_slice(pdu.segment_m());
                 } else {
                     data[SEGMENT_SIZE * pdu.seg_o() as usize
                         ..=SEGMENT_SIZE * pdu.seg_o() as usize + (SEGMENT_SIZE - 1)]
-                        .clone_from_slice(pdu.segment_m());
+                        .copy_from_slice(pdu.segment_m());
                 }
             }
             _ => return Err(DriverError::InvalidPDU),

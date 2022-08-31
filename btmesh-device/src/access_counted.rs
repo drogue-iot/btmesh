@@ -21,6 +21,12 @@ impl<T> AccessCounted<T> {
         self.value.replace(value);
     }
 
+    pub fn modify<F: FnOnce(&mut T)>(&mut self, f: F) {
+        if let Some(value) = self.value.as_mut() {
+            f(value)
+        }
+    }
+
     pub fn get(&self) -> AccessCountedHandle<'_, T> {
         self.count.fetch_add(1, Ordering::Relaxed);
         AccessCountedHandle { barrier: self }

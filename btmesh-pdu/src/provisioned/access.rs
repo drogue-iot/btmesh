@@ -44,6 +44,10 @@ impl<S: System> AccessMessage<S> {
         &self.meta
     }
 
+    pub fn consume(self) -> (Opcode, Vec<u8, 379>, S::AccessMetadata) {
+        (self.opcode, self.parameters, self.meta)
+    }
+
     pub fn meta_mut(&mut self) -> &mut S::AccessMetadata {
         &mut self.meta
     }

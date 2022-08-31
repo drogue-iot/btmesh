@@ -203,7 +203,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 }
 
                 if let Some(result) = result {
-                    if let Some(message) = &result.message {
+                    if let Some(message) = result.message {
                         // dispatch to element(s)
                         let subscriptions = self
                             .storage
@@ -217,7 +217,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                     .await?;
                             }
                             Message::Control(message) => {
-                                stack.process_inbound_control(message, &self.watchdog)?;
+                                stack.process_inbound_control(&message, &self.watchdog)?;
                             }
                         }
                     }

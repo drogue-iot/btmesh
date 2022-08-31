@@ -73,19 +73,17 @@ impl Dispatcher {
 
     pub async fn dispatch(
         &mut self,
-        message: &AccessMessage<ProvisionedStack>,
+        message: AccessMessage<ProvisionedStack>,
         subscriptions: &Subscriptions,
     ) -> Result<(), DriverError> {
         // TODO figure out my logic issues
-        if self.check_if_replay(message) {
+        if self.check_if_replay(&message) {
             return Ok(());
         }
 
-        let opcode = message.opcode();
-        let parameters = message.parameters();
-        let local_element_index = message.meta().local_element_index();
-
-        let meta = message.meta().into();
+        let (opcode, parameters, meta) = message.consume();
+        let local_element_index = meta.local_element_index();
+        let meta = (&meta).into();
 
         if let Some(local_element_index) = local_element_index {
             // unicast to an element
@@ -95,7 +93,7 @@ impl Dispatcher {
                     model_identifier: None,
                     body: InboundBody::Message(InboundMessage {
                         opcode,
-                        parameters: Vec::from_slice(parameters)?,
+                        parameters,
                         meta,
                     }),
                 });
@@ -109,17 +107,24 @@ impl Dispatcher {
                 PAYLOAD.wait().await;
             }
         } else {
+            unsafe {
+                PAYLOAD.set(InboundPayload {
+                    element_index: 0,
+                    model_identifier: None,
+                    body: InboundBody::Message(InboundMessage {
+                        opcode,
+                        parameters,
+                        meta,
+                    }),
+                });
+            }
+
             // not unicast, check subscriptions.
             for subscription in subscriptions.subscriptions_for(meta.dst())? {
                 unsafe {
-                    PAYLOAD.set(InboundPayload {
-                        element_index: subscription.element_index as usize,
-                        model_identifier: Some(subscription.model_identifier),
-                        body: InboundBody::Message(InboundMessage {
-                            opcode,
-                            parameters: Vec::from_slice(parameters)?,
-                            meta,
-                        }),
+                    PAYLOAD.modify(|payload| {
+                        payload.element_index = subscription.element_index as usize;
+                        payload.model_identifier = Some(subscription.model_identifier);
                     });
                 }
 

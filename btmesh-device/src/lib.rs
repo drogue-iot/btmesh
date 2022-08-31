@@ -60,7 +60,7 @@ pub enum Control {
 
 pub struct InboundMessage {
     pub opcode: Opcode,
-    pub parameters: Vec<u8, 380>,
+    pub parameters: Vec<u8, 379>,
     pub meta: InboundMetadata,
 }
 
