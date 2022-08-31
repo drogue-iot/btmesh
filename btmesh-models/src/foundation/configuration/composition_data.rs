@@ -89,25 +89,32 @@ impl CompositionStatus {
         for element in self.data.elements_iter() {
             xmit.extend_from_slice(&element.loc().to_le_bytes())
                 .map_err(|_| InsufficientBuffer)?;
-            let sig_models: Vec<_, 10> = element
+
+            let sig_models_len: usize = element
                 .models_iter()
                 .filter(|e| matches!(e, ModelIdentifier::SIG(_)))
-                .collect();
-            let vendor_models: Vec<_, 10> = element
+                .count();
+            let vendor_models_len = element
                 .models_iter()
                 .filter(|e| matches!(e, ModelIdentifier::Vendor(..)))
-                .collect();
+                .count();
 
-            xmit.push(sig_models.len() as u8)
+            xmit.push(sig_models_len as u8)
                 .map_err(|_| InsufficientBuffer)?;
-            xmit.push(vendor_models.len() as u8)
+            xmit.push(vendor_models_len as u8)
                 .map_err(|_| InsufficientBuffer)?;
 
-            for model in sig_models.iter() {
+            for model in element
+                .models_iter()
+                .filter(|e| matches!(e, ModelIdentifier::SIG(_)))
+            {
                 model.emit(xmit)?
             }
 
-            for model in vendor_models.iter() {
+            for model in element
+                .models_iter()
+                .filter(|e| matches!(e, ModelIdentifier::Vendor(..)))
+            {
                 model.emit(xmit)?
             }
         }
