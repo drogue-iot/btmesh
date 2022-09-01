@@ -92,10 +92,7 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
     fn clear(&mut self) -> Self::ClearFuture<'_> {
         async move {
             self.flash
-                .erase(
-                    self.base_address,
-                    self.base_address + USEFUL_BUFFER_SIZE as u32,
-                )
+                .erase(self.base_address, self.base_address + PAGE_SIZE as u32)
                 .await
                 .map_err(|_| StorageError::Store)?;
             self.latest_load = LatestLoad::None;

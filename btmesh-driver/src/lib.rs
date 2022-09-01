@@ -80,8 +80,9 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(network: N, mut rng: R, backing_store: B) -> Self {
-        let upc = UnprovisionedConfiguration::new(&mut rng);
+    pub fn new(network: N, mut rng: R, backing_store: B, uuid: Option<Uuid>) -> Self {
+        let upc =
+            UnprovisionedConfiguration::new(uuid.unwrap_or_else(|| Uuid::new_random(&mut rng)));
         Self {
             network: Some(network),
             rng: Some(rng),

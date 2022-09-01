@@ -10,6 +10,7 @@ use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, DriverError};
 use core::future::{join, Future};
 use core::mem;
 use nrf_softdevice::{raw, Flash, Softdevice};
+use nrf_softdevice::ble::Uuid;
 
 #[allow(clippy::mut_from_ref)]
 fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
@@ -74,10 +75,11 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
         network: N,
         rng: SoftdeviceRng,
         backing_store: FlashBackingStore<Flash>,
+        uuid: Option<Uuid>,
     ) -> Self {
         Self {
             sd,
-            driver: BaseDriver::new(network, rng, backing_store),
+            driver: BaseDriver::new(network, rng, backing_store, None),
         }
     }
 
@@ -96,7 +98,7 @@ pub struct NrfSoftdeviceAdvertisingOnlyDriver(
 );
 
 impl NrfSoftdeviceAdvertisingOnlyDriver {
-    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32) -> Self {
+    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32, uuid: Option<Uuid>) -> Self {
         let sd: &'static Softdevice = enable_softdevice(name);
         let rng = SoftdeviceRng::new(sd);
         let backing_store =
@@ -105,7 +107,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
 
         let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
 
-        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store))
+        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store, uuid))
     }
 
     pub fn softdevice(&self) -> &'static Softdevice {
@@ -137,7 +139,7 @@ pub struct NrfSoftdeviceAdvertisingAndGattDriver(
 );
 
 impl NrfSoftdeviceAdvertisingAndGattDriver {
-    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32) -> Self {
+    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32, uuid: Option<Uuid>) -> Self {
         let sd = enable_softdevice(name);
         let server = MeshGattServer::new(sd).unwrap();
 
@@ -150,7 +152,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 
         let network = AdvertisingAndGattNetworkInterfaces::new(adv_bearer, gatt_bearer);
 
-        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store))
+        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store, uuid))
     }
 }
 
