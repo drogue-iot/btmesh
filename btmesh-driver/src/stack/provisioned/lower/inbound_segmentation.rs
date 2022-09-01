@@ -255,7 +255,7 @@ impl InFlight {
     ///
     /// Returns `true` if it has been seen, otherwise `false`.
     fn already_seen(&self, pdu: &SegmentedLowerPDU<ProvisionedStack>) -> Result<bool, DriverError> {
-        self.blocks.already_seen(pdu.seg_n())
+        self.blocks.already_seen(pdu.seg_o())
     }
 
     /// Ingest a segment.
