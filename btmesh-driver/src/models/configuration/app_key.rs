@@ -10,9 +10,9 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
     message: &AppKeyMessage,
     meta: &InboundMetadata,
 ) -> Result<(), DriverError> {
-    info!("app-key add");
     match message {
         AppKeyMessage::Add(add) => {
+        info!("app-key add");
             let (status, err) = convert(
                 &storage
                     .modify_provisioned(|config| {
@@ -42,6 +42,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
         }
         AppKeyMessage::Get(_get) => {}
         AppKeyMessage::Delete(delete) => {
+            info!("app-key delete");
             let (status, err) = convert(
                 &storage
                     .modify_provisioned(|config| {
