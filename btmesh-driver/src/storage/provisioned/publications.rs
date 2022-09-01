@@ -83,7 +83,7 @@ impl<const N: usize> Publications<N> {
             return Ok(());
         }
 
-        if self.entries.iter().any(|e| {
+        if let Some(slot) = self.entries.iter_mut().find(|e| {
             if let Some(slot) = e {
                 slot.element_index == element_index
                     && slot.model_identifier == details.model_identifier
@@ -91,6 +91,17 @@ impl<const N: usize> Publications<N> {
                 false
             }
         }) {
+            slot.replace(Publication {
+                element_index,
+                publish_address: details.publish_address,
+                app_key_index: details.app_key_index,
+                credential_flag: details.credential_flag,
+                publish_ttl: details.publish_ttl,
+                publish_period: details.publish_period.into(),
+                publish_retransmit_count: details.publish_retransmit_count,
+                publish_retransmit_interval_steps: details.publish_retransmit_interval_steps,
+                model_identifier: details.model_identifier,
+            });
             return Ok(());
         }
 
