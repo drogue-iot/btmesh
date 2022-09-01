@@ -166,29 +166,36 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         let (network_pdu, result) = self
             .storage
             .read_provisioned(|config| {
-                let result = if let Some(result) =
-                    stack.process_inbound_network_pdu(config.secrets(), pdu, &self.watchdog)?
-                {
-                    if let Some((block_ack, meta)) = &result.block_ack {
-                        // send outbound block-ack
-                        let network_pdus =
-                            if let Some(src) = config.device_info().local_element_address(0) {
-                                stack.process_outbound_block_ack(
-                                    config.secrets(),
-                                    sequence,
-                                    *block_ack,
-                                    meta,
-                                    &src,
-                                )?
-                            } else {
-                                None
-                            };
-                        (network_pdus, Some(result))
-                    } else {
-                        (None, Some(result))
+                let result = match stack.process_inbound_network_pdu(
+                    config.secrets(),
+                    pdu,
+                    &self.watchdog,
+                ) {
+                    Ok(Some(result)) => {
+                        if let Some((block_ack, meta)) = &result.block_ack {
+                            // send outbound block-ack
+                            let network_pdus =
+                                if let Some(src) = config.device_info().local_element_address(0) {
+                                    stack.process_outbound_block_ack(
+                                        config.secrets(),
+                                        sequence,
+                                        *block_ack,
+                                        meta,
+                                        &src,
+                                    )?
+                                } else {
+                                    None
+                                };
+                            (network_pdus, Some(result))
+                        } else {
+                            (None, Some(result))
+                        }
                     }
-                } else {
-                    (None, None)
+                    Ok(None) => (None, None),
+                    Err(err) => {
+                        warn!("error (ignored) processing inbound pdu: {}", err);
+                        (None, None)
+                    }
                 };
                 Ok(result)
             })

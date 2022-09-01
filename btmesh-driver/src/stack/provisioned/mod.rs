@@ -222,10 +222,6 @@ impl ProvisionedStack {
                 return Ok(None);
             }
 
-            if self.device_info().is_self(cleartext_network_pdu.src()) {
-                return Ok(None);
-            }
-
             let (block_ack_meta, mut upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu, watchdog)?;
 
