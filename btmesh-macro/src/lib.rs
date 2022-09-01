@@ -291,6 +291,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
         let ch_sender_name = format_ident!("{}_sender", field_name);
         let ch_receiver_name = format_ident!("{}_receiver", field_name);
         let ch_parser_name = format_ident!("{}_parser", field_name);
+        let ch_model_id_name = format_ident!("{}_id", field_name);
 
         let ctx_name = format_ident!("{}_ctx", field_name);
         run_prolog.extend(quote! {
@@ -298,19 +299,22 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
             let #ch_sender_name = #ch_name.sender();
             let #ch_receiver_name = #ch_name.receiver();
             let #ch_parser_name = self.#field_name.parser();
-
+            let #ch_model_id_name = &self.#field_name.model_identifier();
             let #ctx_name = ctx.model_context(#ch_receiver_name );
         });
 
         fanout.extend(quote! {
-            match &message.body {
-                ::btmesh_device::InboundBody::Message(message) => {
-                    if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
-                        #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Message(model_message, message.meta) ).ok();
+            let for_me = message.model_identifier.map(|id| &id == #ch_model_id_name).unwrap_or(true);
+            if for_me {
+                match &message.body {
+                    ::btmesh_device::InboundBody::Message(message) => {
+                        if let Ok(Some(model_message)) = #ch_parser_name( &message.opcode, &message.parameters ) {
+                            #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Message(model_message, message.meta) ).ok();
+                        }
                     }
-                }
-                ::btmesh_device::InboundBody::Control(control) => {
-                    #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Control(*control) ).ok();
+                    ::btmesh_device::InboundBody::Control(control) => {
+                        #ch_sender_name.try_send( ::btmesh_device::InboundModelPayload::Control(*control) ).ok();
+                    }
                 }
             }
         });
