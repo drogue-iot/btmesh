@@ -60,6 +60,10 @@ impl NetworkMetadata {
         self.should_relay = relay;
     }
 
+    pub fn is_relay(&self) -> bool {
+        self.should_relay
+    }
+
     pub fn local_element_index(&self) -> Option<u8> {
         self.local_element_index
     }

@@ -162,50 +162,65 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         pdu: &NetworkPDU,
         stack: &mut ProvisionedStack,
         sequence: &Sequence,
+        is_loopback: bool,
     ) -> Result<(), DriverError> {
-        let (network_pdu, result) = self
+        let (relay_pdu, block_ack_pdu, result) = self
             .storage
             .read_provisioned(|config| {
                 let result = match stack.process_inbound_network_pdu(
                     config.secrets(),
                     pdu,
                     &self.watchdog,
+                    is_loopback,
                 ) {
-                    Ok(Some(result)) => {
+                    Ok((relay_pdu, Some(result))) => {
                         if let Some((block_ack, meta)) = &result.block_ack {
                             // send outbound block-ack
-                            let network_pdus =
-                                if let Some(src) = config.device_info().local_element_address(0) {
-                                    stack.process_outbound_block_ack(
-                                        config.secrets(),
-                                        sequence,
-                                        *block_ack,
-                                        meta,
-                                        &src,
-                                    )?
-                                } else {
-                                    None
-                                };
-                            (network_pdus, Some(result))
+                            if let Address::Unicast(addr) = result.dst {
+                                let block_ack_pdu = stack.process_outbound_block_ack(
+                                    config.secrets(),
+                                    sequence,
+                                    *block_ack,
+                                    meta,
+                                    &addr,
+                                )?;
+                                (relay_pdu, block_ack_pdu, Some(result))
+                            } else {
+                                (relay_pdu, None, Some(result))
+                            }
                         } else {
-                            (None, Some(result))
+                            (relay_pdu, None, Some(result))
                         }
                     }
-                    Ok(None) => (None, None),
+                    Ok((relay_pdu, None)) => (relay_pdu, None, None),
                     Err(err) => {
                         warn!("error (ignored) processing inbound pdu: {}", err);
-                        (None, None)
+                        (None, None, None)
                     }
                 };
                 Ok(result)
             })
             .await?;
 
-        if let Some(network_pdu) = network_pdu {
+        if let Some(network_pdu) = block_ack_pdu {
             self.network
                 .transmit(&(network_pdu.into()), false)
                 .await
                 .ok();
+        }
+
+        #[cfg(feature = "relay")]
+        if let Some(relay_pdu) = relay_pdu {
+            let relay_pdu = self
+                .storage
+                .read_provisioned(|config| {
+                    stack.process_outbound_relay_network_pdu(config.secrets(), sequence, &relay_pdu)
+                })
+                .await;
+
+            if let Ok(Some(relay_pdu)) = relay_pdu {
+                self.network.transmit(&(relay_pdu.into()), false).await.ok();
+            }
         }
 
         if let Some(result) = result {
@@ -241,7 +256,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 self.receive_provisioning_pdu(pdu, stack).await?;
             }
             (PDU::Network(pdu), Stack::Provisioned { stack, sequence }) => {
-                self.receive_network_pdu(pdu, stack, sequence).await?;
+                self.receive_network_pdu(pdu, stack, sequence, false)
+                    .await?;
             }
             _ => {
                 // PDU incompatible with stack state or stack not initialized; ignore.
@@ -368,7 +384,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
                 drop(locked_config);
                 for pdu in pdus {
-                    self.receive_network_pdu(&pdu, stack, sequence).await?;
+                    self.receive_network_pdu(&pdu, stack, sequence, true)
+                        .await?;
                     let pdu = pdu.into();
                     self.network.transmit(&pdu, false).await?;
                 }

@@ -13,6 +13,11 @@ use btmesh_device::NetworkKeyHandle;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "relay")]
+use crate::stack::provisioned::network::network_message_cache::NetworkMessageCache;
+
+#[cfg(feature = "relay")]
+pub mod network_message_cache;
 pub mod replay_protection;
 
 #[derive(Copy, Clone, Hash, Debug)]
@@ -54,11 +59,24 @@ impl DeviceInfo {
             None
         }
     }
+
+    pub fn is_non_local_unicast(&self, dst: Address) -> bool {
+        match dst {
+            Address::Unicast(_) => self.local_element_index(dst).is_none(),
+            _ => false,
+        }
+    }
+
+    pub fn is_local_unicast(&self, dst: Address) -> bool {
+        self.local_element_index(dst).is_some()
+    }
 }
 
 pub struct NetworkDriver {
     device_info: DeviceInfo,
     pub(crate) replay_protection: ReplayProtection,
+    #[cfg(feature = "relay")]
+    pub(crate) network_message_cache: NetworkMessageCache,
 }
 
 impl NetworkDriver {
@@ -66,6 +84,8 @@ impl NetworkDriver {
         Self {
             device_info,
             replay_protection: Default::default(),
+            #[cfg(feature = "relay")]
+            network_message_cache: Default::default(),
         }
     }
 

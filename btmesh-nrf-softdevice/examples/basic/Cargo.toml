@@ -28,7 +28,7 @@ cortex-m-rt = "0.7"
 btmesh-models = { path = "../../../btmesh-models"}
 btmesh-device = { path = "../../../btmesh-device"}
 btmesh-macro = { path = "../../../btmesh-macro"}
-btmesh-nrf-softdevice = { path = "../../", features = ["defmt", "nrf52840", "relay", "proxy"] }
+btmesh-nrf-softdevice = { path = "../../", features = ["defmt", "nrf52840", "proxy", "relay"] }
 
 [features]
 

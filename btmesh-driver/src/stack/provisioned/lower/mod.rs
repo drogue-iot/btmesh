@@ -76,8 +76,13 @@ impl ProvisionedStack {
                 )),
             },
             LowerPDU::Segmented(inner) => {
-                let result = self.lower.inbound_segmentation.process(inner, watchdog)?;
-                Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
+                if self.device_info().is_non_local_unicast(inner.meta().dst()) {
+                    // unicast, but not to us.
+                    Ok((None, None))
+                } else {
+                    let result = self.lower.inbound_segmentation.process(inner, watchdog)?;
+                    Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
+                }
             }
         }
     }

@@ -222,6 +222,14 @@ impl Ttl {
     pub fn value(&self) -> u8 {
         self.0
     }
+
+    pub fn decr(&self) -> Self {
+        if self.0 > 1 {
+            Self(self.0 - 1)
+        } else {
+            Self(0)
+        }
+    }
 }
 
 pub struct SeqRolloverError;

@@ -12,6 +12,7 @@ use btmesh_device::BluetoothMeshDevice;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
 
+#[allow(clippy::mut_from_ref)]
 fn enable_softdevice(device_name: &'static str, use_gatt: bool) -> &'static mut Softdevice {
     let mut config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {

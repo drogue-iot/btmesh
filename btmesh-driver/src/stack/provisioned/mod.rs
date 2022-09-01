@@ -7,7 +7,7 @@ use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::{DriverError, UpperMetadata, Watchdog};
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, SeqZero};
 use btmesh_pdu::provisioned::lower::BlockAck;
-use btmesh_pdu::provisioned::network::NetworkPDU;
+use btmesh_pdu::provisioned::network::{CleartextNetworkPDU, NetworkPDU};
 use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::ProvisioningData;
 use core::cmp::Ordering;
@@ -17,7 +17,7 @@ use heapless::Vec;
 use secrets::Secrets;
 
 use crate::util::deadline::{Deadline, DeadlineFuture};
-use btmesh_common::address::UnicastAddress;
+use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::control::ControlMessage;
 use btmesh_pdu::provisioned::upper::control::ControlOpcode;
@@ -124,12 +124,14 @@ impl From<&ProvisionedConfiguration> for ProvisionedStack {
 pub struct ReceiveResult {
     pub block_ack: Option<(BlockAck, UpperMetadata)>,
     pub message: Option<Message<ProvisionedStack>>,
+    pub dst: Address,
 }
 
 impl
     TryFrom<(
         Option<(BlockAck, UpperMetadata)>,
         Option<Message<ProvisionedStack>>,
+        Address,
     )> for ReceiveResult
 {
     type Error = ();
@@ -138,13 +140,15 @@ impl
         value: (
             Option<(BlockAck, UpperMetadata)>,
             Option<Message<ProvisionedStack>>,
+            Address,
         ),
     ) -> Result<Self, Self::Error> {
         match value {
-            (None, None) => Err(()),
+            (None, None, _) => Err(()),
             _ => Ok(ReceiveResult {
                 block_ack: value.0,
                 message: value.1,
+                dst: value.2,
             }),
         }
     }
@@ -209,17 +213,41 @@ impl ProvisionedStack {
         secrets: &Secrets,
         network_pdu: &NetworkPDU,
         watchdog: &Watchdog,
-    ) -> Result<Option<ReceiveResult>, DriverError> {
+        is_loopback: bool,
+    ) -> Result<
+        (
+            Option<CleartextNetworkPDU<ProvisionedStack>>,
+            Option<ReceiveResult>,
+        ),
+        DriverError,
+    > {
         let iv_index = self
             .network_state
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
 
-        if let Some(cleartext_network_pdu) =
+        if let Some(mut cleartext_network_pdu) =
             self.try_decrypt_network_pdu(secrets, network_pdu, iv_index)?
         {
             if cleartext_network_pdu.meta().is_replay_protected() {
-                return Ok(None);
+                return Ok((None, None));
+            }
+
+            #[cfg(feature = "relay")]
+            if !is_loopback {
+                // do not relay loopback'd pdus.
+                if self
+                    .device_info()
+                    .is_local_unicast(cleartext_network_pdu.dst())
+                {
+                    // do not relay if we're the actual destination
+                    cleartext_network_pdu.meta_mut().should_relay(false)
+                } else {
+                    // see if the cache knows about it.
+                    self.network
+                        .network_message_cache
+                        .check(&mut cleartext_network_pdu);
+                }
             }
 
             let (block_ack_meta, mut upper_pdu) =
@@ -232,22 +260,37 @@ impl ProvisionedStack {
                     upper_pdu.is_some(),
                 ) {
                     // we have already seen it and fully ack'd it, so just keep ack'ing for now.
-                    return Ok((Some((replacement_block_ack, meta.clone())), None)
-                        .try_into()
-                        .ok());
+                    return Ok((
+                        None,
+                        (
+                            Some((replacement_block_ack, meta.clone())),
+                            None,
+                            cleartext_network_pdu.dst(),
+                        )
+                            .try_into()
+                            .ok(),
+                    ));
                 }
             }
 
             let message = if let Some(upper_pdu) = &mut upper_pdu {
-                Some(self.process_inbound_upper_pdu(secrets, upper_pdu)?)
+                self.process_inbound_upper_pdu(secrets, upper_pdu).ok()
             } else {
                 None
             };
 
-            Ok((block_ack_meta, message).try_into().ok())
+            let dst = cleartext_network_pdu.dst();
+
+            let relay_pdu = if cleartext_network_pdu.meta().is_relay() {
+                Some(cleartext_network_pdu)
+            } else {
+                None
+            };
+
+            Ok((relay_pdu, (block_ack_meta, message, dst).try_into().ok()))
         } else {
             // nothing doing, bad result, nothing parsed, keep on truckin'
-            Ok(None)
+            Ok((None, None))
         }
     }
 
@@ -303,6 +346,20 @@ impl ProvisionedStack {
             .collect();
 
         Ok(network_pdus)
+    }
+
+    pub fn process_outbound_relay_network_pdu(
+        &mut self,
+        secrets: &Secrets,
+        sequence: &Sequence,
+        pdu: &CleartextNetworkPDU<ProvisionedStack>,
+    ) -> Result<Option<NetworkPDU>, DriverError> {
+        let pdu = pdu.relay(sequence.next())?;
+        if let Some(pdu) = pdu {
+            Ok(Some(self.encrypt_network_pdu(secrets, &pdu)?))
+        } else {
+            Ok(None)
+        }
     }
 
     pub fn outbound_expiration(&mut self, seq_zero: &SeqZero) {

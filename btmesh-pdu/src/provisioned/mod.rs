@@ -13,7 +13,7 @@ pub trait System {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 
-    type NetworkMetadata;
+    type NetworkMetadata: Clone;
     type LowerMetadata;
     type UpperMetadata: Clone;
     type AccessMetadata;
@@ -25,7 +25,7 @@ pub trait System: ::defmt::Format {
     type NetworkKeyHandle: Copy;
     type ApplicationKeyHandle: Copy;
 
-    type NetworkMetadata: ::defmt::Format;
+    type NetworkMetadata: ::defmt::Format + Clone;
     type LowerMetadata: ::defmt::Format;
     type UpperMetadata: ::defmt::Format + Clone;
     type AccessMetadata: ::defmt::Format;
