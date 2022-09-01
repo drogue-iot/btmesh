@@ -58,6 +58,7 @@ pub enum Control {
     PublicationCadence(PublicationCadence),
 }
 
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Copy, Clone, Eq, PartialEq)]
 pub enum PublicationCadence {
     None,
