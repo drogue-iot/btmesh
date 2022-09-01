@@ -54,6 +54,10 @@ impl DeviceInfo {
             None
         }
     }
+
+    pub fn is_self(&self, address: UnicastAddress) -> bool {
+        self.primary_unicast_address == address
+    }
 }
 
 pub struct NetworkDriver {
