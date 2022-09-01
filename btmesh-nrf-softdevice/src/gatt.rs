@@ -3,9 +3,9 @@ use btmesh_bearer::{BearerError, GattBearer};
 use core::cell::RefCell;
 use core::future::Future;
 use core::sync::atomic::Ordering;
+use embassy_futures::select;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::{channel::Channel, signal::Signal};
-use embassy_futures::{select};
 use heapless::Vec;
 use nrf_softdevice::ble::peripheral::AdvertiseError;
 use nrf_softdevice::ble::{gatt_server, peripheral, Connection};
@@ -54,6 +54,7 @@ impl SoftdeviceGattBearer {
                     self.current_connection.borrow().as_ref().unwrap(),
                     &self.server,
                     |e| match e {
+                        #[cfg(feature = "proxy")]
                         MeshGattServerEvent::Proxy(event) => match event {
                             ProxyServiceEvent::DataInWrite(data) => {
                                 self.inbound.try_send(data).ok();
@@ -83,7 +84,9 @@ impl SoftdeviceGattBearer {
                             _ => { /* ignorable */ }
                         },
                     },
-                ).await.ok()
+                )
+                .await
+                .ok()
             };
 
             let reset_fut = RESET_SIGNAL.wait();
@@ -117,12 +120,10 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     Self: 'm;
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
-        async move {
-            Ok(self.inbound.recv().await)
-        }
+        async move { Ok(self.inbound.recv().await) }
     }
 
-    type TransmitFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm;
+    type TransmitFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;
 
     fn transmit<'m>(&'m self, pdu: &'m Vec<u8, 66>) -> Self::TransmitFuture<'m> {
         async move {
@@ -149,7 +150,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
         }
     }
 
-    type AdvertiseFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm;
+    type AdvertiseFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;
 
     fn advertise<'m>(&'m self, adv_data: &'m Vec<u8, 64>) -> Self::AdvertiseFuture<'m> {
         async move {
@@ -173,7 +174,8 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                     interval: 50,
                     ..Default::default()
                 },
-            ).await;
+            )
+            .await;
 
             match result {
                 Ok(connection) => {
@@ -192,6 +194,13 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     }
 }
 
+#[cfg(not(feature = "proxy"))]
+#[nrf_softdevice::gatt_server]
+pub struct MeshGattServer {
+    provisioning: ProvisioningService,
+}
+
+#[cfg(feature = "proxy")]
 #[nrf_softdevice::gatt_server]
 pub struct MeshGattServer {
     provisioning: ProvisioningService,
@@ -206,6 +215,7 @@ pub struct ProvisioningService {
     pub data_out: Vec<u8, 66>,
 }
 
+#[cfg(feature = "proxy")]
 #[nrf_softdevice::gatt_service(uuid = "1828")]
 pub struct ProxyService {
     #[characteristic(uuid = "2add", write_without_response)]

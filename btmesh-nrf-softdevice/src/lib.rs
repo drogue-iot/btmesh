@@ -22,4 +22,3 @@ pub use driver::NrfSoftdeviceAdvertisingAndGattDriver as Driver;
 
 #[cfg(not(feature = "gatt"))]
 pub use driver::NrfSoftdeviceAdvertisingOnlyDriver as Driver;
-

@@ -1,19 +1,18 @@
 use crate::advertising::SoftdeviceAdvertisingBearer;
 use crate::gatt::{MeshGattServer, SoftdeviceGattBearer};
 use crate::rng::SoftdeviceRng;
+use btmesh_device::BluetoothMeshDevice;
 use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
-use btmesh_driver::{BluetoothMeshDriver, DriverError, Driver as BaseDriver};
-use core::future::{Future, join};
+use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, DriverError};
+use core::future::{join, Future};
 use core::mem;
-use btmesh_device::BluetoothMeshDevice;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
-
 #[allow(clippy::mut_from_ref)]
-fn enable_softdevice(device_name: &'static str, use_gatt: bool) -> &'static mut Softdevice {
+fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
     let mut config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {
             source: raw::NRF_CLOCK_LF_SRC_RC as u8,
@@ -47,7 +46,8 @@ fn enable_softdevice(device_name: &'static str, use_gatt: bool) -> &'static mut 
         ..Default::default()
     };
 
-    if use_gatt {
+    #[cfg(feature = "gatt")]
+    {
         config.conn_gatt = Some(raw::ble_gatt_conn_cfg_t { att_mtu: 517 });
         config.gatts_attr_tab_size = Some(raw::ble_gatts_cfg_attr_tab_size_t {
             attr_tab_size: 32768,
@@ -82,9 +82,12 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
     }
 
     #[allow(unreachable_code)]
-    pub async fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Result<(), DriverError> {
+    pub async fn run<'r, D: BluetoothMeshDevice>(
+        &'r mut self,
+        device: &'r mut D,
+    ) -> Result<(), DriverError> {
         // todo: turn it into a select?
-        join!( self.sd.run(), self.driver.run(device)).await.1
+        join!(self.sd.run(), self.driver.run(device)).await.1
     }
 }
 
@@ -93,12 +96,8 @@ pub struct NrfSoftdeviceAdvertisingOnlyDriver(
 );
 
 impl NrfSoftdeviceAdvertisingOnlyDriver {
-    pub fn new(
-        name: &'static str,
-        base_address: u32,
-        sequence_threshold: u32,
-    ) -> Self {
-        let sd: &'static Softdevice = enable_softdevice(name, false);
+    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32) -> Self {
+        let sd: &'static Softdevice = enable_softdevice(name);
         let rng = SoftdeviceRng::new(sd);
         let backing_store =
             FlashBackingStore::new(Flash::take(sd), base_address, sequence_threshold);
@@ -106,19 +105,17 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
 
         let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
 
-        Self(NrfSoftdeviceDriver::new(
-            sd,
-            network,
-            rng,
-            backing_store,
-        ))
+        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store))
     }
 
     pub fn softdevice(&self) -> &'static Softdevice {
         self.0.sd
     }
 
-    pub async fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Result<(), DriverError> {
+    pub async fn run<'r, D: BluetoothMeshDevice>(
+        &'r mut self,
+        device: &'r mut D,
+    ) -> Result<(), DriverError> {
         self.0.run(device).await
     }
 }
@@ -140,12 +137,8 @@ pub struct NrfSoftdeviceAdvertisingAndGattDriver(
 );
 
 impl NrfSoftdeviceAdvertisingAndGattDriver {
-    pub fn new(
-        name: &'static str,
-        base_address: u32,
-        sequence_threshold: u32,
-    ) -> Self {
-        let sd = enable_softdevice(name, true);
+    pub fn new(name: &'static str, base_address: u32, sequence_threshold: u32) -> Self {
+        let sd = enable_softdevice(name);
         let server = MeshGattServer::new(sd).unwrap();
 
         let rng = SoftdeviceRng::new(sd);
@@ -157,12 +150,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 
         let network = AdvertisingAndGattNetworkInterfaces::new(adv_bearer, gatt_bearer);
 
-        Self(NrfSoftdeviceDriver::new(
-            sd,
-            network,
-            rng,
-            backing_store,
-        ))
+        Self(NrfSoftdeviceDriver::new(sd, network, rng, backing_store))
     }
 }
 
@@ -175,5 +163,3 @@ impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
         self.0.run(device)
     }
 }
-
-

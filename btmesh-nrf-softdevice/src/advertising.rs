@@ -23,8 +23,9 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
 
     fn transmit<'m>(&'m self, message: &'m Vec<u8, PB_ADV_MTU>) -> Self::TransmitFuture<'m> {
         async move {
-            let adv =
-                peripheral::NonconnectableAdvertisement::NonscannableUndirected { adv_data: message };
+            let adv = peripheral::NonconnectableAdvertisement::NonscannableUndirected {
+                adv_data: message,
+            };
 
             if let Err(err) = peripheral::advertise(
                 self.sd,
@@ -39,15 +40,9 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
             .await
             {
                 match err {
-                    AdvertiseError::Timeout => {
-                        Ok(())
-                    },
-                    AdvertiseError::NoFreeConn => {
-                        Err(BearerError::InsufficientResources)
-                    },
-                    AdvertiseError::Raw(_raw) => {
-                        Err(BearerError::TransmissionFailure)
-                    },
+                    AdvertiseError::Timeout => Ok(()),
+                    AdvertiseError::NoFreeConn => Err(BearerError::InsufficientResources),
+                    AdvertiseError::Raw(_raw) => Err(BearerError::TransmissionFailure),
                 }
             } else {
                 Ok(())
