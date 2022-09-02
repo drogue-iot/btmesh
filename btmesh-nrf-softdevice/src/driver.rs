@@ -1,6 +1,7 @@
 use crate::advertising::SoftdeviceAdvertisingBearer;
 use crate::gatt::{MeshGattServer, SoftdeviceGattBearer};
 use crate::rng::SoftdeviceRng;
+use btmesh_common::Uuid;
 use btmesh_device::BluetoothMeshDevice;
 use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
@@ -9,7 +10,6 @@ use btmesh_driver::storage::flash::FlashBackingStore;
 use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, DriverError};
 use core::future::{join, Future};
 use core::mem;
-use nrf_softdevice::ble::Uuid;
 use nrf_softdevice::{raw, Flash, Softdevice};
 
 #[allow(clippy::mut_from_ref)]
