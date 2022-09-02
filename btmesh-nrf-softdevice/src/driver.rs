@@ -79,7 +79,7 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
     ) -> Self {
         Self {
             sd,
-            driver: BaseDriver::new(network, rng, backing_store, None),
+            driver: BaseDriver::new(network, rng, backing_store, uuid),
         }
     }
 
