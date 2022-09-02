@@ -3,7 +3,7 @@ use btmesh_bearer::{BearerError, GattBearer};
 use core::cell::RefCell;
 use core::future::Future;
 use core::sync::atomic::Ordering;
-use embassy_futures::select;
+use embassy_futures::select::select;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::{channel::Channel, signal::Signal};
 use heapless::Vec;

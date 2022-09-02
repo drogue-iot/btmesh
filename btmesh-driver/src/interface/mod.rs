@@ -9,7 +9,7 @@ use btmesh_pdu::PDU;
 use core::future::Future;
 use core::pin::Pin;
 use core::task::{Context, Poll};
-use embassy_futures::{select, Either};
+use embassy_futures::select::{select, Either};
 
 pub mod advertising;
 pub mod gatt;

@@ -4,7 +4,7 @@ use btmesh_models::generic::onoff::{
     GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set, Status,
 };
 use core::future::Future;
-use embassy_futures::{select, Either};
+use embassy_futures::select::{select, Either};
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
 #[device(cid = 0x0003, pid = 0x0001, vid = 0x0001)]

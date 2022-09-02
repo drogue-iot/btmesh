@@ -23,7 +23,7 @@ use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
 use core::cell::RefCell;
 use core::future::{pending, Future};
-use embassy_futures::{select, select3, select4, Either, Either3, Either4};
+use embassy_futures::select::{select, select3, select4, Either, Either3, Either4};
 use embassy_time::{Duration, Timer};
 use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
