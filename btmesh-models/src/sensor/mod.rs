@@ -650,18 +650,18 @@ where
 
     fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         let mut data = C::Data::default();
+        let mut pos = 0;
         for d in C::DESCRIPTORS {
-            let mut pos = 0;
-            let format = parameters[0] & 0b1000_0000;
+            let format = parameters[pos] & 0b1000_0000;
             let (length, id, offset): (usize, u16, usize);
 
             if format == 0 {
-                length = ((parameters[0] & 0b0111_1000) >> 3) as usize;
-                id = ((parameters[0] & 0b0000_0111) | parameters[1]).into();
+                length = ((parameters[pos] & 0b0111_1000) >> 3) as usize;
+                id = ((parameters[pos] & 0b0000_0111) | parameters[pos + 1]).into();
                 offset = 2;
             } else {
-                length = (parameters[0] & 0b0111_1111) as usize;
-                id = ((parameters[1] as u16) << 8) | parameters[2] as u16;
+                length = (parameters[pos] & 0b0111_1111) as usize;
+                id = ((parameters[pos + 1] as u16) << 8) | parameters[pos + 2] as u16;
                 offset = 3;
             }
 
@@ -673,6 +673,7 @@ where
 
             let parameters = &parameters[pos..(pos + d.size)];
             data.decode(d.id, parameters)?;
+            pos += d.size;
         }
         Ok(Self { data })
     }
@@ -1027,4 +1028,81 @@ impl SettingStatus {
 /// Approxmiates the log with base 1.1
 fn log_1_1(seconds: f32) -> u8 {
     (seconds.log(1.1) as u8) + 64
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const PROP_TEMP: PropertyId = PropertyId(0x4F);
+    const PROP_MOTION: PropertyId = PropertyId(0x42);
+
+    #[derive(Debug)]
+    pub struct SensorPayload {
+        pub temperature: i8,
+        pub motion: u8,
+    }
+
+    impl Default for SensorPayload {
+        fn default() -> Self {
+            Self {
+                temperature: 0,
+                motion: 0,
+            }
+        }
+    }
+
+    impl SensorData for SensorPayload {
+        fn decode(&mut self, id: PropertyId, params: &[u8]) -> Result<(), ParseError> {
+            if id == PROP_TEMP {
+                self.temperature = params[0] as i8;
+                Ok(())
+            } else if id == PROP_MOTION {
+                self.motion = params[0];
+                Ok(())
+            } else {
+                Err(ParseError::InvalidValue)
+            }
+        }
+
+        fn encode<const N: usize>(
+            &self,
+            property: PropertyId,
+            xmit: &mut Vec<u8, N>,
+        ) -> Result<(), InsufficientBuffer> {
+            if property == PROP_TEMP {
+                xmit.extend_from_slice(&self.temperature.to_le_bytes())
+                    .map_err(|_| InsufficientBuffer)?;
+            } else if property == PROP_MOTION {
+                xmit.extend_from_slice(&self.motion.to_le_bytes())
+                    .map_err(|_| InsufficientBuffer)?;
+            }
+            Ok(())
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    pub struct TestSensor;
+
+    impl SensorConfig for TestSensor {
+        type Data = SensorPayload;
+
+        const DESCRIPTORS: &'static [SensorDescriptor] = &[
+            SensorDescriptor::new(PROP_TEMP, 1),
+            SensorDescriptor::new(PROP_MOTION, 1),
+        ];
+    }
+
+    #[test]
+    fn test_sensor_codec() {
+        let data = SensorPayload::default();
+        let msg: SensorMessage<TestSensor, 2, 1> = SensorMessage::Status(SensorStatus::new(data));
+        let mut parameters: heapless::Vec<u8, 386> = heapless::Vec::new();
+        msg.emit_parameters(&mut parameters).unwrap();
+
+        let _parsed: SensorMessage<TestSensor, 2, 1> =
+            SensorClient::parse(&msg.opcode(), &parameters[..])
+                .unwrap()
+                .unwrap();
+    }
 }
