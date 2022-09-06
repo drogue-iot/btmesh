@@ -119,22 +119,6 @@ pub trait SensorSetupConfig: SensorConfig {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SensorMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
-where
-    C: SensorConfig,
-{
-    DescriptorGet(DescriptorGet),
-    DescriptorStatus(DescriptorStatus<NUM_SENSORS>),
-    Get(SensorGet),
-    Status(SensorStatus<C>),
-    ColumnGet(ColumnGet),
-    ColumnStatus(ColumnStatus),
-    SeriesGet(SeriesGet),
-    SeriesStatus(SeriesStatus<NUM_COLUMNS>),
-}
-
-#[derive(Debug)]
-#[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DescriptorGet {
     id: Option<PropertyId>,
 }
@@ -233,11 +217,18 @@ pub struct SeriesStatus<const NUM_COLUMNS: usize> {
 
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
-pub enum SensorSetupMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
+pub enum SensorMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
-    C: SensorSetupConfig,
+    C: SensorConfig,
 {
-    Sensor(SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>),
+    DescriptorGet(DescriptorGet),
+    DescriptorStatus(DescriptorStatus<NUM_SENSORS>),
+    Get(SensorGet),
+    Status(SensorStatus<C>),
+    ColumnGet(ColumnGet),
+    ColumnStatus(ColumnStatus),
+    SeriesGet(SeriesGet),
+    SeriesStatus(SeriesStatus<NUM_COLUMNS>),
     CadenceGet(CadenceGet),
     CadenceSet(CadenceSet),
     CadenceSetUnacknowledged(CadenceSet),
@@ -357,34 +348,6 @@ where
             Self::ColumnStatus(_) => SENSOR_COLUMN_STATUS,
             Self::SeriesGet(_) => SENSOR_SERIES_GET,
             Self::SeriesStatus(_) => SENSOR_SERIES_STATUS,
-        }
-    }
-
-    fn emit_parameters<const N: usize>(
-        &self,
-        xmit: &mut heapless::Vec<u8, N>,
-    ) -> Result<(), InsufficientBuffer> {
-        match self {
-            Self::DescriptorGet(m) => m.emit_parameters(xmit),
-            Self::DescriptorStatus(m) => m.emit_parameters(xmit),
-            Self::Get(m) => m.emit_parameters(xmit),
-            Self::Status(m) => m.emit_parameters(xmit),
-            Self::ColumnGet(m) => m.emit_parameters(xmit),
-            Self::ColumnStatus(m) => m.emit_parameters(xmit),
-            Self::SeriesGet(m) => m.emit_parameters(xmit),
-            Self::SeriesStatus(m) => m.emit_parameters(xmit),
-        }
-    }
-}
-
-impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize> Message
-    for SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>
-where
-    C: SensorSetupConfig,
-{
-    fn opcode(&self) -> Opcode {
-        match self {
-            Self::Sensor(m) => m.opcode(),
             Self::CadenceGet(_) => SENSOR_CADENCE_GET,
             Self::CadenceSet(_) => SENSOR_CADENCE_SET,
             Self::CadenceSetUnacknowledged(_) => SENSOR_CADENCE_SET_UNACKNOWLEDGED,
@@ -403,7 +366,14 @@ where
         xmit: &mut heapless::Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
         match self {
-            Self::Sensor(m) => m.emit_parameters(xmit),
+            Self::DescriptorGet(m) => m.emit_parameters(xmit),
+            Self::DescriptorStatus(m) => m.emit_parameters(xmit),
+            Self::Get(m) => m.emit_parameters(xmit),
+            Self::Status(m) => m.emit_parameters(xmit),
+            Self::ColumnGet(m) => m.emit_parameters(xmit),
+            Self::ColumnStatus(m) => m.emit_parameters(xmit),
+            Self::SeriesGet(m) => m.emit_parameters(xmit),
+            Self::SeriesStatus(m) => m.emit_parameters(xmit),
             Self::CadenceGet(m) => m.emit_parameters(xmit),
             Self::CadenceSet(m) => m.emit_parameters(xmit),
             Self::CadenceSetUnacknowledged(m) => m.emit_parameters(xmit),
@@ -477,31 +447,44 @@ where
     C: SensorSetupConfig,
 {
     const IDENTIFIER: ModelIdentifier = SENSOR_SETUP_SERVER;
-    type Message = SensorSetupMessage<C, NUM_SENSORS, NUM_COLUMNS>;
+    type Message = SensorMessage<C, NUM_SENSORS, NUM_COLUMNS>;
 
     fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match *opcode {
-            SENSOR_CADENCE_GET => Ok(Some(SensorSetupMessage::CadenceGet(CadenceGet::parse(
+            SENSOR_DESCRIPTOR_GET => Ok(Some(SensorMessage::DescriptorGet(DescriptorGet::parse(
                 parameters,
             )?))),
-            SENSOR_CADENCE_SET => Ok(Some(SensorSetupMessage::CadenceSet(
+            SENSOR_GET => Ok(Some(SensorMessage::Get(SensorGet::parse(parameters)?))),
+            SENSOR_STATUS => Ok(Some(SensorMessage::Status(SensorStatus::parse(
+                parameters,
+            )?))),
+            SENSOR_COLUMN_GET => Ok(Some(SensorMessage::ColumnGet(ColumnGet::parse::<C>(
+                parameters,
+            )?))),
+            SENSOR_SERIES_GET => Ok(Some(SensorMessage::SeriesGet(SeriesGet::parse::<C>(
+                parameters,
+            )?))),
+            SENSOR_CADENCE_GET => Ok(Some(SensorMessage::CadenceGet(CadenceGet::parse(
+                parameters,
+            )?))),
+            SENSOR_CADENCE_SET => Ok(Some(SensorMessage::CadenceSet(CadenceSet::parse::<C>(
+                parameters,
+            )?))),
+            SENSOR_CADENCE_SET_UNACKNOWLEDGED => Ok(Some(SensorMessage::CadenceSetUnacknowledged(
                 CadenceSet::parse::<C>(parameters)?,
             ))),
-            SENSOR_CADENCE_SET_UNACKNOWLEDGED => Ok(Some(
-                SensorSetupMessage::CadenceSetUnacknowledged(CadenceSet::parse::<C>(parameters)?),
-            )),
-            SENSOR_SETTINGS_GET => Ok(Some(SensorSetupMessage::SettingsGet(SettingsGet::parse(
+            SENSOR_SETTINGS_GET => Ok(Some(SensorMessage::SettingsGet(SettingsGet::parse(
                 parameters,
             )?))),
-            SENSOR_SETTING_GET => Ok(Some(SensorSetupMessage::SettingGet(SettingGet::parse(
+            SENSOR_SETTING_GET => Ok(Some(SensorMessage::SettingGet(SettingGet::parse(
                 parameters,
             )?))),
-            SENSOR_SETTING_SET => Ok(Some(SensorSetupMessage::SettingSet(
+            SENSOR_SETTING_SET => Ok(Some(SensorMessage::SettingSet(SettingSet::parse::<C>(
+                parameters,
+            )?))),
+            SENSOR_SETTING_SET_UNACKNOWLEDGED => Ok(Some(SensorMessage::SettingSetUnacknowledged(
                 SettingSet::parse::<C>(parameters)?,
             ))),
-            SENSOR_SETTING_SET_UNACKNOWLEDGED => Ok(Some(
-                SensorSetupMessage::SettingSetUnacknowledged(SettingSet::parse::<C>(parameters)?),
-            )),
             _ => Ok(None),
         }
     }
