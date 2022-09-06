@@ -112,9 +112,10 @@ pub struct ModelPublicationSetMessage {
 impl ModelPublicationSetMessage {
     fn emit_parameters<const N: usize>(
         &self,
-        _xmit: &mut Vec<u8, N>,
+        xmit: &mut Vec<u8, N>,
     ) -> Result<(), InsufficientBuffer> {
-        todo!()
+        self.details.emit_parameters(xmit)?;
+        Ok(())
     }
 
     fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
@@ -201,10 +202,34 @@ impl ModelPublicationStatusMessage {
     ) -> Result<(), InsufficientBuffer> {
         xmit.push(self.status as u8)
             .map_err(|_| InsufficientBuffer)?;
-        let addr_bytes = self.details.element_address.as_bytes();
+        self.details.emit_parameters(xmit)?;
+        Ok(())
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
+pub struct PublicationDetails {
+    pub element_address: UnicastAddress,
+    pub publish_address: PublishAddress,
+    pub app_key_index: AppKeyIndex,
+    pub credential_flag: bool,
+    pub publish_ttl: Option<Ttl>,
+    pub publish_period: u8,
+    pub publish_retransmit_count: u8,
+    pub publish_retransmit_interval_steps: u8,
+    pub model_identifier: ModelIdentifier,
+}
+
+impl PublicationDetails {
+    fn emit_parameters<const N: usize>(
+        &self,
+        xmit: &mut Vec<u8, N>,
+    ) -> Result<(), InsufficientBuffer> {
+        let addr_bytes = self.element_address.as_bytes();
         xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
         xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
-        match self.details.publish_address {
+        match self.publish_address {
             PublishAddress::Unicast(addr) => {
                 let addr_bytes = addr.as_bytes();
                 xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
@@ -223,40 +248,55 @@ impl ModelPublicationStatusMessage {
                 xmit.push(0).map_err(|_| InsufficientBuffer)?;
             }
         }
-        self.details.app_key_index.emit(xmit)?;
-        if self.details.credential_flag {
+        self.app_key_index.emit(xmit)?;
+        if self.credential_flag {
             if let Some(last) = xmit.last_mut() {
                 *last |= 0b00001000;
             } else {
                 return Err(InsufficientBuffer);
             }
         }
-        if let Some(ttl) = self.details.publish_ttl {
+        if let Some(ttl) = self.publish_ttl {
             xmit.push(ttl.value()).map_err(|_| InsufficientBuffer)?;
         } else {
             xmit.push(0xFF).map_err(|_| InsufficientBuffer)?;
         }
-        xmit.push(self.details.publish_period)
+        xmit.push(self.publish_period)
             .map_err(|_| InsufficientBuffer)?;
 
-        let retransmit = (self.details.publish_retransmit_count << 5)
-            | (self.details.publish_retransmit_interval_steps & 0b00011111);
+        let retransmit = (self.publish_retransmit_count << 5)
+            | (self.publish_retransmit_interval_steps & 0b00011111);
         xmit.push(retransmit).map_err(|_| InsufficientBuffer)?;
-        self.details.model_identifier.emit(xmit)?;
+        self.model_identifier.emit(xmit)?;
         Ok(())
     }
 }
 
-#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-#[derive(Copy, Clone, Eq, PartialEq, Hash)]
-pub struct PublicationDetails {
-    pub element_address: UnicastAddress,
-    pub publish_address: PublishAddress,
-    pub app_key_index: AppKeyIndex,
-    pub credential_flag: bool,
-    pub publish_ttl: Option<Ttl>,
-    pub publish_period: u8,
-    pub publish_retransmit_count: u8,
-    pub publish_retransmit_interval_steps: u8,
-    pub model_identifier: ModelIdentifier,
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_pubset_details() {
+        let data = PublicationDetails {
+            element_address: UnicastAddress::new(0x00aa).unwrap(),
+            publish_address: PublishAddress::Unicast(UnicastAddress::new(0x00bb).unwrap()),
+            app_key_index: AppKeyIndex::new(1),
+            credential_flag: false,
+            publish_ttl: None,
+            publish_period: 0x29,
+            publish_retransmit_count: 1,
+            publish_retransmit_interval_steps: 2,
+            model_identifier: ModelIdentifier::SIG(0x1001),
+        };
+        let msg = ModelPublicationSetMessage {
+            details: data.clone(),
+        };
+        let mut parameters: heapless::Vec<u8, 386> = heapless::Vec::new();
+        msg.emit_parameters(&mut parameters).unwrap();
+
+        let parsed: ModelPublicationSetMessage =
+            ModelPublicationSetMessage::parse(&parameters[..]).unwrap();
+        assert_eq!(parsed.details, data);
+    }
 }
