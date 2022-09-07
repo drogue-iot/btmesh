@@ -42,8 +42,8 @@ impl Message for ModelPublicationMessage {
     ) -> Result<(), InsufficientBuffer> {
         match self {
             ModelPublicationMessage::Get(inner) => inner.emit_parameters(xmit),
-            ModelPublicationMessage::Set(inner) => inner.emit_parameters(xmit),
-            ModelPublicationMessage::VirtualAddressSet(inner) => inner.emit_parameters(xmit),
+            ModelPublicationMessage::Set(inner) => inner.emit_parameters(xmit, false),
+            ModelPublicationMessage::VirtualAddressSet(inner) => inner.emit_parameters(xmit, true),
             ModelPublicationMessage::Status(inner) => inner.emit_parameters(xmit),
         }
     }
@@ -113,8 +113,9 @@ impl ModelPublicationSetMessage {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut Vec<u8, N>,
+        virt: bool,
     ) -> Result<(), InsufficientBuffer> {
-        self.details.emit_parameters(xmit)?;
+        self.details.emit_parameters(xmit, virt)?;
         Ok(())
     }
 
@@ -202,7 +203,7 @@ impl ModelPublicationStatusMessage {
     ) -> Result<(), InsufficientBuffer> {
         xmit.push(self.status as u8)
             .map_err(|_| InsufficientBuffer)?;
-        self.details.emit_parameters(xmit)?;
+        self.details.emit_parameters(xmit, false)?;
         Ok(())
     }
 }
@@ -225,6 +226,7 @@ impl PublicationDetails {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut Vec<u8, N>,
+        virt: bool,
     ) -> Result<(), InsufficientBuffer> {
         let addr_bytes = self.element_address.as_bytes();
         xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
@@ -239,9 +241,14 @@ impl PublicationDetails {
                 todo!("group address")
             }
             PublishAddress::Virtual(addr) => {
-                let addr_bytes = addr.virtual_address().as_bytes();
-                xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
-                xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
+                if virt {
+                    xmit.extend_from_slice(addr.label_uuid())
+                        .map_err(|_| InsufficientBuffer)?;
+                } else {
+                    let addr_bytes = addr.virtual_address().as_bytes();
+                    xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
+                    xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
+                }
             }
             PublishAddress::Unassigned => {
                 xmit.push(0).map_err(|_| InsufficientBuffer)?;
@@ -280,7 +287,13 @@ mod tests {
     fn test_pubset_details() {
         let data = PublicationDetails {
             element_address: UnicastAddress::new(0x00aa).unwrap(),
-            publish_address: PublishAddress::Unicast(UnicastAddress::new(0x00bb).unwrap()),
+            publish_address: PublishAddress::Virtual(
+                LabelUuid::new([
+                    0xf0, 0xbf, 0xd8, 0x03, 0xcd, 0xe1, 0x84, 0x13, 0x30, 0x96, 0xf0, 0x03, 0xea,
+                    0x4a, 0x3d, 0xc2,
+                ])
+                .unwrap(),
+            ),
             app_key_index: AppKeyIndex::new(1),
             credential_flag: false,
             publish_ttl: None,
@@ -293,10 +306,10 @@ mod tests {
             details: data.clone(),
         };
         let mut parameters: heapless::Vec<u8, 386> = heapless::Vec::new();
-        msg.emit_parameters(&mut parameters).unwrap();
+        msg.emit_parameters(&mut parameters, true).unwrap();
 
         let parsed: ModelPublicationSetMessage =
-            ModelPublicationSetMessage::parse(&parameters[..]).unwrap();
+            ModelPublicationSetMessage::parse_virtual_address(&parameters[..]).unwrap();
         assert_eq!(parsed.details, data);
     }
 }
