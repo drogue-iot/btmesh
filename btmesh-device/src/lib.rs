@@ -18,6 +18,7 @@ pub use btmesh_common::{
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, ParseError, Ttl};
+use btmesh_models::foundation::configuration::model_publication::{PublishPeriod, Resolution};
 use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 pub use btmesh_models::Model;
 use core::future::Future;
@@ -64,6 +65,22 @@ pub enum PublicationCadence {
     None,
     OnChange,
     Periodic(Duration),
+}
+
+impl From<PublishPeriod> for PublicationCadence {
+    fn from(val: PublishPeriod) -> Self {
+        let steps = val.steps();
+        if steps == 0 {
+            PublicationCadence::OnChange
+        } else {
+            PublicationCadence::Periodic(match val.resolution() {
+                Resolution::Milliseconds100 => Duration::from_millis(steps as u64 * 100),
+                Resolution::Seconds1 => Duration::from_secs(steps as u64),
+                Resolution::Seconds10 => Duration::from_secs(steps as u64 * 10),
+                Resolution::Minutes10 => Duration::from_secs(steps as u64 * 60 * 10),
+            })
+        }
+    }
 }
 
 pub struct InboundMessage {

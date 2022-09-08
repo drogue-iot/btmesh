@@ -132,9 +132,8 @@ impl ModelPublicationSetMessage {
             } else {
                 Some(Ttl::new(publish_ttl))
             };
-            let publish_period = parameters[7];
-            let publish_retransmit_count = (parameters[8] & 0b11100000) >> 5;
-            let publish_retransmit_interval_steps = parameters[8] & 0b00011111;
+            let publish_period = PublishPeriod::from(parameters[7]);
+            let publish_retransmit = PublishRetransmit::from(parameters[8]);
             let model_identifier = ModelIdentifier::parse(&parameters[9..])?;
             Ok(Self {
                 details: PublicationDetails {
@@ -144,8 +143,7 @@ impl ModelPublicationSetMessage {
                     credential_flag,
                     publish_ttl,
                     publish_period,
-                    publish_retransmit_count,
-                    publish_retransmit_interval_steps,
+                    publish_retransmit,
                     model_identifier,
                 },
             })
@@ -167,9 +165,8 @@ impl ModelPublicationSetMessage {
             } else {
                 Some(Ttl::new(publish_ttl))
             };
-            let publish_period = parameters[21];
-            let publish_retransmit_count = (parameters[22] & 0b11100000) >> 5;
-            let publish_retransmit_interval_steps = parameters[22] & 0b00011111;
+            let publish_period = PublishPeriod::from(parameters[21]);
+            let publish_retransmit = PublishRetransmit::from(parameters[22]);
             let model_identifier = ModelIdentifier::parse(&parameters[23..])?;
             Ok(Self {
                 details: PublicationDetails {
@@ -179,8 +176,7 @@ impl ModelPublicationSetMessage {
                     credential_flag,
                     publish_ttl,
                     publish_period,
-                    publish_retransmit_count,
-                    publish_retransmit_interval_steps,
+                    publish_retransmit,
                     model_identifier,
                 },
             })
@@ -209,6 +205,7 @@ impl ModelPublicationStatusMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
 pub struct PublicationDetails {
     pub element_address: UnicastAddress,
@@ -216,9 +213,8 @@ pub struct PublicationDetails {
     pub app_key_index: AppKeyIndex,
     pub credential_flag: bool,
     pub publish_ttl: Option<Ttl>,
-    pub publish_period: u8,
-    pub publish_retransmit_count: u8,
-    pub publish_retransmit_interval_steps: u8,
+    pub publish_period: PublishPeriod,
+    pub publish_retransmit: PublishRetransmit,
     pub model_identifier: ModelIdentifier,
 }
 
@@ -268,14 +264,120 @@ impl PublicationDetails {
         } else {
             xmit.push(0xFF).map_err(|_| InsufficientBuffer)?;
         }
-        xmit.push(self.publish_period)
+        xmit.push(u8::from(self.publish_period))
             .map_err(|_| InsufficientBuffer)?;
 
-        let retransmit = (self.publish_retransmit_count << 5)
-            | (self.publish_retransmit_interval_steps & 0b00011111);
-        xmit.push(retransmit).map_err(|_| InsufficientBuffer)?;
+        xmit.push(u8::from(self.publish_retransmit))
+            .map_err(|_| InsufficientBuffer)?;
         self.model_identifier.emit(xmit)?;
         Ok(())
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
+pub enum Resolution {
+    Milliseconds100 = 0b00,
+    Seconds1 = 0b01,
+    Seconds10 = 0b10,
+    Minutes10 = 0b11,
+}
+
+impl Resolution {
+    fn from_u8(value: u8) -> Resolution {
+        match value {
+            0b00 => Resolution::Milliseconds100,
+            0b01 => Resolution::Seconds1,
+            0b10 => Resolution::Seconds10,
+            0b11 => Resolution::Minutes10,
+            _ => unreachable!(),
+        }
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
+pub struct PublishPeriod {
+    period: u8,
+}
+
+impl PublishPeriod {
+    pub fn new(steps: u8, resolution: Resolution) -> Self {
+        Self {
+            period: steps << 2 | resolution as u8,
+        }
+    }
+
+    pub fn from_u8(period: u8) -> Self {
+        Self { period }
+    }
+
+    pub fn resolution(&self) -> Resolution {
+        let resolution = self.period & 0b11;
+        match resolution {
+            0b00 => Resolution::Milliseconds100,
+            0b01 => Resolution::Seconds1,
+            0b10 => Resolution::Seconds10,
+            0b11 => Resolution::Minutes10,
+            _ => unreachable!(),
+        }
+    }
+
+    pub fn steps(&self) -> u8 {
+        (self.period & 0b11111100) >> 2
+    }
+}
+
+impl From<PublishPeriod> for u8 {
+    fn from(val: PublishPeriod) -> Self {
+        val.period
+    }
+}
+
+impl From<u8> for PublishPeriod {
+    fn from(period: u8) -> Self {
+        Self { period }
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(::defmt::Format))]
+#[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
+#[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
+pub struct PublishRetransmit {
+    retransmit: u8,
+}
+
+impl PublishRetransmit {
+    pub fn new(count: u8, interval_steps: u8) -> Self {
+        Self {
+            retransmit: (count << 5) | (interval_steps & 0b00011111),
+        }
+    }
+
+    pub fn from_u8(retransmit: u8) -> Self {
+        Self { retransmit }
+    }
+
+    pub fn count(&self) -> u8 {
+        self.retransmit >> 5
+    }
+
+    pub fn interval_steps(&self) -> u8 {
+        self.retransmit & 0b00011111
+    }
+}
+
+impl From<u8> for PublishRetransmit {
+    fn from(retransmit: u8) -> Self {
+        PublishRetransmit::from_u8(retransmit)
+    }
+}
+
+impl From<PublishRetransmit> for u8 {
+    fn from(val: PublishRetransmit) -> Self {
+        val.retransmit
     }
 }
 
@@ -297,9 +399,8 @@ mod tests {
             app_key_index: AppKeyIndex::new(1),
             credential_flag: false,
             publish_ttl: None,
-            publish_period: 0x29,
-            publish_retransmit_count: 1,
-            publish_retransmit_interval_steps: 2,
+            publish_period: PublishPeriod::from(0x29),
+            publish_retransmit: PublishRetransmit::new(1, 2),
             model_identifier: ModelIdentifier::SIG(0x1001),
         };
         let msg = ModelPublicationSetMessage {
@@ -311,5 +412,28 @@ mod tests {
         let parsed: ModelPublicationSetMessage =
             ModelPublicationSetMessage::parse_virtual_address(&parameters[..]).unwrap();
         assert_eq!(parsed.details, data);
+    }
+
+    #[test]
+    fn test_publish_period() {
+        let period1 = PublishPeriod::new(20, Resolution::Seconds1);
+        assert_eq!(0x51, period1.period);
+
+        let period2 = PublishPeriod::from(0x29);
+        assert_eq!(10, period2.steps());
+        assert_eq!(Resolution::Seconds1 as u8, period2.resolution() as u8);
+
+        let period3 = PublishPeriod::from(0x51);
+        assert_eq!(20, period3.steps());
+        assert_eq!(Resolution::Seconds1 as u8, period3.resolution() as u8);
+    }
+
+    #[test]
+    fn test_retransmit() {
+        let rxt = PublishRetransmit::from(0xa0);
+        assert_eq!(rxt.count(), 5);
+        assert_eq!(rxt.interval_steps(), 0);
+
+        assert_eq!(u8::from(rxt), 0b10100000);
     }
 }

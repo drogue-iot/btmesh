@@ -1,6 +1,8 @@
 use crate::models::configuration::convert;
 use crate::{BackingStore, DriverError, Storage};
 use btmesh_device::{BluetoothMeshModelContext, InboundMetadata};
+use btmesh_models::foundation::configuration::model_publication::PublishPeriod;
+use btmesh_models::foundation::configuration::model_publication::PublishRetransmit;
 use btmesh_models::foundation::configuration::model_publication::{
     ModelPublicationMessage, ModelPublicationStatusMessage, PublicationDetails, PublishAddress,
 };
@@ -39,9 +41,8 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                         app_key_index: AppKeyIndex::new(0),
                         credential_flag: false,
                         publish_ttl: None,
-                        publish_period: 0,
-                        publish_retransmit_count: 0,
-                        publish_retransmit_interval_steps: 0,
+                        publish_period: PublishPeriod::from(0),
+                        publish_retransmit: PublishRetransmit::from(0),
                         model_identifier: get.model_identifier,
                     },
                 ),
@@ -53,27 +54,12 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
                         app_key_index: AppKeyIndex::new(0),
                         credential_flag: false,
                         publish_ttl: None,
-                        publish_period: 0,
-                        publish_retransmit_count: 0,
-                        publish_retransmit_interval_steps: 0,
+                        publish_period: PublishPeriod::from(0),
+                        publish_retransmit: PublishRetransmit::from(0),
                         model_identifier: get.model_identifier,
                     },
                 ),
-                Ok(Some(publication)) => (
-                    (Status::Success, None),
-                    PublicationDetails {
-                        element_address: get.element_address,
-                        publish_address: publication.publish_address,
-                        app_key_index: publication.app_key_index,
-                        credential_flag: publication.credential_flag,
-                        publish_ttl: publication.publish_ttl,
-                        publish_period: publication.publish_period.into(),
-                        publish_retransmit_count: publication.publish_retransmit_count,
-                        publish_retransmit_interval_steps: publication
-                            .publish_retransmit_interval_steps,
-                        model_identifier: get.model_identifier,
-                    },
-                ),
+                Ok(Some(publication)) => ((Status::Success, None), publication.details),
             };
 
             info!("+++++ {} {} {}", status, err, details);
