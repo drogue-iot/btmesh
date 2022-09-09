@@ -307,15 +307,16 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             outbound_payload.element_index as u8,
             outbound_payload.model_identifer,
         ) {
-            let (dst, label_uuid): (Address, _) = match publication.publish_address {
+            let (dst, label_uuid): (Address, _) = match publication.details.publish_address {
                 PublishAddress::Unicast(addr) => (addr.into(), None),
                 PublishAddress::Group(addr) => (addr.into(), None),
                 PublishAddress::Virtual(addr) => (addr.virtual_address().into(), Some(addr)),
                 PublishAddress::Unassigned => unreachable!(),
             };
 
-            if let Some((network_key_handle, app_key_handle)) =
-                config.secrets().get_key_pair(publication.app_key_index)
+            if let Some((network_key_handle, app_key_handle)) = config
+                .secrets()
+                .get_key_pair(publication.details.app_key_index)
             {
                 let meta = AccessMetadata {
                     network_key_handle,
@@ -324,7 +325,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     key_handle: KeyHandle::Application(app_key_handle),
                     src: element_address,
                     dst,
-                    ttl: publication.publish_ttl.unwrap_or(default_ttl),
+                    ttl: publication.details.publish_ttl.unwrap_or(default_ttl),
                     label_uuid,
                     replay_seq: None,
                 };
@@ -482,7 +483,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         .publications()
                         .get(element_index as u8, model_descriptor.model_identifier)
                     {
-                        let pub_cadence = publication.publish_period.cadence();
+                        let pub_cadence =
+                            PublicationCadence::from(publication.details.publish_period);
 
                         if model_descriptor.extra.publication_cadence != pub_cadence {
                             self.dispatcher
