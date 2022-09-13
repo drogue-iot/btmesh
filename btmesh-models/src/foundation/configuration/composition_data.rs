@@ -8,6 +8,7 @@ opcode!( CONFIG_COMPOSITION_DATA_GET 0x80, 0x08 );
 opcode!( CONFIG_COMPOSITION_DATA_STATUS 0x02 );
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum CompositionDataMessage {
     Get(u8),
     Status(CompositionStatus),
@@ -47,6 +48,7 @@ impl Message for CompositionDataMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct CompositionStatus {
     pub(crate) page: u8,
     pub(crate) data: Composition,

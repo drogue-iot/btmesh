@@ -11,6 +11,7 @@ opcode!( CONFIG_MODEL_PUBLICATION_STATUS 0x80, 0x19);
 opcode!( CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET 0x80, 0x1A);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum ModelPublicationMessage {
     Get(ModelPublicationGetMessage),
     Set(ModelPublicationSetMessage),
@@ -72,6 +73,7 @@ impl ModelPublicationMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelPublicationGetMessage {
     pub element_address: UnicastAddress,
     pub model_identifier: ModelIdentifier,
@@ -111,6 +113,7 @@ pub enum PublishAddress {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelPublicationSetMessage {
     pub details: PublicationDetails,
 }
@@ -139,6 +142,7 @@ impl ModelPublicationSetMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelPublicationStatusMessage {
     pub status: Status,
     pub details: PublicationDetails,

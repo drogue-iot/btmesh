@@ -102,6 +102,7 @@ impl RelayConfig {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum RelayMessage {
     Get,
     Set(RelayConfig),

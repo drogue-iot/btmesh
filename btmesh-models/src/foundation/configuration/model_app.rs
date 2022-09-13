@@ -10,6 +10,7 @@ opcode!( CONFIG_MODEL_APP_STATUS 0x80, 0x3E);
 opcode!( CONFIG_MODEL_APP_UNBIND 0x80, 0x3F);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum ModelAppMessage {
     Bind(ModelAppPayload),
     Status(ModelAppStatusMessage),
@@ -57,7 +58,7 @@ impl Message for ModelAppMessage {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelAppPayload {
     pub element_address: UnicastAddress,
@@ -97,6 +98,7 @@ impl ModelAppPayload {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelAppStatusMessage {
     pub status: Status,
     pub payload: ModelAppPayload,

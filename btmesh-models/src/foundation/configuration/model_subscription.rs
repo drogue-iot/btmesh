@@ -21,6 +21,7 @@ opcode!( CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET 0x80, 0x2B);
 opcode!( CONFIG_VENDOR_MODEL_SUBSCRIPTION_LIST 0x80, 0x2C);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum ModelSubscriptionMessage {
     Add(ModelSubscriptionPayload),
     Delete(ModelSubscriptionPayload),
@@ -164,7 +165,7 @@ impl TryInto<SubscriptionAddress> for Address {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelSubscriptionPayload {
     pub element_address: UnicastAddress,
@@ -216,6 +217,7 @@ impl ModelSubscriptionPayload {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelSubscriptionDeleteAllMessage {
     pub element_address: UnicastAddress,
     pub model_identifier: ModelIdentifier,
@@ -244,6 +246,7 @@ impl ModelSubscriptionDeleteAllMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelSubscriptionOverwriteMessage {
     pub element_address: UnicastAddress,
     pub subscription_address: SubscriptionAddress,
@@ -295,6 +298,7 @@ impl ModelSubscriptionOverwriteMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelSubscriptionStatusMessage {
     pub status: Status,
     pub element_address: UnicastAddress,
@@ -352,6 +356,7 @@ impl ModelSubscriptionStatusMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelSubscriptionGetMessage {
     pub element_address: UnicastAddress,
     pub model_identifier: ModelIdentifier,
@@ -380,6 +385,7 @@ impl ModelSubscriptionGetMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct ModelSubscriptionListMessage {
     pub status: Status,
     pub element_address: UnicastAddress,

@@ -9,6 +9,7 @@ opcode!( CONFIG_DEFAULT_TTL_SET 0x80, 0x0D );
 opcode!( CONFIG_DEFAULT_TTL_STATUS 0x80, 0x0E );
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum DefaultTTLMessage {
     Get,
     Set(Ttl),

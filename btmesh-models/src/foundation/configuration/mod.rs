@@ -56,6 +56,7 @@ pub const CONFIGURATION_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x0000);
 pub const CONFIGURATION_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x0001);
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum ConfigurationMessage {
     Beacon(BeaconMessage),
     DefaultTTL(DefaultTTLMessage),
@@ -380,7 +381,7 @@ impl defmt::Format for AppKeyIndex {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetKeyAppKeyIndexesPair(NetKeyIndex, AppKeyIndex);
 

@@ -16,6 +16,7 @@ opcode!( CONFIG_APPKEY_STATUS 0x80, 0x03 );
 opcode!( CONFIG_APPKEY_UPDATE 0x01 );
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum AppKeyMessage {
     Add(AppKeyAddMessage),
     Delete(AppKeyDeleteMessage),
@@ -93,6 +94,7 @@ impl Message for AppKeyMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyAddMessage {
     pub indexes: NetKeyAppKeyIndexesPair,
     pub app_key: ApplicationKey,
@@ -120,6 +122,7 @@ impl AppKeyAddMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyDeleteMessage {
     pub indexes: NetKeyAppKeyIndexesPair,
 }
@@ -142,6 +145,7 @@ impl AppKeyDeleteMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyGetMessage {
     pub(crate) net_key_index: NetKeyIndex,
 }
@@ -156,6 +160,7 @@ impl AppKeyGetMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyListMessage {
     pub(crate) status: Status,
     pub(crate) net_key_index: NetKeyIndex,
@@ -193,6 +198,7 @@ impl AppKeyListMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyStatusMessage {
     pub status: Status,
     pub indexes: NetKeyAppKeyIndexesPair,
@@ -217,6 +223,7 @@ impl AppKeyStatusMessage {
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub struct AppKeyUpdateMessage {
     pub(crate) net_key_index: NetKeyIndex,
     pub(crate) app_key_index: AppKeyIndex,

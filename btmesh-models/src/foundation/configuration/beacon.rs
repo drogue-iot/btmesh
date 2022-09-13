@@ -9,6 +9,7 @@ opcode!( CONFIG_BEACON_SET 0x80, 0x0A );
 opcode!( CONFIG_BEACON_STATUS 0x80, 0x0B );
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum BeaconMessage {
     Get,
     Set(bool),

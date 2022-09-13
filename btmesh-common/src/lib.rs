@@ -412,13 +412,13 @@ impl CompanyIdentifier {
     }
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "darling", derive(darling::FromMeta))]
 pub struct ProductIdentifier(pub u16);
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[cfg_attr(feature = "darling", derive(darling::FromMeta))]
@@ -481,7 +481,7 @@ impl defmt::Format for ModelIdentifier {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Composition<X: Default = ()> {
     pub(crate) cid: CompanyIdentifier,
@@ -569,7 +569,7 @@ impl<X: Default> Composition<X> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ElementDescriptor<X: Default = ()> {
     pub loc: Location,
@@ -626,14 +626,14 @@ impl<X: Default> ElementDescriptor<X> {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelDescriptor<X = ()> {
     pub model_identifier: ModelIdentifier,
     pub extra: X,
 }
 
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Features {
     pub relay: bool,

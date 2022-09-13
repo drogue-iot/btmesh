@@ -8,6 +8,7 @@ opcode!( CONFIG_NODE_RESET 0x80, 0x49 );
 opcode!( CONFIG_NODE_RESET_STATUS 0x80, 0x4A );
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Debug)]
 pub enum NodeResetMessage {
     Reset,
     Status,
