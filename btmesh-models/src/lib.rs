@@ -72,3 +72,30 @@ pub enum Status {
     UnspecifiedError = 0x10,
     InvalidBinding = 0x11,
 }
+
+impl TryFrom<u8> for Status {
+    type Error = ParseError;
+    fn try_from(status: u8) -> Result<Self, Self::Error> {
+        match status {
+            0x00 => Ok(Self::Success),
+            0x01 => Ok(Self::InvalidAddress),
+            0x02 => Ok(Self::InvalidModel),
+            0x03 => Ok(Self::InvalidAppKeyIndex),
+            0x04 => Ok(Self::InvalidNetKeyIndex),
+            0x05 => Ok(Self::InsufficientResources),
+            0x06 => Ok(Self::KeyIndexAlreadyStored),
+            0x07 => Ok(Self::InvalidPublishParameters),
+            0x08 => Ok(Self::NotASubscribeModel),
+            0x09 => Ok(Self::StorageFailure),
+            0x0A => Ok(Self::FeatureNotSupported),
+            0x0B => Ok(Self::CannotUpdate),
+            0x0C => Ok(Self::CannotRemove),
+            0x0D => Ok(Self::CannotBind),
+            0x0E => Ok(Self::TemporarilyUnableToChangeState),
+            0x0F => Ok(Self::CannotSet),
+            0x10 => Ok(Self::UnspecifiedError),
+            0x11 => Ok(Self::InvalidBinding),
+            _ => Err(ParseError::InvalidValue),
+        }
+    }
+}

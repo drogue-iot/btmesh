@@ -132,6 +132,12 @@ impl ModelSubscriptionMessage {
             parameters,
         )?))
     }
+
+    pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self::Status(ModelSubscriptionStatusMessage::parse(
+            parameters,
+        )?))
+    }
 }
 
 #[derive(Eq, PartialEq, Copy, Clone, Debug, Hash)]
@@ -297,8 +303,17 @@ pub struct ModelSubscriptionStatusMessage {
 }
 
 impl ModelSubscriptionStatusMessage {
-    pub fn parse(_parameters: &[u8]) -> Result<Self, ParseError> {
-        todo!("parse subscription status")
+    pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        let status: Status = parameters[0].try_into()?;
+        let element_address = UnicastAddress::parse([parameters[2], parameters[1]])?;
+        let subscription_address: Address = Address::parse([parameters[4], parameters[3]]);
+        let model_identifier: ModelIdentifier = ModelIdentifier::parse(&parameters[5..])?;
+        Ok(Self {
+            status,
+            element_address,
+            subscription_address: subscription_address.try_into()?,
+            model_identifier,
+        })
     }
 
     pub fn emit_parameters<const N: usize>(

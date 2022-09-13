@@ -30,6 +30,10 @@ impl ModelAppMessage {
     pub fn parse_unbind(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Unbind(ModelAppPayload::parse(parameters)?))
     }
+
+    pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self::Status(ModelAppStatusMessage::parse(parameters)?))
+    }
 }
 
 impl Message for ModelAppMessage {
@@ -107,5 +111,11 @@ impl ModelAppStatusMessage {
             .map_err(|_| InsufficientBuffer)?;
         self.payload.emit_parameters(xmit)?;
         Ok(())
+    }
+
+    fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        let status: Status = parameters[0].try_into()?;
+        let payload: ModelAppPayload = ModelAppPayload::parse(&parameters[1..])?;
+        Ok(Self { status, payload })
     }
 }

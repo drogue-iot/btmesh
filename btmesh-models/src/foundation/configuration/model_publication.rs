@@ -63,6 +63,12 @@ impl ModelPublicationMessage {
     pub fn parse_get(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Get(ModelPublicationGetMessage::parse(parameters)?))
     }
+
+    pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self::Status(ModelPublicationStatusMessage::parse(
+            parameters,
+        )?))
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -120,69 +126,15 @@ impl ModelPublicationSetMessage {
     }
 
     fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
-        if parameters.len() >= 11 {
-            let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
-            let publish_address =
-                PublishAddress::Unicast(UnicastAddress::parse([parameters[3], parameters[2]])?);
-            let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[4..=5])?);
-            let credential_flag = (parameters[5] & 0b0001000) != 0;
-            let publish_ttl = parameters[6];
-            let publish_ttl = if publish_ttl == 0xFF {
-                None
-            } else {
-                Some(Ttl::new(publish_ttl))
-            };
-            let publish_period = PublishPeriod::from(parameters[7]);
-            let publish_retransmit = PublishRetransmit::from(parameters[8]);
-            let model_identifier = ModelIdentifier::parse(&parameters[9..])?;
-            Ok(Self {
-                details: PublicationDetails {
-                    element_address,
-                    publish_address,
-                    app_key_index,
-                    credential_flag,
-                    publish_ttl,
-                    publish_period,
-                    publish_retransmit,
-                    model_identifier,
-                },
-            })
-        } else {
-            Err(ParseError::InvalidLength)
-        }
+        Ok(Self {
+            details: PublicationDetails::parse(parameters)?,
+        })
     }
 
     fn parse_virtual_address(parameters: &[u8]) -> Result<Self, ParseError> {
-        if parameters.len() >= 25 {
-            let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
-            let publish_address = PublishAddress::Virtual(LabelUuid::parse(&parameters[2..=17])?);
-
-            let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[18..=19])?);
-            let credential_flag = (parameters[19] & 0b0001000) != 0;
-            let publish_ttl = parameters[20];
-            let publish_ttl = if publish_ttl == 0xFF {
-                None
-            } else {
-                Some(Ttl::new(publish_ttl))
-            };
-            let publish_period = PublishPeriod::from(parameters[21]);
-            let publish_retransmit = PublishRetransmit::from(parameters[22]);
-            let model_identifier = ModelIdentifier::parse(&parameters[23..])?;
-            Ok(Self {
-                details: PublicationDetails {
-                    element_address,
-                    publish_address,
-                    app_key_index,
-                    credential_flag,
-                    publish_ttl,
-                    publish_period,
-                    publish_retransmit,
-                    model_identifier,
-                },
-            })
-        } else {
-            Err(ParseError::InvalidLength)
-        }
+        Ok(Self {
+            details: PublicationDetails::parse_virtual_address(parameters)?,
+        })
     }
 }
 
@@ -201,6 +153,12 @@ impl ModelPublicationStatusMessage {
             .map_err(|_| InsufficientBuffer)?;
         self.details.emit_parameters(xmit, false)?;
         Ok(())
+    }
+
+    pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        let status: Status = parameters[0].try_into()?;
+        let details: PublicationDetails = PublicationDetails::parse(&parameters[1..])?;
+        Ok(Self { status, details })
     }
 }
 
@@ -271,6 +229,68 @@ impl PublicationDetails {
             .map_err(|_| InsufficientBuffer)?;
         self.model_identifier.emit(xmit)?;
         Ok(())
+    }
+
+    fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() >= 11 {
+            let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
+            let publish_address =
+                PublishAddress::Unicast(UnicastAddress::parse([parameters[3], parameters[2]])?);
+            let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[4..=5])?);
+            let credential_flag = (parameters[5] & 0b0001000) != 0;
+            let publish_ttl = parameters[6];
+            let publish_ttl = if publish_ttl == 0xFF {
+                None
+            } else {
+                Some(Ttl::new(publish_ttl))
+            };
+            let publish_period = PublishPeriod::from(parameters[7]);
+            let publish_retransmit = PublishRetransmit::from(parameters[8]);
+            let model_identifier = ModelIdentifier::parse(&parameters[9..])?;
+            Ok(Self {
+                element_address,
+                publish_address,
+                app_key_index,
+                credential_flag,
+                publish_ttl,
+                publish_period,
+                publish_retransmit,
+                model_identifier,
+            })
+        } else {
+            Err(ParseError::InvalidLength)
+        }
+    }
+
+    fn parse_virtual_address(parameters: &[u8]) -> Result<Self, ParseError> {
+        if parameters.len() >= 25 {
+            let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
+            let publish_address = PublishAddress::Virtual(LabelUuid::parse(&parameters[2..=17])?);
+
+            let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[18..=19])?);
+            let credential_flag = (parameters[19] & 0b0001000) != 0;
+            let publish_ttl = parameters[20];
+            let publish_ttl = if publish_ttl == 0xFF {
+                None
+            } else {
+                Some(Ttl::new(publish_ttl))
+            };
+            let publish_period = PublishPeriod::from(parameters[21]);
+            let publish_retransmit = PublishRetransmit::from(parameters[22]);
+            let model_identifier = ModelIdentifier::parse(&parameters[23..])?;
+            Ok(Self {
+                element_address,
+                publish_address,
+                app_key_index,
+                credential_flag,
+                publish_ttl,
+                publish_period,
+                publish_retransmit,
+                model_identifier,
+            })
+        } else {
+            Err(ParseError::InvalidLength)
+        }
     }
 }
 

@@ -1,5 +1,5 @@
 use crate::foundation::configuration::app_key::{
-    AppKeyMessage, CONFIG_APPKEY_ADD, CONFIG_APPKEY_DELETE, CONFIG_APPKEY_GET,
+    AppKeyMessage, CONFIG_APPKEY_ADD, CONFIG_APPKEY_DELETE, CONFIG_APPKEY_GET, CONFIG_APPKEY_STATUS,
 };
 use crate::foundation::configuration::beacon::{
     BeaconMessage, CONFIG_BEACON_GET, CONFIG_BEACON_SET,
@@ -11,25 +11,29 @@ use crate::foundation::configuration::default_ttl::{
     DefaultTTLMessage, CONFIG_DEFAULT_TTL_GET, CONFIG_DEFAULT_TTL_SET,
 };
 use crate::foundation::configuration::model_app::{
-    ModelAppMessage, CONFIG_MODEL_APP_BIND, CONFIG_MODEL_APP_UNBIND,
+    ModelAppMessage, CONFIG_MODEL_APP_BIND, CONFIG_MODEL_APP_STATUS, CONFIG_MODEL_APP_UNBIND,
 };
 use crate::foundation::configuration::model_publication::{
     ModelPublicationMessage, CONFIG_MODEL_PUBLICATION_GET, CONFIG_MODEL_PUBLICATION_SET,
-    CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET,
+    CONFIG_MODEL_PUBLICATION_STATUS, CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET,
 };
 
 use crate::foundation::configuration::model_subscription::{
     ModelSubscriptionMessage, CONFIG_MODEL_SUBSCRIPTION_ADD, CONFIG_MODEL_SUBSCRIPTION_DELETE,
     CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL, CONFIG_MODEL_SUBSCRIPTION_OVERWRITE,
-    CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD,
+    CONFIG_MODEL_SUBSCRIPTION_STATUS, CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_DELETE,
     CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE, CONFIG_SIG_MODEL_SUBSCRIPTION_GET,
     CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET,
 };
 
-use crate::foundation::configuration::node_reset::{NodeResetMessage, CONFIG_NODE_RESET};
+use crate::foundation::configuration::node_reset::{
+    NodeResetMessage, CONFIG_NODE_RESET, CONFIG_NODE_RESET_STATUS,
+};
 
-use crate::foundation::configuration::relay::{RelayMessage, CONFIG_RELAY_GET, CONFIG_RELAY_SET};
+use crate::foundation::configuration::relay::{
+    RelayMessage, CONFIG_RELAY_GET, CONFIG_RELAY_SET, CONFIG_RELAY_STATUS,
+};
 
 use crate::{Message, Model};
 
@@ -219,101 +223,24 @@ impl Model for ConfigurationClient {
 
     fn parse(opcode: &Opcode, parameters: &[u8]) -> Result<Option<Self::Message>, ParseError> {
         match *opcode {
-            CONFIG_BEACON_GET => Ok(Some(ConfigurationMessage::Beacon(
-                BeaconMessage::parse_get(parameters)?,
+            CONFIG_NODE_RESET_STATUS => Ok(Some(ConfigurationMessage::NodeReset(
+                NodeResetMessage::parse_status(parameters)?,
             ))),
-            CONFIG_BEACON_SET => Ok(Some(ConfigurationMessage::Beacon(
-                BeaconMessage::parse_set(parameters)?,
-            ))),
-            CONFIG_DEFAULT_TTL_GET => Ok(Some(ConfigurationMessage::DefaultTTL(
-                DefaultTTLMessage::parse_get(parameters)?,
-            ))),
-            CONFIG_DEFAULT_TTL_SET => Ok(Some(ConfigurationMessage::DefaultTTL(
-                DefaultTTLMessage::parse_set(parameters)?,
-            ))),
-            CONFIG_NODE_RESET => Ok(Some(ConfigurationMessage::NodeReset(
-                NodeResetMessage::parse_reset(parameters)?,
-            ))),
-            CONFIG_COMPOSITION_DATA_GET => Ok(Some(ConfigurationMessage::CompositionData(
-                CompositionDataMessage::parse_get(parameters)?,
-            ))),
-            // App Key
-            CONFIG_APPKEY_ADD => Ok(Some(ConfigurationMessage::AppKey(
-                AppKeyMessage::parse_add(parameters)?,
-            ))),
-            CONFIG_APPKEY_DELETE => Ok(Some(ConfigurationMessage::AppKey(
+            CONFIG_APPKEY_STATUS => Ok(Some(ConfigurationMessage::AppKey(
                 AppKeyMessage::parse_delete(parameters)?,
             ))),
-            CONFIG_APPKEY_GET => Ok(Some(ConfigurationMessage::AppKey(
-                AppKeyMessage::parse_get(parameters)?,
+            CONFIG_MODEL_APP_STATUS => Ok(Some(ConfigurationMessage::ModelApp(
+                ModelAppMessage::parse_status(parameters)?,
             ))),
-            // Model App
-            CONFIG_MODEL_APP_BIND => Ok(Some(ConfigurationMessage::ModelApp(
-                ModelAppMessage::parse_bind(parameters)?,
+            CONFIG_MODEL_PUBLICATION_STATUS => Ok(Some(ConfigurationMessage::ModelPublication(
+                ModelPublicationMessage::parse_status(parameters)?,
             ))),
-            CONFIG_MODEL_APP_UNBIND => Ok(Some(ConfigurationMessage::ModelApp(
-                ModelAppMessage::parse_unbind(parameters)?,
+            CONFIG_MODEL_SUBSCRIPTION_STATUS => Ok(Some(ConfigurationMessage::ModelSubscription(
+                ModelSubscriptionMessage::parse_status(parameters)?,
             ))),
-            // Model Publication
-            CONFIG_MODEL_PUBLICATION_SET => Ok(Some(ConfigurationMessage::ModelPublication(
-                ModelPublicationMessage::parse_set(parameters)?,
+            CONFIG_RELAY_STATUS => Ok(Some(ConfigurationMessage::Relay(
+                RelayMessage::parse_status(parameters)?,
             ))),
-            CONFIG_MODEL_PUBLICATION_GET => Ok(Some(ConfigurationMessage::ModelPublication(
-                ModelPublicationMessage::parse_get(parameters)?,
-            ))),
-            CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET => {
-                Ok(Some(ConfigurationMessage::ModelPublication(
-                    ModelPublicationMessage::parse_virtual_address_set(parameters)?,
-                )))
-            }
-            // Model Subscription
-            CONFIG_MODEL_SUBSCRIPTION_ADD => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_add(parameters)?,
-            ))),
-            CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_ADD => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_virtual_address_add(parameters)?,
-                )))
-            }
-            CONFIG_MODEL_SUBSCRIPTION_DELETE => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_delete(parameters)?,
-            ))),
-            CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_DELETE => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_virtual_address_delete(parameters)?,
-                )))
-            }
-            CONFIG_MODEL_SUBSCRIPTION_OVERWRITE => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_overwrite(parameters)?,
-                )))
-            }
-            CONFIG_MODEL_SUBSCRIPTION_VIRTUAL_ADDRESS_OVERWRITE => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_virtual_address_overwrite(parameters)?,
-                )))
-            }
-            CONFIG_MODEL_SUBSCRIPTION_DELETE_ALL => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_delete_all(parameters)?,
-                )))
-            }
-            CONFIG_VENDOR_MODEL_SUBSCRIPTION_GET => {
-                Ok(Some(ConfigurationMessage::ModelSubscription(
-                    ModelSubscriptionMessage::parse_vendor_get(parameters)?,
-                )))
-            }
-            CONFIG_SIG_MODEL_SUBSCRIPTION_GET => Ok(Some(ConfigurationMessage::ModelSubscription(
-                ModelSubscriptionMessage::parse_sig_get(parameters)?,
-            ))),
-
-            // Relay
-            CONFIG_RELAY_GET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_get(
-                parameters,
-            )?))),
-            CONFIG_RELAY_SET => Ok(Some(ConfigurationMessage::Relay(RelayMessage::parse_set(
-                parameters,
-            )?))),
             _ => Ok(None),
         }
     }
