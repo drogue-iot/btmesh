@@ -228,7 +228,7 @@ impl Model for ConfigurationClient {
                 NodeResetMessage::parse_status(parameters)?,
             ))),
             CONFIG_APPKEY_STATUS => Ok(Some(ConfigurationMessage::AppKey(
-                AppKeyMessage::parse_delete(parameters)?,
+                AppKeyMessage::parse_status(parameters)?,
             ))),
             CONFIG_MODEL_APP_STATUS => Ok(Some(ConfigurationMessage::ModelApp(
                 ModelAppMessage::parse_status(parameters)?,

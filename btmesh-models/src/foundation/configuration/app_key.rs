@@ -64,6 +64,10 @@ impl AppKeyMessage {
             Err(ParseError::InvalidLength)
         }
     }
+
+    pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
+        Ok(Self::Status(AppKeyStatusMessage::parse(parameters)?))
+    }
 }
 
 impl Message for AppKeyMessage {
@@ -219,6 +223,12 @@ impl AppKeyStatusMessage {
             .map_err(|_| InsufficientBuffer)?;
         self.indexes.emit(xmit)?;
         Ok(())
+    }
+
+    fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
+        let status: Status = parameters[0].try_into()?;
+        let indexes = NetKeyAppKeyIndexesPair::parse(&parameters[1..=3])?;
+        Ok(Self { status, indexes })
     }
 }
 
