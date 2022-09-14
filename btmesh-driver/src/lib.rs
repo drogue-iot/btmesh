@@ -511,6 +511,23 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     }
                 }
             }
+        } else {
+            // Stop all publications
+            for (element_index, element) in composition.elements_iter_mut().enumerate() {
+                for model_descriptor in element.models_iter_mut() {
+                    if model_descriptor.extra.publication_cadence != PublicationCadence::None {
+                        self.dispatcher
+                            .borrow()
+                            .dispatch_publish(
+                                element_index as u8,
+                                model_descriptor.model_identifier,
+                                PublicationCadence::None,
+                            )
+                            .await;
+                        model_descriptor.extra.publication_cadence = PublicationCadence::None;
+                    }
+                }
+            }
         }
     }
 
@@ -595,9 +612,9 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             }
 
             let device_state = self.stack.borrow().device_state();
+            self.notify_publications(&config, composition).await;
 
             if let Some(device_state) = device_state {
-                self.notify_publications(&config, composition).await;
 
                 drop(config);
 
