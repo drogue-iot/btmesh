@@ -1,13 +1,12 @@
 use crate::advertising::SoftdeviceAdvertisingBearer;
 use crate::gatt::{MeshGattServer, SoftdeviceGattBearer};
 use crate::rng::SoftdeviceRng;
-use btmesh_common::Uuid;
 use btmesh_device::BluetoothMeshDevice;
 use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
-use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, DriverError};
+use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, BluetoothMeshDriverConfig, DriverError};
 use core::future::{join, Future};
 use core::mem;
 use nrf_softdevice::{raw, Flash, Softdevice};
@@ -75,11 +74,11 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
         network: N,
         rng: SoftdeviceRng,
         backing_store: FlashBackingStore<Flash>,
-        uuid: Option<Uuid>,
+        config: BluetoothMeshDriverConfig,
     ) -> Self {
         Self {
             sd,
-            driver: BaseDriver::new(network, rng, backing_store, uuid),
+            driver: BaseDriver::new(network, rng, backing_store, config),
         }
     }
 
@@ -102,7 +101,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
         name: &'static str,
         base_address: u32,
         sequence_threshold: u32,
-        uuid: Option<Uuid>,
+        config: BluetoothMeshDriverConfig,
     ) -> Self {
         let sd: &'static Softdevice = enable_softdevice(name);
         let rng = SoftdeviceRng::new(sd);
@@ -117,7 +116,7 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
             network,
             rng,
             backing_store,
-            uuid,
+            config,
         ))
     }
 
@@ -154,7 +153,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
         name: &'static str,
         base_address: u32,
         sequence_threshold: u32,
-        uuid: Option<Uuid>,
+        config: BluetoothMeshDriverConfig,
     ) -> Self {
         let sd = enable_softdevice(name);
         let server = MeshGattServer::new(sd).unwrap();
@@ -173,7 +172,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
             network,
             rng,
             backing_store,
-            uuid,
+            config,
         ))
     }
 }

@@ -15,7 +15,7 @@ mod rng;
 
 mod driver;
 
-pub use btmesh_driver::BluetoothMeshDriver;
+pub use btmesh_driver::{BluetoothMeshDriver, BluetoothMeshDriverConfig};
 
 #[cfg(feature = "gatt")]
 pub use driver::NrfSoftdeviceAdvertisingAndGattDriver as Driver;

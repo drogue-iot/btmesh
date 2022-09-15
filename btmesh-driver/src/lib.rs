@@ -24,7 +24,7 @@ use btmesh_pdu::PDU;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::select::{select, select3, select4, Either, Either3, Either4};
-use embassy_time::{Duration, Timer};
+use embassy_time::{Duration, Timer, Instant};
 use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
 
@@ -58,10 +58,10 @@ use crate::util::hash::hash_of;
 use crate::watchdog::{Watchdog, WatchdogEvent};
 pub use error::DriverError;
 
-enum CurrentStack<'s> {
-    None,
-    Unprovisioned(&'s Uuid),
-    Provisioned(&'s Sequence),
+#[derive(Default)]
+pub struct BluetoothMeshDriverConfig {
+    pub persist_interval: Option<Duration>,
+    pub uuid: Option<Uuid>,
 }
 
 pub trait BluetoothMeshDriver {
@@ -77,16 +77,18 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
     network: Option<N>,
     rng: Option<R>,
     storage: Storage<B>,
+    persist_interval: Option<Duration>,
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(network: N, mut rng: R, backing_store: B, uuid: Option<Uuid>) -> Self {
+    pub fn new(network: N, mut rng: R, backing_store: B, config: BluetoothMeshDriverConfig) -> Self {
         let upc =
-            UnprovisionedConfiguration::new(uuid.unwrap_or_else(|| Uuid::new_random(&mut rng)));
+            UnprovisionedConfiguration::new(config.uuid.unwrap_or_else(|| Uuid::new_random(&mut rng)));
         Self {
             network: Some(network),
             rng: Some(rng),
             storage: Storage::new(backing_store, upc),
+            persist_interval: config.persist_interval,
         }
     }
 }
@@ -98,10 +100,11 @@ pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: Back
     storage: &'s Storage<B>,
     dispatcher: RefCell<Dispatcher>,
     watchdog: Watchdog,
+    persist_interval: Option<Duration>,
 }
 
 impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDriver<'s, N, R, B> {
-    pub fn new(network: N, rng: R, storage: &'s Storage<B>) -> Self {
+    pub fn new(network: N, rng: R, storage: &'s Storage<B>, persist_interval: Option<Duration>) -> Self {
         Self {
             stack: RefCell::new(Stack::None),
             network,
@@ -112,6 +115,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 DEVICE_INBOUND.sender(),
             )),
             watchdog: Default::default(),
+            persist_interval,
         }
     }
 
@@ -574,6 +578,21 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         }
     }
 
+    async fn update_config(&self) -> Result<(), DriverError> {
+        let stack = self.stack.borrow_mut();
+        match &*stack {
+            Stack::Provisioned { sequence, ..  } => {
+                self.storage.modify_provisioned(|config| {
+                    *config.sequence_mut() = sequence.current();
+                    debug!("Updating config sequence counter to {}", sequence.current());
+                    Ok(())
+                }).await?;
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     async fn run_driver(
         &self,
         composition: &mut Composition<CompositionExtra>,
@@ -595,8 +614,17 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         self.storage.init().await?;
 
         let mut last_displayed_hash = None;
+        let mut last_update = Instant::now();
 
         loop {
+            if let Some(persist_interval) = self.persist_interval {
+                let now = Instant::now();
+                if last_update + persist_interval < now {
+                    self.update_config().await?;
+                    last_update = now;
+                }
+            }
+
             let config = self.storage.lock().await;
             if config.is_none() {
                 return Err(DriverError::InvalidState);
@@ -611,12 +639,12 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 ));
             }
 
+
             let device_state = self.stack.borrow().device_state();
             self.notify_publications(&config, composition).await;
+            drop(config);
 
             if let Some(device_state) = device_state {
-
-                drop(config);
 
                 let receive_fut = self.network.receive(&device_state, &self.watchdog);
                 let transmit_fut = OUTBOUND.recv();
@@ -756,6 +784,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
                 unwrap!(self.network.take()),
                 unwrap!(self.rng.take()),
                 &self.storage,
+                self.persist_interval,
             )
             .run(device)
             .await
