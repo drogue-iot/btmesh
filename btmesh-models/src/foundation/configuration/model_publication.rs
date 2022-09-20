@@ -1,9 +1,10 @@
 use crate::foundation::configuration::{AppKeyIndex, ConfigurationMessage, KeyIndex};
 use crate::{Message, Status};
-use btmesh_common::address::{GroupAddress, LabelUuid, UnicastAddress};
+use btmesh_common::address::{GroupAddress, LabelUuid, UnicastAddress, VirtualAddress};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError, Ttl};
 use heapless::Vec;
+use btmesh_common::address::Address;
 
 opcode!( CONFIG_MODEL_PUBLICATION_SET 0x03 );
 opcode!( CONFIG_MODEL_PUBLICATION_GET 0x80, 0x18);
@@ -43,8 +44,8 @@ impl Message for ModelPublicationMessage {
     ) -> Result<(), InsufficientBuffer> {
         match self {
             ModelPublicationMessage::Get(inner) => inner.emit_parameters(xmit),
-            ModelPublicationMessage::Set(inner) => inner.emit_parameters(xmit, false),
-            ModelPublicationMessage::VirtualAddressSet(inner) => inner.emit_parameters(xmit, true),
+            ModelPublicationMessage::Set(inner) => inner.emit_parameters(xmit),
+            ModelPublicationMessage::VirtualAddressSet(inner) => inner.emit_parameters(xmit),
             ModelPublicationMessage::Status(inner) => inner.emit_parameters(xmit),
         }
     }
@@ -108,8 +109,20 @@ impl ModelPublicationGetMessage {
 pub enum PublishAddress {
     Unicast(UnicastAddress),
     Group(GroupAddress),
-    Virtual(LabelUuid),
+    Label(LabelUuid),
+    Virtual(VirtualAddress),
     Unassigned,
+}
+
+impl From<Address> for PublishAddress {
+    fn from(address: Address) -> Self {
+        match address {
+            Address::Unicast(addr) => PublishAddress::Unicast(addr),
+            Address::Virtual(addr) => PublishAddress::Virtual(addr),
+            Address::Group(addr) => PublishAddress::Group(addr),
+            Address::Unassigned => PublishAddress::Unassigned,
+        }
+    }
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -122,9 +135,8 @@ impl ModelPublicationSetMessage {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut Vec<u8, N>,
-        virt: bool,
     ) -> Result<(), InsufficientBuffer> {
-        self.details.emit_parameters(xmit, virt)?;
+        self.details.emit_parameters(xmit)?;
         Ok(())
     }
 
@@ -155,7 +167,7 @@ impl ModelPublicationStatusMessage {
     ) -> Result<(), InsufficientBuffer> {
         xmit.push(self.status as u8)
             .map_err(|_| InsufficientBuffer)?;
-        self.details.emit_parameters(xmit, false)?;
+        self.details.emit_parameters(xmit)?;
         Ok(())
     }
 
@@ -184,7 +196,6 @@ impl PublicationDetails {
     fn emit_parameters<const N: usize>(
         &self,
         xmit: &mut Vec<u8, N>,
-        virt: bool,
     ) -> Result<(), InsufficientBuffer> {
         let addr_bytes = self.element_address.as_bytes();
         xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
@@ -198,19 +209,18 @@ impl PublicationDetails {
             PublishAddress::Group(_addr) => {
                 todo!("group address")
             }
-            PublishAddress::Virtual(addr) => {
-                if virt {
-                    xmit.extend_from_slice(addr.label_uuid())
-                        .map_err(|_| InsufficientBuffer)?;
-                } else {
-                    let addr_bytes = addr.virtual_address().as_bytes();
-                    xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
-                    xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
-                }
+            PublishAddress::Label(addr) => {
+                xmit.extend_from_slice(addr.label_uuid())
+                    .map_err(|_| InsufficientBuffer)?;
             }
             PublishAddress::Unassigned => {
                 xmit.push(0).map_err(|_| InsufficientBuffer)?;
                 xmit.push(0).map_err(|_| InsufficientBuffer)?;
+            }
+            PublishAddress::Virtual(addr) => {
+                let addr_bytes = addr.as_bytes();
+                xmit.push(addr_bytes[1]).map_err(|_| InsufficientBuffer)?;
+                xmit.push(addr_bytes[0]).map_err(|_| InsufficientBuffer)?;
             }
         }
         self.app_key_index.emit(xmit)?;
@@ -239,7 +249,7 @@ impl PublicationDetails {
         if parameters.len() >= 11 {
             let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
             let publish_address =
-                PublishAddress::Unicast(UnicastAddress::parse([parameters[3], parameters[2]])?);
+                PublishAddress::from(Address::parse([parameters[3], parameters[2]]));
             let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[4..=5])?);
             let credential_flag = (parameters[5] & 0b0001000) != 0;
             let publish_ttl = parameters[6];
@@ -269,7 +279,7 @@ impl PublicationDetails {
     fn parse_virtual_address(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() >= 25 {
             let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
-            let publish_address = PublishAddress::Virtual(LabelUuid::parse(&parameters[2..=17])?);
+            let publish_address = PublishAddress::Label(LabelUuid::parse(&parameters[2..=17])?);
 
             let app_key_index = AppKeyIndex(KeyIndex::parse_one(&parameters[18..=19])?);
             let credential_flag = (parameters[19] & 0b0001000) != 0;
@@ -413,7 +423,7 @@ mod tests {
     fn test_pubset_details() {
         let data = PublicationDetails {
             element_address: UnicastAddress::new(0x00aa).unwrap(),
-            publish_address: PublishAddress::Virtual(
+            publish_address: PublishAddress::Label(
                 LabelUuid::new([
                     0xf0, 0xbf, 0xd8, 0x03, 0xcd, 0xe1, 0x84, 0x13, 0x30, 0x96, 0xf0, 0x03, 0xea,
                     0x4a, 0x3d, 0xc2,
@@ -431,7 +441,7 @@ mod tests {
             details: data.clone(),
         };
         let mut parameters: heapless::Vec<u8, 386> = heapless::Vec::new();
-        msg.emit_parameters(&mut parameters, true).unwrap();
+        msg.emit_parameters(&mut parameters).unwrap();
 
         let parsed: ModelPublicationSetMessage =
             ModelPublicationSetMessage::parse_virtual_address(&parameters[..]).unwrap();
