@@ -314,7 +314,8 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let (dst, label_uuid): (Address, _) = match publication.details.publish_address {
                 PublishAddress::Unicast(addr) => (addr.into(), None),
                 PublishAddress::Group(addr) => (addr.into(), None),
-                PublishAddress::Virtual(addr) => (addr.virtual_address().into(), Some(addr)),
+                PublishAddress::Label(addr) => (addr.virtual_address().into(), Some(addr)),
+                PublishAddress::Virtual(addr) => (addr.into(), None),
                 PublishAddress::Unassigned => unreachable!(),
             };
 
