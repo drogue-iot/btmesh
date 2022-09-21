@@ -1,10 +1,10 @@
 use crate::foundation::configuration::{AppKeyIndex, ConfigurationMessage, KeyIndex};
 use crate::{Message, Status};
+use btmesh_common::address::Address;
 use btmesh_common::address::{GroupAddress, LabelUuid, UnicastAddress, VirtualAddress};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError, Ttl};
 use heapless::Vec;
-use btmesh_common::address::Address;
 
 opcode!( CONFIG_MODEL_PUBLICATION_SET 0x03 );
 opcode!( CONFIG_MODEL_PUBLICATION_GET 0x80, 0x18);

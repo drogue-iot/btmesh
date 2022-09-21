@@ -116,7 +116,6 @@ impl ProvisionedStack {
         message: &AccessMessage<ProvisionedStack>,
     ) -> Result<UpperAccessPDU<ProvisionedStack>, DriverError> {
         let seq_zero = sequence.next();
-        info!("encrypt access seq zero: {}", seq_zero);
 
         let mut payload = Vec::<u8, 379>::new();
         message.emit(&mut payload)?;

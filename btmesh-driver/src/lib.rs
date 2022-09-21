@@ -24,7 +24,7 @@ use btmesh_pdu::PDU;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::select::{select, select3, select4, Either, Either3, Either4};
-use embassy_time::{Duration, Timer, Instant};
+use embassy_time::{Duration, Instant, Timer};
 use heapless::Vec;
 use rand_core::{CryptoRng, RngCore};
 
@@ -81,9 +81,15 @@ pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore>
 }
 
 impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R, B> {
-    pub fn new(network: N, mut rng: R, backing_store: B, config: BluetoothMeshDriverConfig) -> Self {
-        let upc =
-            UnprovisionedConfiguration::new(config.uuid.unwrap_or_else(|| Uuid::new_random(&mut rng)));
+    pub fn new(
+        network: N,
+        mut rng: R,
+        backing_store: B,
+        config: BluetoothMeshDriverConfig,
+    ) -> Self {
+        let upc = UnprovisionedConfiguration::new(
+            config.uuid.unwrap_or_else(|| Uuid::new_random(&mut rng)),
+        );
         Self {
             network: Some(network),
             rng: Some(rng),
@@ -104,7 +110,12 @@ pub struct InnerDriver<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: Back
 }
 
 impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDriver<'s, N, R, B> {
-    pub fn new(network: N, rng: R, storage: &'s Storage<B>, persist_interval: Option<Duration>) -> Self {
+    pub fn new(
+        network: N,
+        rng: R,
+        storage: &'s Storage<B>,
+        persist_interval: Option<Duration>,
+    ) -> Self {
         Self {
             stack: RefCell::new(Stack::None),
             network,
@@ -582,12 +593,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
     async fn update_config(&self) -> Result<(), DriverError> {
         let stack = self.stack.borrow_mut();
         match &*stack {
-            Stack::Provisioned { sequence, ..  } => {
-                self.storage.modify_provisioned(|config| {
-                    *config.sequence_mut() = sequence.current();
-                    debug!("Updating config sequence counter to {}", sequence.current());
-                    Ok(())
-                }).await?;
+            Stack::Provisioned { sequence, .. } => {
+                self.storage
+                    .modify_provisioned(|config| {
+                        *config.sequence_mut() = sequence.current();
+                        debug!("Updating config sequence counter to {}", sequence.current());
+                        Ok(())
+                    })
+                    .await?;
             }
             _ => {}
         }
@@ -640,13 +653,11 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 ));
             }
 
-
             let device_state = self.stack.borrow().device_state();
             self.notify_publications(&config, composition).await;
             drop(config);
 
             if let Some(device_state) = device_state {
-
                 let receive_fut = self.network.receive(&device_state, &self.watchdog);
                 let transmit_fut = OUTBOUND.recv();
                 let io_fut = select(receive_fut, transmit_fut);
