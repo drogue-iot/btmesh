@@ -209,6 +209,10 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                         }
                     }
                     Ok((relay_pdu, None)) => (relay_pdu, None, None),
+                    Err(DriverError::InvalidPDU) => {
+                        debug!("invalid PDU (ignored)");
+                        (None, None, None)
+                    }
                     Err(err) => {
                         warn!("error (ignored) processing inbound pdu: {}", err);
                         (None, None, None)
@@ -384,8 +388,14 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     (message, completion_token, 3)
                 }
                 OutboundExtra::Publish => {
-                    let retransmits = config.publications().get(outbound_payload.element_index as u8, outbound_payload.model_identifer)
-                        .map(|p| p.details.publish_retransmit.count()).unwrap_or(3);
+                    let retransmits = config
+                        .publications()
+                        .get(
+                            outbound_payload.element_index as u8,
+                            outbound_payload.model_identifer,
+                        )
+                        .map(|p| p.details.publish_retransmit.count())
+                        .unwrap_or(3);
                     let (message, completion_token) = self.process_outbound_publish(
                         config,
                         element_address,
