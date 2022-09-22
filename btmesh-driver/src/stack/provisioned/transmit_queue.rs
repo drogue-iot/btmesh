@@ -172,12 +172,13 @@ impl<'i, I: Iterator<Item = &'i mut Option<QueueEntry>>> Iterator for QueueIter<
             let result = if let Some(next) = outer {
                 match next {
                     QueueEntry::Nonsegmented(inner) => {
-                        inner.num_retransmit -= 1;
                         if inner.num_retransmit == 0 {
                             should_take = true;
                             if let Some(token) = inner.completion_token.as_ref() {
                                 token.complete();
                             }
+                        } else {
+                            inner.num_retransmit -= 1;
                         }
                         Some(inner.upper_pdu.clone())
                     }

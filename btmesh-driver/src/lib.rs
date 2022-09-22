@@ -373,19 +373,27 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                 .local_element_address(outbound_payload.element_index as u8)
                 .ok_or(DriverError::InvalidState)?;
             let default_ttl = config.foundation().configuration().default_ttl();
-            let (message, completion_token) = match &outbound_payload.extra {
-                OutboundExtra::Send(extra) => self.process_outbound_send(
-                    element_address,
-                    default_ttl,
-                    outbound_payload,
-                    extra,
-                )?,
-                OutboundExtra::Publish => self.process_outbound_publish(
-                    config,
-                    element_address,
-                    default_ttl,
-                    outbound_payload,
-                )?,
+            let (message, completion_token, retransmits) = match &outbound_payload.extra {
+                OutboundExtra::Send(extra) => {
+                    let (message, completion_token) = self.process_outbound_send(
+                        element_address,
+                        default_ttl,
+                        outbound_payload,
+                        extra,
+                    )?;
+                    (message, completion_token, 3)
+                }
+                OutboundExtra::Publish => {
+                    let retransmits = config.publications().get(outbound_payload.element_index as u8, outbound_payload.model_identifer)
+                        .map(|p| p.details.publish_retransmit.count()).unwrap_or(3);
+                    let (message, completion_token) = self.process_outbound_publish(
+                        config,
+                        element_address,
+                        default_ttl,
+                        outbound_payload,
+                    )?;
+                    (message, completion_token, retransmits)
+                }
             };
 
             if let (Some(message), Stack::Provisioned { stack, sequence }) =
@@ -398,6 +406,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     &message,
                     completion_token,
                     &self.watchdog,
+                    retransmits,
                 )?;
 
                 drop(locked_config);

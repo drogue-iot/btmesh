@@ -320,6 +320,7 @@ impl ProvisionedStack {
         message: &Message<ProvisionedStack>,
         completion_token: Option<CompletionToken>,
         watchdog: &Watchdog,
+        retransmits: u8,
     ) -> Result<Vec<NetworkPDU, 8>, DriverError> {
         let upper_pdu = self.process_outbound_message(secrets, sequence, message)?;
         let network_pdus = self.process_outbound_upper_pdu::<8>(sequence, &upper_pdu, false)?;
@@ -328,7 +329,7 @@ impl ProvisionedStack {
             Ordering::Less => { /* nothing */ }
             Ordering::Equal => {
                 self.transmit_queue
-                    .add_nonsegmented(upper_pdu, 3, completion_token)?;
+                    .add_nonsegmented(upper_pdu, retransmits, completion_token)?;
             }
             Ordering::Greater => {
                 self.transmit_queue.add_segmented(

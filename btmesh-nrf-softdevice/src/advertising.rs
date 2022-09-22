@@ -33,7 +33,7 @@ impl AdvertisingBearer for SoftdeviceAdvertisingBearer {
                 &peripheral::Config {
                     max_events: Some(1),
                     timeout: Some(5),
-                    interval: 50,
+                    interval: 200,
                     ..Default::default()
                 },
             )
