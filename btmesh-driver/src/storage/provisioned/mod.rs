@@ -95,7 +95,7 @@ impl ProvisionedConfiguration {
         &self.bindings
     }
 
-    pub(crate) fn bindings_mut(&mut self) -> &mut Bindings {
+    pub fn bindings_mut(&mut self) -> &mut Bindings {
         &mut self.bindings
     }
 
@@ -111,7 +111,7 @@ impl ProvisionedConfiguration {
         &self.publications
     }
 
-    pub(crate) fn publications_mut(&mut self) -> &mut Publications {
+    pub fn publications_mut(&mut self) -> &mut Publications {
         &mut self.publications
     }
 

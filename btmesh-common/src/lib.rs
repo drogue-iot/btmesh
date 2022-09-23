@@ -626,6 +626,14 @@ impl<X: Default> ElementDescriptor<X> {
     }
 }
 
+impl<X: Default> Index<u8> for ElementDescriptor<X> {
+    type Output = ModelDescriptor<X>;
+
+    fn index(&self, index: u8) -> &Self::Output {
+        &self.models[index as usize]
+    }
+}
+
 #[derive(Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelDescriptor<X = ()> {
