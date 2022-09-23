@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-pub(crate) struct ApplicationKeys<const N: usize = 4> {
+pub struct ApplicationKeys<const N: usize = 4> {
     keys: Vec<Option<(NetKeyIndex, ApplicationKey)>, N>,
 }
 
@@ -83,7 +83,7 @@ impl<const N: usize> ApplicationKeys<N> {
         }
     }
 
-    pub(crate) fn add(
+    pub fn add(
         &mut self,
         index: AppKeyIndex,
         net_key_index: NetKeyIndex,

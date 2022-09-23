@@ -40,7 +40,7 @@ impl Secrets {
         self.application_keys.display();
     }
 
-    pub(crate) fn new(
+    pub fn new(
         device_key: DeviceKey,
         network_keys: NetworkKeys,
         application_keys: ApplicationKeys,

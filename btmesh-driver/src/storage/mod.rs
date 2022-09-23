@@ -1,5 +1,5 @@
-use crate::storage::provisioned::ProvisionedConfiguration;
-use crate::storage::unprovisioned::UnprovisionedConfiguration;
+pub use crate::storage::provisioned::ProvisionedConfiguration;
+pub use crate::storage::unprovisioned::UnprovisionedConfiguration;
 use crate::DriverError;
 use btmesh_common::Composition;
 use btmesh_pdu::provisioning::Capabilities;

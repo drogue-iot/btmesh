@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
-pub(crate) struct NetworkKeys<const N: usize = 4> {
+pub struct NetworkKeys<const N: usize = 4> {
     pub(crate) keys: Vec<Option<NetworkKey>, N>,
 }
 
@@ -53,7 +53,7 @@ impl<const N: usize> NetworkKeys<N> {
             .map(move |(index, _)| NetworkKeyHandle::new(NetKeyIndex::new(index as u16), nid))
     }
 
-    pub(crate) fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
+    pub fn set(&mut self, index: u8, network_key: NetworkKey) -> Result<(), DriverError> {
         if index as usize >= N {
             return Err(DriverError::InsufficientSpace);
         }

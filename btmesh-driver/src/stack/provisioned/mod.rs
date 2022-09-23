@@ -41,7 +41,7 @@ pub struct IvIndexState {
 }
 
 impl IvIndexState {
-    pub(crate) fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
+    pub fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
         Self {
             iv_index,
             iv_update_flag,
@@ -70,7 +70,7 @@ impl NetworkState {
         info!("iv_update_flag: {}", self.iv_index_state.iv_update_flag);
     }
 
-    pub(crate) fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
+    pub fn new(iv_index: IvIndex, iv_update_flag: IvUpdateFlag) -> Self {
         Self {
             iv_index_state: IvIndexState::new(iv_index, iv_update_flag),
         }
