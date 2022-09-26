@@ -13,6 +13,7 @@ use btmesh_pdu::provisioned::lower::{BlockAck, SegmentedLowerPDU};
 use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
 use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
+use core::sync::atomic::Ordering;
 
 pub struct InboundSegmentation<const N: usize = 5> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
@@ -72,21 +73,30 @@ impl<const N: usize> InboundSegmentation<N> {
         watchdog: &Watchdog,
     ) -> Result<SegmentationResult, DriverError> {
         let src = pdu.meta().src();
+        info!("process segment, size {}", self.current.len());
         let in_flight = if let Some(current) = self.current.get_mut(&src) {
             current
         } else {
             let in_flight = InFlight::new(pdu);
             in_flight.set_watchdog_expiration(watchdog);
-            self.current
+            let r = self
+                .current
                 .insert(src, in_flight)
                 .map_err(|_| DriverError::InsufficientSpace)?;
-            self.current.get_mut(&src).unwrap()
+            info!("Result after insert: {:?}", r.is_some());
+            info!("Lookup for {}", src);
+
+            core::sync::atomic::compiler_fence(Ordering::SeqCst);
+            //            let r = self.current.get_mut(&src);
+            &mut self.current[&src]
         };
+        info!("are we valid?");
 
         if !in_flight.is_valid(pdu) {
             return Err(DriverError::InvalidPDU);
         }
 
+        info!("already seen?");
         if in_flight.already_seen(pdu)? {
             Ok(SegmentationResult {
                 block_ack: in_flight.block_ack(),
@@ -94,6 +104,7 @@ impl<const N: usize> InboundSegmentation<N> {
                 upper_pdu: None,
             })
         } else {
+            info!("ingest");
             in_flight.ingest(pdu)?;
             Ok(SegmentationResult {
                 block_ack: in_flight.block_ack(),

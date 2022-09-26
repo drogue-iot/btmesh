@@ -221,20 +221,25 @@ impl ProvisionedStack {
         ),
         DriverError,
     > {
+        info!("process inbound network pdu");
         let iv_index = self
             .network_state
             .iv_index_state
             .accepted_iv_index(network_pdu.ivi());
 
+        info!("iv index {}", iv_index);
         if let Some(mut cleartext_network_pdu) =
             self.try_decrypt_network_pdu(secrets, network_pdu, iv_index)?
         {
+            info!("check for replay protectin");
             if cleartext_network_pdu.meta().is_replay_protected() {
+                info!("replay protection enabled");
                 return Ok((None, None));
             }
 
             #[cfg(feature = "relay")]
             if !is_loopback {
+                info!("processing inbound relay message");
                 // do not relay loopback'd pdus.
                 if self
                     .device_info()
@@ -248,11 +253,15 @@ impl ProvisionedStack {
                         .network_message_cache
                         .check(&mut cleartext_network_pdu);
                 }
+            } else {
+                info!("loopback !");
             }
 
+            info!("processing inbound cleartext network pdu");
             let (block_ack_meta, mut upper_pdu) =
                 self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu, watchdog)?;
 
+            info!("checking block meta");
             if let Some((block_ack, meta)) = &block_ack_meta {
                 if let Some(replacement_block_ack) = self.network.replay_protection.check_upper_pdu(
                     meta,
@@ -274,14 +283,17 @@ impl ProvisionedStack {
             }
 
             let message = if let Some(upper_pdu) = &mut upper_pdu {
+                info!("processing inbound upper PDU!");
                 self.process_inbound_upper_pdu(secrets, upper_pdu).ok()
             } else {
                 None
             };
 
+            info!("Checking dst");
             let dst = cleartext_network_pdu.dst();
 
             let relay_pdu = if cleartext_network_pdu.meta().is_relay() {
+                info!("is relay pDU!");
                 Some(cleartext_network_pdu)
             } else {
                 None

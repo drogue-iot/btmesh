@@ -180,6 +180,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
         sequence: &Sequence,
         is_loopback: bool,
     ) -> Result<(), DriverError> {
+        info!("receive_network_pdu");
         let (relay_pdu, block_ack_pdu, result) = self
             .storage
             .read_provisioned(|config| {

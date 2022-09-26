@@ -202,6 +202,7 @@ impl ProvisionedStack {
         iv_index: IvIndex,
     ) -> Result<Option<CleartextNetworkPDU<ProvisionedStack>>, DriverError> {
         let mut result = None;
+        info!("attempt to decrypt");
         for network_key in secrets.network_keys_by_nid(pdu.nid()) {
             if let Ok(pdu) =
                 self.try_decrypt_network_pdu_with_key(secrets, pdu, iv_index, network_key)
@@ -214,6 +215,7 @@ impl ProvisionedStack {
         if let Some(result) = &mut result {
             self.validate_cleartext_network_pdu(result);
         }
+        info!("decrypt complete");
 
         Ok(result)
     }
