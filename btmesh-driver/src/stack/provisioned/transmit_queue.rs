@@ -1,6 +1,6 @@
 use crate::stack::provisioned::ProvisionedStack;
 use crate::{DriverError, Watchdog};
-use btmesh_common::{InsufficientBuffer, SeqZero};
+use btmesh_common::{address::Address, InsufficientBuffer, SeqZero};
 use btmesh_device::CompletionToken;
 use btmesh_pdu::provisioned::lower::{BlockAck, InvalidBlock};
 use btmesh_pdu::provisioned::upper::UpperPDU;
@@ -55,29 +55,38 @@ impl<const N: usize> TransmitQueue<N> {
         num_segments: u8,
         completion_token: Option<CompletionToken>,
         watchdog: &Watchdog,
+        num_retransmits: u8,
     ) -> Result<(), InsufficientBuffer> {
-        let slot = self.queue.iter_mut().find(|e| e.is_none());
+        // Only add as segmented message in the queue if destination is an unicast address that can ack.
+        // If not, add it as a non-segmented message.
+        //
+        // TODO The name 'segmented' really means 'ackable' in this context, so
+        // consider doing a proper renaming in this code.
+        if let Address::Unicast(_) = upper_pdu.meta().dst() {
+            let slot = self.queue.iter_mut().find(|e| e.is_none());
+            let seq_zero = upper_pdu.meta().seq().into();
+            if let Some(slot) = slot {
+                slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
+                    upper_pdu,
+                    acked: Acked::new(seq_zero, num_segments),
+                    completion_token,
+                }));
+            } else {
+                warn!("no space in retransmit queue");
+            }
 
-        let seq_zero = upper_pdu.meta().seq().into();
-
-        if let Some(slot) = slot {
-            slot.replace(QueueEntry::Segmented(SegmentedQueueEntry {
-                upper_pdu,
-                acked: Acked::new(seq_zero, num_segments),
-                completion_token,
-            }));
-        } else {
-            warn!("no space in retransmit queue");
-        }
-
-        for slot in self.queue.iter().flatten() {
-            if let QueueEntry::Segmented(slot) = slot {
-                let timeout = Instant::now()
-                    + Duration::from_millis(
+            for slot in self.queue.iter().flatten() {
+                if let QueueEntry::Segmented(slot) = slot {
+                    let now = Instant::now();
+                    let timeout = Duration::from_millis(
                         200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
                     );
-                watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
+                    let sz: SeqZero = slot.upper_pdu.meta().seq().into();
+                    watchdog.outbound_expiration((now + timeout, sz));
+                }
             }
+        } else {
+            self.add_nonsegmented(upper_pdu, num_retransmits, completion_token)?;
         }
 
         Ok(())
@@ -111,9 +120,14 @@ impl<const N: usize> TransmitQueue<N> {
     }
 
     pub fn expire_outbound(&mut self, seq_zero: &SeqZero) {
+        let mut expired = 0;
+        let mut total = 0;
         for slot in self.queue.iter_mut() {
             if let Some(QueueEntry::Segmented(entry)) = slot {
-                if SeqZero::from(entry.upper_pdu.meta().seq()) == *seq_zero {
+                total += 1;
+                let sz = SeqZero::from(entry.upper_pdu.meta().seq());
+                if sz == *seq_zero {
+                    expired += 1;
                     slot.take();
                 }
             }
@@ -147,11 +161,10 @@ impl<const N: usize> TransmitQueue<N> {
 
         for slot in self.queue.iter().flatten() {
             if let QueueEntry::Segmented(slot) = slot {
-                let timeout = Instant::now()
-                    + Duration::from_millis(
-                        200 + (50 * slot.upper_pdu.meta().ttl().value() as u64),
-                    );
-                watchdog.outbound_expiration((timeout, slot.upper_pdu.meta().seq().into()));
+                let now = Instant::now();
+                let timeout =
+                    Duration::from_millis(200 + (50 * slot.upper_pdu.meta().ttl().value() as u64));
+                watchdog.outbound_expiration((now + timeout, slot.upper_pdu.meta().seq().into()));
             }
         }
         Ok(())

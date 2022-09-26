@@ -337,6 +337,7 @@ impl ProvisionedStack {
                     network_pdus.len() as u8,
                     completion_token,
                     watchdog,
+                    retransmits,
                 )?;
             }
         }
