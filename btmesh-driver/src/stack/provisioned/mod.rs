@@ -365,10 +365,10 @@ impl ProvisionedStack {
     pub fn process_outbound_relay_network_pdu(
         &mut self,
         secrets: &Secrets,
-        sequence: &Sequence,
         pdu: &CleartextNetworkPDU<ProvisionedStack>,
     ) -> Result<Option<NetworkPDU>, DriverError> {
-        let pdu = pdu.relay(sequence.next())?;
+        let orig = pdu;
+        let pdu = orig.relay()?;
         if let Some(pdu) = pdu {
             Ok(Some(self.encrypt_network_pdu(secrets, &pdu)?))
         } else {

@@ -141,7 +141,7 @@ impl<S: System> CleartextNetworkPDU<S> {
         })
     }
 
-    pub fn relay(&self, new_seq: Seq) -> Result<Option<Self>, InsufficientBuffer> {
+    pub fn relay(&self) -> Result<Option<Self>, InsufficientBuffer> {
         if self.ttl.value() == 1 {
             Ok(None)
         } else {
@@ -150,7 +150,7 @@ impl<S: System> CleartextNetworkPDU<S> {
                 nid: self.nid,
                 ctl: self.ctl,
                 ttl: self.ttl.decr(),
-                seq: new_seq,
+                seq: self.seq,
                 src: self.src,
                 dst: self.dst,
                 transport_pdu: Vec::from_slice(&self.transport_pdu)?,

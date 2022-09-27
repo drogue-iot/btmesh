@@ -235,7 +235,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
             let relay_pdu = self
                 .storage
                 .read_provisioned(|config| {
-                    stack.process_outbound_relay_network_pdu(config.secrets(), sequence, &relay_pdu)
+                    stack.process_outbound_relay_network_pdu(config.secrets(), &relay_pdu)
                 })
                 .await;
 
