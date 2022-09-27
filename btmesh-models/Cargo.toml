@@ -10,7 +10,7 @@ btmesh-common = { path = "../btmesh-common"}
 serde = { version = "1.0", default-features = false, features = [ "derive"], optional = true}
 defmt = { version = "0.3", optional = true }
 micromath = { version = "2.0" }
-heapless = "=0.7.13"
+heapless = "0.7"
 
 [features]
 relay = []

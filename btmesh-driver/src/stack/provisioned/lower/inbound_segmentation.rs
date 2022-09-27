@@ -14,7 +14,7 @@ use btmesh_pdu::provisioned::upper::access::UpperAccessPDU;
 use btmesh_pdu::provisioned::upper::control::{ControlOpcode, UpperControlPDU};
 use btmesh_pdu::provisioned::upper::UpperPDU;
 
-pub struct InboundSegmentation<const N: usize = 5> {
+pub struct InboundSegmentation<const N: usize = 4> {
     current: FnvIndexMap<UnicastAddress, InFlight, N>,
 }
 
