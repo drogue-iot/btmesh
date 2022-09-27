@@ -120,14 +120,10 @@ impl<const N: usize> TransmitQueue<N> {
     }
 
     pub fn expire_outbound(&mut self, seq_zero: &SeqZero) {
-        let mut expired = 0;
-        let mut total = 0;
         for slot in self.queue.iter_mut() {
             if let Some(QueueEntry::Segmented(entry)) = slot {
-                total += 1;
                 let sz = SeqZero::from(entry.upper_pdu.meta().seq());
                 if sz == *seq_zero {
-                    expired += 1;
                     slot.take();
                 }
             }
