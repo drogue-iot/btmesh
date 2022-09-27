@@ -231,6 +231,13 @@ impl ProvisionedStack {
         if let Some(mut cleartext_network_pdu) =
             self.try_decrypt_network_pdu(secrets, network_pdu, iv_index)?
         {
+            // Ignore hearing ourselves
+            if self
+                .device_info()
+                .is_local_unicast(Address::Unicast(cleartext_network_pdu.src()))
+            {
+                return Ok((None, None));
+            }
             if cleartext_network_pdu.meta().is_replay_protected() {
                 return Ok((None, None));
             }
