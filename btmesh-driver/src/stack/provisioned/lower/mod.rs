@@ -6,6 +6,7 @@ use crate::stack::provisioned::lower::outbound_segmentation::OutboundSegmentatio
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::system::{LowerMetadata, NetworkMetadata, UpperMetadata};
 use crate::stack::provisioned::ProvisionedStack;
+use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::{DriverError, Secrets, Watchdog};
 use btmesh_common::address::UnicastAddress;
 use btmesh_common::mic::SzMic;
@@ -41,6 +42,7 @@ impl ProvisionedStack {
         &mut self,
         network_pdu: &CleartextNetworkPDU<ProvisionedStack>,
         watchdog: &Watchdog,
+        subscriptions: &Subscriptions,
     ) -> Result<
         (
             Option<(BlockAck, UpperMetadata)>,
@@ -80,8 +82,16 @@ impl ProvisionedStack {
                     // unicast, but not to us.
                     Ok((None, None))
                 } else {
-                    let result = self.lower.inbound_segmentation.process(inner, watchdog)?;
-                    Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
+                    let dst = inner.meta().dst();
+                    // For group addresses, and we have subscriptions for the destination, process it.
+                    if dst.is_unicast() || subscriptions.matches(dst) {
+                        let result = self.lower.inbound_segmentation.process(inner, watchdog)?;
+                        // We only ack local addresses
+                        Ok((Some((result.block_ack, result.meta)), result.upper_pdu))
+                    } else {
+                        // We don't process segments not related to us. Relay behavior is done at a layer above us.
+                        Ok((None, None))
+                    }
                 }
             }
         }

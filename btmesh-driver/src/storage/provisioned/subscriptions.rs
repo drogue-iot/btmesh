@@ -147,6 +147,25 @@ impl<const N: usize> Subscriptions<N> {
         })
     }
 
+    pub fn matches(&self, dst: Address) -> bool {
+        if let Ok(subscription_dst) = dst.try_into() {
+            self.entries
+                .iter()
+                .filter(move |e| {
+                    if let Some(slot) = e {
+                        slot.address == subscription_dst
+                    } else {
+                        false
+                    }
+                })
+                .flatten()
+                .count()
+                > 0
+        } else {
+            false
+        }
+    }
+
     pub fn subscriptions_for(
         &self,
         dst: Address,

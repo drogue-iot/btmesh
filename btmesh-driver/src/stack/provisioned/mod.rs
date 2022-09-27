@@ -3,6 +3,7 @@ use crate::stack::provisioned::network::{DeviceInfo, NetworkDriver};
 use crate::stack::provisioned::sequence::Sequence;
 use crate::stack::provisioned::transmit_queue::TransmitQueue;
 use crate::stack::provisioned::upper::UpperDriver;
+use crate::storage::provisioned::subscriptions::Subscriptions;
 use crate::storage::provisioned::ProvisionedConfiguration;
 use crate::{DriverError, UpperMetadata, Watchdog};
 use btmesh_common::{IvIndex, IvUpdateFlag, Ivi, SeqZero};
@@ -214,6 +215,7 @@ impl ProvisionedStack {
         network_pdu: &NetworkPDU,
         watchdog: &Watchdog,
         is_loopback: bool,
+        subscriptions: &Subscriptions,
     ) -> Result<
         (
             Option<CleartextNetworkPDU<ProvisionedStack>>,
@@ -250,8 +252,11 @@ impl ProvisionedStack {
                 }
             }
 
-            let (block_ack_meta, mut upper_pdu) =
-                self.process_inbound_cleartext_network_pdu(&cleartext_network_pdu, watchdog)?;
+            let (block_ack_meta, mut upper_pdu) = self.process_inbound_cleartext_network_pdu(
+                &cleartext_network_pdu,
+                watchdog,
+                subscriptions,
+            )?;
 
             if let Some((block_ack, meta)) = &block_ack_meta {
                 if let Some(replacement_block_ack) = self.network.replay_protection.check_upper_pdu(
@@ -377,7 +382,12 @@ impl ProvisionedStack {
         watchdog: &Watchdog,
     ) -> Result<Option<NetworkPDU>, DriverError> {
         if let Some((block_ack, meta)) = self.lower.expire_inbound(seq_zero, watchdog) {
-            self.process_outbound_block_ack(secrets, sequence, block_ack, &meta, src)
+            // We only send acks for unicast addresses
+            if meta.dst().is_unicast() {
+                self.process_outbound_block_ack(secrets, sequence, block_ack, &meta, src)
+            } else {
+                Ok(None)
+            }
         } else {
             Ok(None)
         }

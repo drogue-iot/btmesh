@@ -188,6 +188,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     pdu,
                     &self.watchdog,
                     is_loopback,
+                    config.subscriptions(),
                 ) {
                     Ok((relay_pdu, Some(result))) => {
                         if let Some((block_ack, meta)) = &result.block_ack {

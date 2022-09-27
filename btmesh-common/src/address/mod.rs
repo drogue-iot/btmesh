@@ -64,6 +64,13 @@ impl Address {
             unsafe { Self::Virtual(VirtualAddress::new_unchecked(val)) }
         }
     }
+
+    pub fn is_unicast(&self) -> bool {
+        match self {
+            Self::Unicast(_) => true,
+            _ => false,
+        }
+    }
 }
 
 #[cfg(test)]
