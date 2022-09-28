@@ -100,13 +100,14 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
     pub fn new(
         name: &'static str,
         base_address: u32,
+        extra_base_address: Option<u32>,
         sequence_threshold: u32,
         config: BluetoothMeshDriverConfig,
     ) -> Self {
         let sd: &'static Softdevice = enable_softdevice(name);
         let rng = SoftdeviceRng::new(sd);
         let backing_store =
-            FlashBackingStore::new(Flash::take(sd), base_address, sequence_threshold);
+            FlashBackingStore::new(Flash::take(sd), base_address, extra_base_address, sequence_threshold);
         let adv_bearer = SoftdeviceAdvertisingBearer::new(sd);
 
         let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
@@ -152,6 +153,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
     pub fn new(
         name: &'static str,
         base_address: u32,
+        extra_base_address: Option<u32>,
         sequence_threshold: u32,
         config: BluetoothMeshDriverConfig,
     ) -> Self {
@@ -160,7 +162,7 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 
         let rng = SoftdeviceRng::new(sd);
         let backing_store =
-            FlashBackingStore::new(Flash::take(sd), base_address, sequence_threshold);
+            FlashBackingStore::new(Flash::take(sd), base_address, extra_base_address, sequence_threshold);
         let adv_bearer = SoftdeviceAdvertisingBearer::new(sd);
 
         let gatt_bearer = SoftdeviceGattBearer::new(sd, server);

@@ -17,20 +17,61 @@ pub enum LatestLoad {
 pub struct FlashBackingStore<F: AsyncNorFlash, const PAGE_SIZE: u32 = 4096> {
     flash: F,
     base_address: u32,
+    extra_base_address: Option<u32>,
     latest_load: LatestLoad,
     sequence_threshold: u32,
     buffer: AlignedBuffer<USEFUL_BUFFER_SIZE>,
 }
 
 impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
-    pub fn new(flash: F, base_address: u32, sequence_threshold: u32) -> Self {
+    pub fn new(
+        flash: F,
+        base_address: u32,
+        extra_base_address: Option<u32>,
+        sequence_threshold: u32,
+    ) -> Self {
         Self {
             flash,
             base_address,
+            extra_base_address,
             latest_load: LatestLoad::None,
             sequence_threshold,
             buffer: AlignedBuffer([0; USEFUL_BUFFER_SIZE]),
         }
+    }
+
+    async fn load(&mut self, base_address: u32) -> Result<ProvisionedConfiguration, StorageError> {
+        self.flash
+            .read(base_address, &mut self.buffer.0)
+            .await
+            .map_err(|_| StorageError::Load)?;
+
+        let config: ProvisionedConfiguration =
+            from_bytes(&self.buffer.0).map_err(|_| StorageError::Serialization)?;
+
+        Ok(config)
+    }
+
+    // NOTE: Assumes config is serialized to buffer already
+    async fn store(
+        &mut self,
+        base_address: u32,
+        config: &ProvisionedConfiguration,
+    ) -> Result<(), StorageError> {
+        self.flash
+            .erase(base_address, base_address + PAGE_SIZE)
+            .await
+            .map_err(|_| StorageError::Store)?;
+        self.flash
+            .write(base_address, &self.buffer.0)
+            .await
+            .map_err(|_| StorageError::Store)?;
+
+        self.latest_load = LatestLoad::Provisioned {
+            hash: hash_of(config),
+            sequence: config.sequence(),
+        };
+        Ok(())
     }
 }
 
@@ -49,20 +90,32 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
 
     fn load(&mut self) -> Self::LoadFuture<'_> {
         async move {
-            self.flash
-                .read(self.base_address, &mut self.buffer.0)
-                .await
-                .map_err(|_| StorageError::Load)?;
+            let c1 = Self::load(self, self.base_address).await;
+            let c2 = if let Some(base_address) = self.extra_base_address {
+                Self::load(self, base_address).await
+            } else {
+                Err(StorageError::Serialization)
+            };
 
-            let config: ProvisionedConfiguration =
-                from_bytes(&self.buffer.0).map_err(|_| StorageError::Serialization)?;
-
+            let config = match (c1, c2) {
+                (Ok(c1), Ok(c2)) => {
+                    if c1.sequence() > c2.sequence() {
+                        c1
+                    } else {
+                        c2
+                    }
+                }
+                (Ok(c1), _) => c1,
+                (_, Ok(c2)) => c2,
+                (Err(e1), Err(_)) => {
+                    return Err(e1);
+                }
+            };
             let hash = hash_of(&config);
             self.latest_load = LatestLoad::Provisioned {
                 hash,
                 sequence: config.sequence(),
             };
-
             Ok(config)
         }
     }
@@ -71,19 +124,10 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
         async move {
             if should_writeback(self.latest_load, config, self.sequence_threshold) {
                 to_slice(config, &mut self.buffer.0).map_err(|_| StorageError::Serialization)?;
-                self.flash
-                    .erase(self.base_address, self.base_address + PAGE_SIZE)
-                    .await
-                    .map_err(|_| StorageError::Store)?;
-                self.flash
-                    .write(self.base_address, &self.buffer.0)
-                    .await
-                    .map_err(|_| StorageError::Store)?;
-
-                self.latest_load = LatestLoad::Provisioned {
-                    hash: hash_of(config),
-                    sequence: config.sequence(),
-                };
+                Self::store(self, self.base_address, config).await?;
+                if let Some(base_address) = self.extra_base_address {
+                    Self::store(self, base_address, config).await?;
+                }
             }
             Ok(())
         }
@@ -95,6 +139,12 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<
                 .erase(self.base_address, self.base_address + PAGE_SIZE as u32)
                 .await
                 .map_err(|_| StorageError::Store)?;
+            if let Some(base_address) = self.extra_base_address {
+                self.flash
+                    .erase(base_address, base_address + PAGE_SIZE as u32)
+                    .await
+                    .map_err(|_| StorageError::Store)?;
+            }
             self.latest_load = LatestLoad::None;
             Ok(())
         }

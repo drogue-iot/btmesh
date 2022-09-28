@@ -26,7 +26,13 @@ extern "C" {
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
     let p = embassy_nrf::init(config());
-    let mut driver = Driver::new("drogue", unsafe { &__storage as *const u8 as u32 }, 100, Default::default());
+    let mut driver = Driver::new(
+        "drogue",
+        unsafe { &__storage as *const u8 as u32 },
+        None,
+        100,
+        Default::default(),
+    );
 
     let mut device = Device::new(p.P0_13.degrade(), p.P0_11.degrade());
     driver.run(&mut device).await.unwrap();
