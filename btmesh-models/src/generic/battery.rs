@@ -123,7 +123,7 @@ impl GenericBatteryFlags {
             _ => panic!("impossible!"),
         };
 
-        let presence = match (v >> 2) & 0b11 {
+        let presence = match (v >> 4) & 0b11 {
             0b00 => GenericBatteryFlagsPresence::NotPresent,
             0b01 => GenericBatteryFlagsPresence::PresentRemovable,
             0b10 => GenericBatteryFlagsPresence::PresentNotRemovable,
