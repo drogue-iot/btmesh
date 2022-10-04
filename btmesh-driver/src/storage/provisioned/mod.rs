@@ -61,9 +61,11 @@ impl ProvisionedConfiguration {
     }
 
     pub fn display(&self, composition: &Composition) {
-        info!("========================================================================");
-        info!("=  Provisioned                                                         =");
-        info!("------------------------------------------------------------------------");
+        info!(
+            " =====================================================================\n\
+            \t\t=  Provisioned                                                      =\n\
+            \t\t---------------------------------------------------------------------"
+        );
         info!("seq: {}", self.sequence);
         self.device_info.display();
         self.network_state.display();
