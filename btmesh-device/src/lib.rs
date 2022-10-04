@@ -25,13 +25,14 @@ use core::pin::Pin;
 use core::task::{Context, Poll};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
-use embassy_sync::signal::Signal;
 use embassy_time::Duration;
 pub use futures::future::join;
 pub use futures::future::select;
 pub use futures::future::Either;
 pub use futures::pin_mut;
 use heapless::Vec;
+
+pub type Signal<T> = embassy_sync::signal::Signal<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
 
 pub type InboundChannel =
     Channel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
@@ -278,18 +279,6 @@ impl Drop for CompletionToken {
         if !self.signal.signaled() {
             self.incomplete()
         }
-    }
-}
-
-pub struct CompletionFuture {
-    signal: &'static Signal<CompletionStatus>,
-}
-
-impl Future for CompletionFuture {
-    type Output = CompletionStatus;
-
-    fn poll(self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        self.signal.poll_wait(cx)
     }
 }
 

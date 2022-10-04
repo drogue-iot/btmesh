@@ -8,8 +8,9 @@ use btmesh_device::{
 };
 use btmesh_models::Message;
 use core::future::Future;
-use embassy_sync::signal::Signal;
+//use btmesh_device::Signal;
 use heapless::Vec;
+use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 
 pub(crate) struct DeviceContext {
     inbound: InboundChannelReceiver,
@@ -132,7 +133,7 @@ impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
         &self,
         message: M::Message,
         meta: OutboundMetadata,
-        signal: &'static Signal<CompletionStatus>,
+        signal: &'static Signal<CriticalSectionRawMutex, CompletionStatus>,
     ) -> Self::SendWithCompletionFuture<'_> {
         async move {
             let opcode = message.opcode();
