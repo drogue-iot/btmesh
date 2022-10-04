@@ -339,7 +339,7 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                 where Self: 'f,
                 C: ::btmesh_device::BluetoothMeshElementContext + 'f;
 
-            fn run<'run, C: ::btmesh_device::BluetoothMeshElementContext + 'run>(&mut self, ctx: C) -> Self::RunFuture<'_, C> {
+            fn run<'run, C: ::btmesh_device::BluetoothMeshElementContext + 'run>(&'run mut self, ctx: C) -> Self::RunFuture<'run, C> {
                                 use btmesh_device::BluetoothMeshElementContext;
                 async move {
                     #run_prolog

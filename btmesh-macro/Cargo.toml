@@ -17,3 +17,8 @@ darling = "0.14.1"
 proc-macro2 = "1.0.24"
 regex = "1.6.0"
 prettyplease = "0.1.18"
+
+[dev-dependencies]
+btmesh-device = { path = "../btmesh-device" }
+btmesh-models = { path = "../btmesh-models" }
+embassy-time = { version = "0.1.0", default-features = false, features = ["std"] }
