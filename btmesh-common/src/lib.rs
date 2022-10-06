@@ -487,7 +487,7 @@ pub struct Composition<X: Default = ()> {
     pub(crate) cid: CompanyIdentifier,
     pub(crate) pid: ProductIdentifier,
     pub(crate) vid: VersionIdentifier,
-    pub(crate) crpl: u16, // Count Reply Protection List
+    pub(crate) crpl: u16, // Count Replay Protection List
     pub(crate) features: Features,
     pub(crate) elements: Vec<ElementDescriptor<X>, 4>,
 }
