@@ -36,11 +36,7 @@ impl UnprovisionedStack {
     }
 
     pub fn in_progress(&self) -> bool {
-        if let Some(provisionee) = &self.provisionee {
-            provisionee.in_progress()
-        } else {
-            false
-        }
+        self.provisionee.as_ref().map_or(false, |p| p.in_progress())
     }
 
     pub fn next_beacon_deadline(&self) -> Option<DeadlineFuture<'_>> {
@@ -117,5 +113,16 @@ impl UnprovisionedStack {
         } else {
             Err(DriverError::InvalidState)
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    pub fn in_progress() {
+        let unprov = UnprovisionedStack::new(Default::default());
+        assert_eq!(unprov.in_progress(), false);
     }
 }
