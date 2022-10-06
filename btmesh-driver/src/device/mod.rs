@@ -9,8 +9,8 @@ use btmesh_device::{
 use btmesh_models::Message;
 use core::future::Future;
 //use btmesh_device::Signal;
-use heapless::Vec;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
+use heapless::Vec;
 
 pub(crate) struct DeviceContext {
     inbound: InboundChannelReceiver,

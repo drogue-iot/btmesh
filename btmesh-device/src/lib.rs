@@ -32,7 +32,8 @@ pub use futures::future::Either;
 pub use futures::pin_mut;
 use heapless::Vec;
 
-pub type Signal<T> = embassy_sync::signal::Signal<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
+pub type Signal<T> =
+    embassy_sync::signal::Signal<embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex, T>;
 
 pub type InboundChannel =
     Channel<CriticalSectionRawMutex, AccessCountedHandle<'static, InboundPayload>, 1>;
