@@ -1,8 +1,8 @@
 #![feature(type_alias_impl_trait)]
 
+use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use btmesh_macro::*;
 use btmesh_models::generic::onoff::GenericOnOffServer;
-use btmesh_device::{BluetoothMeshModel, BluetoothMeshModelContext};
 use core::future::Future;
 
 #[test]
@@ -23,9 +23,7 @@ fn test_element_macro() {
             &'run mut self,
             _: C,
         ) -> Self::RunFuture<'_, C> {
-            async move {
-                loop {}
-            }
+            async move { loop {} }
         }
     }
 }
