@@ -21,8 +21,6 @@ use btmesh_models::foundation::configuration::model_publication::{PublishPeriod,
 use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 pub use btmesh_models::Model;
 use core::future::Future;
-use core::pin::Pin;
-use core::task::{Context, Poll};
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_time::Duration;
