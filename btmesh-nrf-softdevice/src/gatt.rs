@@ -1,12 +1,12 @@
 use atomic_polyfill::AtomicBool;
 use btmesh_bearer::{BearerError, GattBearer};
+use btmesh_device::Signal;
 use core::cell::RefCell;
 use core::future::Future;
 use core::sync::atomic::Ordering;
 use embassy_futures::select::select;
 use embassy_sync::blocking_mutex::raw::ThreadModeRawMutex;
 use embassy_sync::channel::Channel;
-use btmesh_device::Signal;
 use heapless::Vec;
 use nrf_softdevice::ble::peripheral::AdvertiseError;
 use nrf_softdevice::ble::{gatt_server, peripheral, Connection};

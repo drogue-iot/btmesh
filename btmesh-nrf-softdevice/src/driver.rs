@@ -6,7 +6,9 @@ use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
-use btmesh_driver::{BluetoothMeshDriver, Driver as BaseDriver, BluetoothMeshDriverConfig, DriverError};
+use btmesh_driver::{
+    BluetoothMeshDriver, BluetoothMeshDriverConfig, Driver as BaseDriver, DriverError,
+};
 use core::future::{join, Future};
 use core::mem;
 use nrf_softdevice::{raw, Flash, Softdevice};
@@ -106,8 +108,12 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
     ) -> Self {
         let sd: &'static Softdevice = enable_softdevice(name);
         let rng = SoftdeviceRng::new(sd);
-        let backing_store =
-            FlashBackingStore::new(Flash::take(sd), base_address, extra_base_address, sequence_threshold);
+        let backing_store = FlashBackingStore::new(
+            Flash::take(sd),
+            base_address,
+            extra_base_address,
+            sequence_threshold,
+        );
         let adv_bearer = SoftdeviceAdvertisingBearer::new(sd);
 
         let network = AdvertisingOnlyNetworkInterfaces::new(adv_bearer);
@@ -161,8 +167,12 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
         let server = MeshGattServer::new(sd).unwrap();
 
         let rng = SoftdeviceRng::new(sd);
-        let backing_store =
-            FlashBackingStore::new(Flash::take(sd), base_address, extra_base_address, sequence_threshold);
+        let backing_store = FlashBackingStore::new(
+            Flash::take(sd),
+            base_address,
+            extra_base_address,
+            sequence_threshold,
+        );
         let adv_bearer = SoftdeviceAdvertisingBearer::new(sd);
 
         let gatt_bearer = SoftdeviceGattBearer::new(sd, server);
