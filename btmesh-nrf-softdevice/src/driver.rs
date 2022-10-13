@@ -13,6 +13,7 @@ use nrf_softdevice::{raw, Flash, Softdevice};
 
 #[allow(clippy::mut_from_ref)]
 fn enable_softdevice(device_name: &'static str) -> &'static mut Softdevice {
+    #[allow(unused_mut)]
     let mut config = nrf_softdevice::Config {
         clock: Some(raw::nrf_clock_lf_cfg_t {
             source: raw::NRF_CLOCK_LF_SRC_RC as u8,
