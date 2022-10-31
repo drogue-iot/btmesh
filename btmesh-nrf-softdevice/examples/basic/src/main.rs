@@ -2,6 +2,7 @@
 #![no_main]
 #![macro_use]
 #![feature(type_alias_impl_trait)]
+#![feature(default_alloc_error_handler)]
 
 use embassy_executor::Spawner;
 
@@ -15,6 +16,9 @@ use embassy_nrf::gpio::Pin;
 use panic_probe as _;
 
 mod device;
+
+// TODO: not this!
+mod dummy;
 
 use device::Device;
 
