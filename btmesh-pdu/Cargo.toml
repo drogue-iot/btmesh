@@ -9,7 +9,7 @@ edition = "2021"
 
 heapless = "0.7"
 defmt = { version = "0.3.1", optional = true }
-btmesh-common = { path = "../btmesh-common", features = ["defmt" ]}
+btmesh-common = { path = "../btmesh-common", features = ["defmt"], default-features = false }
 p256 = { version = "0.10.0", default-features = false, features = [ "arithmetic" ] }
 serde = { version = "1.0", default-features = false, features = [ "derive"], optional = true}
 
