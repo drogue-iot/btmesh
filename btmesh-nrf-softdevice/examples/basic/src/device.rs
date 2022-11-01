@@ -80,7 +80,7 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
                                 .into(),
                                 meta.reply(),
                             )
-                            .await;
+                            .await?;
                         }
                         GenericOnOffMessage::SetUnacknowledged(val) => {
                             if val.on_off == 0 {
