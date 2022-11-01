@@ -20,3 +20,5 @@ jobs:
       run: cargo build 
     - name: Run tests
       run: cargo test --verbose
+    - name: nrf-softdevice
+      run: cd btmesh-nrf-softdevice/examples/basic && cargo build --release

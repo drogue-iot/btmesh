@@ -6,20 +6,20 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-aes = { version = "0.7", default-features = false }
+aes = { version = "0.7.5", default-features = false }
 ccm = { version = "0.4.4", default-features = false }
 cmac = { version = "0.6.0", default-features = false }
 heapless = "0.7"
-hash32 = { version = "0.2.1" }
-hash32-derive = "0.1.1"
+hash32 = { version = "0.2.1", default-features = false }
+hash32-derive = { version = "0.1.1", default-features = false }
 rand_core = { version = "0.6.2", default-features = false }
-uuid = { version = "1", default-features = false }
+uuid = { version = "=1.1.2", default-features = false }
 #logging
 log = { version = "0.4", optional = true }
 defmt = { version = "0.3", optional = true }
 serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
 darling = { version = "0.14.1", optional = true }
-syn = { version = "1.0.89", features = ["full", "extra-traits"], optional = true }
+syn = { version = "1.0.89", default-features = false, features = ["full", "extra-traits"], optional = true }
 
 
 [features]
