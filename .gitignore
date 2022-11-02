@@ -5,3 +5,6 @@ target/
 log
 tmp
 memusage.txt
+
+# Don't ignore lock for example app
+!btmesh-nrf-softdevice/examples/basic/Cargo.lock
