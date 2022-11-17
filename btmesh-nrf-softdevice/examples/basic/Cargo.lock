@@ -686,7 +686,6 @@ dependencies = [
  "embedded-storage",
  "fixed",
  "futures",
- "nrf52833-pac",
  "nrf52840-pac",
  "rand_core",
 ]
@@ -980,7 +979,6 @@ dependencies = [
  "heapless",
  "nrf-softdevice-macro",
  "nrf-softdevice-s140",
- "nrf52833-pac",
  "nrf52840-pac",
  "num_enum",
 ]
@@ -1002,17 +1000,6 @@ dependencies = [
 name = "nrf-softdevice-s140"
 version = "0.1.1"
 source = "git+https://github.com/embassy-rs/nrf-softdevice/?rev=8f9895f82069c8f4e388f5b92a50ccb6c2652be5#8f9895f82069c8f4e388f5b92a50ccb6c2652be5"
-
-[[package]]
-name = "nrf52833-pac"
-version = "0.12.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "10e1358255b360cdc816dd7b6ef81be8c8499c0998277e5249bed222bd0f5241"
-dependencies = [
- "cortex-m",
- "cortex-m-rt",
- "vcell",
-]
 
 [[package]]
 name = "nrf52840-pac"
