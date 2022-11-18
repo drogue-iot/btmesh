@@ -21,4 +21,6 @@ jobs:
     - name: Run tests
       run: cargo test --verbose
     - name: nrf-softdevice
-      run: cd btmesh-nrf-softdevice/examples/basic && cargo build --release
+      run: |
+        cd btmesh-nrf-softdevice/examples/microbit/basic && cargo build --release
+        cd btmesh-nrf-softdevice/examples/nrf52840-dk/basic && cargo build --release
