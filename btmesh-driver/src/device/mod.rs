@@ -7,7 +7,6 @@ use btmesh_device::{
     OutboundMetadata, OutboundPayload, SendExtra,
 };
 use btmesh_models::Message;
-use core::future::Future;
 //use btmesh_device::Signal;
 use embassy_sync::{blocking_mutex::raw::CriticalSectionRawMutex, signal::Signal};
 use heapless::Vec;
@@ -38,12 +37,8 @@ impl BluetoothMeshDeviceContext for DeviceContext {
         }
     }
 
-    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
-        where
-            Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
+    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload> {
+        self.inbound.recv().await
     }
 }
 
@@ -69,12 +64,8 @@ impl BluetoothMeshElementContext for ElementContext {
         }
     }
 
-    type ReceiveFuture<'f> = impl Future<Output =AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-    Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
+    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload> {
+        self.inbound.recv().await
     }
 }
 
@@ -86,100 +77,74 @@ pub(crate) struct ModelContext<'m, M: Model> {
 }
 
 impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
-    type ReceiveFuture<'f> = impl Future<Output = InboundModelPayload<M::Message>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_> {
-        self.inbound.recv()
+    async fn receive(&self) -> InboundModelPayload<M::Message> {
+        self.inbound.recv().await
     }
 
-    type SendFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn send(&self, message: M::Message, meta: OutboundMetadata) -> Self::SendFuture<'_> {
-        async move {
-            let opcode = message.opcode();
-            let mut parameters = Vec::new();
-            if message.emit_parameters(&mut parameters).is_ok() {
-                self.outbound
-                    .send(OutboundPayload {
-                        element_index: self.element_index,
-                        model_identifer: self.model_identifier,
-                        opcode,
-                        parameters,
-                        extra: SendExtra {
-                            meta,
-                            completion_token: None,
-                        }
-                        .into(),
-                    })
-                    .await;
-            }
-
-            Ok(())
+    async fn send(&self, message: M::Message, meta: OutboundMetadata) -> Result<(), ()> {
+        let opcode = message.opcode();
+        let mut parameters = Vec::new();
+        if message.emit_parameters(&mut parameters).is_ok() {
+            self.outbound
+                .send(OutboundPayload {
+                    element_index: self.element_index,
+                    model_identifer: self.model_identifier,
+                    opcode,
+                    parameters,
+                    extra: SendExtra {
+                        meta,
+                        completion_token: None,
+                    }
+                    .into(),
+                })
+                .await;
         }
+
+        Ok(())
     }
 
-    type SendWithCompletionFuture<'f> = impl Future<Output = CompletionStatus> + 'f
-    where
-    Self: 'f,
-    M: 'f;
-
-    fn send_with_completion(
+    async fn send_with_completion(
         &self,
         message: M::Message,
         meta: OutboundMetadata,
         signal: &'static Signal<CriticalSectionRawMutex, CompletionStatus>,
-    ) -> Self::SendWithCompletionFuture<'_> {
-        async move {
-            let opcode = message.opcode();
-            let mut parameters = Vec::new();
-            if message.emit_parameters(&mut parameters).is_ok() {
-                self.outbound
-                    .send(OutboundPayload {
-                        element_index: self.element_index,
-                        model_identifer: self.model_identifier,
-                        opcode,
-                        parameters,
-                        extra: SendExtra {
-                            meta,
-                            completion_token: Some(CompletionToken::new(signal)),
-                        }
-                        .into(),
-                    })
-                    .await;
-            }
-
-            signal.wait().await
+    ) -> CompletionStatus {
+        let opcode = message.opcode();
+        let mut parameters = Vec::new();
+        if message.emit_parameters(&mut parameters).is_ok() {
+            self.outbound
+                .send(OutboundPayload {
+                    element_index: self.element_index,
+                    model_identifer: self.model_identifier,
+                    opcode,
+                    parameters,
+                    extra: SendExtra {
+                        meta,
+                        completion_token: Some(CompletionToken::new(signal)),
+                    }
+                    .into(),
+                })
+                .await;
         }
+
+        signal.wait().await
     }
 
-    type PublishFuture<'f> = impl Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn publish(&self, message: M::Message) -> Self::PublishFuture<'_> {
-        async move {
-            let opcode = message.opcode();
-            let mut parameters = Vec::new();
-            if message.emit_parameters(&mut parameters).is_ok() {
-                self.outbound
-                    .send(OutboundPayload {
-                        element_index: self.element_index,
-                        model_identifer: self.model_identifier,
-                        opcode,
-                        parameters,
-                        extra: OutboundExtra::Publish,
-                    })
-                    .await;
-            }
-
-            Ok(())
+    async fn publish(&self, message: M::Message) -> Result<(), ()> {
+        let opcode = message.opcode();
+        let mut parameters = Vec::new();
+        if message.emit_parameters(&mut parameters).is_ok() {
+            self.outbound
+                .send(OutboundPayload {
+                    element_index: self.element_index,
+                    model_identifer: self.model_identifier,
+                    opcode,
+                    parameters,
+                    extra: OutboundExtra::Publish,
+                })
+                .await;
         }
+
+        Ok(())
     }
 }

@@ -1,5 +1,7 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(type_alias_impl_trait)]
+#![feature(async_fn_in_trait)]
+#![allow(incomplete_features)]
 #![feature(associated_type_defaults)]
 #![allow(dead_code)]
 #![allow(clippy::await_holding_refcell_ref)]

@@ -1,6 +1,7 @@
 #![cfg_attr(not(test), no_std)]
-#![feature(type_alias_impl_trait)]
 #![feature(associated_type_defaults)]
+#![feature(async_fn_in_trait)]
+#![allow(incomplete_features)]
 #![allow(dead_code)]
 
 pub mod access_counted;
@@ -20,7 +21,6 @@ use btmesh_common::{IvIndex, ParseError, Ttl};
 use btmesh_models::foundation::configuration::model_publication::{PublishPeriod, Resolution};
 use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 pub use btmesh_models::Model;
-use core::future::Future;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 pub use embassy_sync::channel::{Channel, Receiver, Sender};
 use embassy_time::Duration;
@@ -136,39 +136,19 @@ pub trait BluetoothMeshDeviceContext {
         inbound: InboundChannelReceiver,
     ) -> Self::ElementContext;
 
-    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-        Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload>;
 }
 
 pub trait BluetoothMeshDevice {
     fn composition(&self) -> Composition<CompositionExtra>;
 
-    type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        C: BluetoothMeshDeviceContext + 'f;
-
-    fn run<'run, C: BluetoothMeshDeviceContext + 'run>(
-        &'run mut self,
-        ctx: C,
-    ) -> Self::RunFuture<'run, C>;
+    async fn run<C: BluetoothMeshDeviceContext>(&mut self, ctx: C) -> Result<(), ()>;
 }
 
 pub trait BluetoothMeshElement {
     fn populate(&self, composition: &mut Composition<CompositionExtra>);
 
-    type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        C: BluetoothMeshElementContext + 'f;
-
-    fn run<'run, C: BluetoothMeshElementContext + 'run>(
-        &'run mut self,
-        ctx: C,
-    ) -> Self::RunFuture<'run, C>;
+    async fn run<C: BluetoothMeshElementContext>(&mut self, ctx: C) -> Result<(), ()>;
 }
 
 pub trait BluetoothMeshElementContext {
@@ -182,25 +162,13 @@ pub trait BluetoothMeshElementContext {
         inbound: InboundModelChannelReceiver<'m, M::Message>,
     ) -> Self::ModelContext<'m, M>;
 
-    type ReceiveFuture<'f>: Future<Output = AccessCountedHandle<'static, InboundPayload>> + 'f
-    where
-        Self: 'f;
-
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload>;
 }
 
 pub trait BluetoothMeshModel<M: Model> {
     type Model: Model = M;
 
-    type RunFuture<'f, C>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        C: BluetoothMeshModelContext<M> + 'f;
-
-    fn run<'run, C: BluetoothMeshModelContext<M> + 'run>(
-        &'run mut self,
-        ctx: C,
-    ) -> Self::RunFuture<'_, C>;
+    async fn run<C: BluetoothMeshModelContext<M>>(&mut self, ctx: C) -> Result<(), ()>;
 
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER
@@ -215,38 +183,18 @@ pub type ParseFunction<M> =
     for<'r> fn(&Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
 
 pub trait BluetoothMeshModelContext<M: Model> {
-    type ReceiveFuture<'f>: Future<Output = InboundModelPayload<M::Message>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
+    async fn receive(&self) -> InboundModelPayload<M::Message>;
 
-    fn receive(&self) -> Self::ReceiveFuture<'_>;
+    async fn send(&self, message: M::Message, meta: OutboundMetadata) -> Result<(), ()>;
 
-    type SendFuture<'f>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn send(&self, message: M::Message, meta: OutboundMetadata) -> Self::SendFuture<'_>;
-
-    type SendWithCompletionFuture<'f>: Future<Output = CompletionStatus> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn send_with_completion(
+    async fn send_with_completion(
         &self,
         message: M::Message,
         meta: OutboundMetadata,
         signal: &'static Signal<CompletionStatus>,
-    ) -> Self::SendWithCompletionFuture<'_>;
+    ) -> CompletionStatus;
 
-    type PublishFuture<'f>: Future<Output = Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        M: 'f;
-
-    fn publish(&self, message: M::Message) -> Self::PublishFuture<'_>;
+    async fn publish(&self, message: M::Message) -> Result<(), ()>;
 }
 
 pub enum CompletionStatus {

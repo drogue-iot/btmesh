@@ -38,6 +38,7 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
     let mut device_struct = syn::parse_macro_input!(item as syn::ItemStruct);
 
     let generics = device_struct.generics.clone();
+    let mut lifetime_params = TokenStream2::new();
     let mut generic_params = TokenStream2::new();
     if !generics.params.is_empty() {
         generic_params.extend(quote!( < ));
@@ -51,9 +52,12 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 }
                 GenericParam::Lifetime(l) => {
                     let l = l.lifetime.clone();
+                    lifetime_params.extend(quote! {
+                        #l
+                    });
                     generic_params.extend(quote! {
                         #l,
-                    })
+                    });
                 }
                 GenericParam::Const(c) => {
                     let c = c.ident.clone();
@@ -143,29 +147,23 @@ pub fn device(args: TokenStream, item: TokenStream) -> TokenStream {
                 composition
             }
 
-            type RunFuture<'f, C> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f,
-                C: ::btmesh_device::BluetoothMeshDeviceContext + 'f;
-
-            fn run<'run, C: ::btmesh_device::BluetoothMeshDeviceContext + 'run>(&'run mut self, ctx: C) -> Self::RunFuture<'run, C> {
+            async fn run<C: ::btmesh_device::BluetoothMeshDeviceContext>(&mut self, ctx: C) -> Result<(), ()> {
                 use btmesh_device::BluetoothMeshElementContext;
-                async move {
-                    #run_prolog
-                    ::btmesh_device::join(
-                        async move {
-                            loop {
-                                let message = ctx.receive().await;
-                                let target_element_index = message.element_index;
-                                #fanout
-                            }
-                        },
-                        #future_struct_name::new(
-                            #ctor_params
-                        ),
-                    ).await.1.ok();
+                #run_prolog
+                ::btmesh_device::join(
+                    async move {
+                        loop {
+                            let message = ctx.receive().await;
+                            let target_element_index = message.element_index;
+                            #fanout
+                        }
+                    },
+                    #future_struct_name::new(
+                        #ctor_params
+                    ),
+                ).await.1.ok();
 
-                    Ok(())
-                }
+                Ok(())
             }
         }
 
@@ -335,28 +333,22 @@ pub fn element(args: TokenStream, item: TokenStream) -> TokenStream {
                 composition.add_element(descriptor).ok();
             }
 
-            type RunFuture<'f,C> = impl Future<Output = Result<(), ()>> + 'f
-                where Self: 'f,
-                C: ::btmesh_device::BluetoothMeshElementContext + 'f;
+            async fn run<C: ::btmesh_device::BluetoothMeshElementContext>(&mut self, ctx: C) -> Result<(), ()> {
+                use btmesh_device::BluetoothMeshElementContext;
+                #run_prolog
+                ::btmesh_device::join(
+                    async {
+                        loop {
+                            let message = ctx.receive().await;
+                            #fanout
+                        }
+                    },
+                    #future_struct_name::new(
+                        #ctor_params
+                    ),
+                ).await.1.ok();
 
-            fn run<'run, C: ::btmesh_device::BluetoothMeshElementContext + 'run>(&'run mut self, ctx: C) -> Self::RunFuture<'run, C> {
-                                use btmesh_device::BluetoothMeshElementContext;
-                async move {
-                    #run_prolog
-                    ::btmesh_device::join(
-                        async {
-                            loop {
-                                let message = ctx.receive().await;
-                                #fanout
-                            }
-                        },
-                        #future_struct_name::new(
-                            #ctor_params
-                        ),
-                    ).await.1.ok();
-
-                    Ok(())
-                }
+                Ok(())
             }
         }
     ));
