@@ -1,6 +1,4 @@
 #![cfg_attr(not(test), no_std)]
-#![feature(type_alias_impl_trait)]
-#![feature(associated_type_defaults)]
 #![allow(dead_code)]
 
 #[allow(unused_imports)]

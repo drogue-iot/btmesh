@@ -3,7 +3,6 @@ use btmesh_macro::{device, element};
 use btmesh_models::generic::onoff::{
     GenericOnOffClient, GenericOnOffMessage, GenericOnOffServer, Set, Status,
 };
-use core::future::Future;
 use embassy_futures::select::{select, Either};
 use embassy_nrf::gpio::{AnyPin, Input, Level, Output, OutputDrive, Pull};
 
@@ -48,50 +47,43 @@ impl<'d> MyOnOffServerHandler<'d> {
 }
 
 impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
-    type RunFuture<'f, C> = impl Future<Output=Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        C: BluetoothMeshModelContext<GenericOnOffServer> + 'f;
-
-    fn run<'run, C: BluetoothMeshModelContext<GenericOnOffServer> + 'run>(
-        &'run mut self,
+    async fn run<C: BluetoothMeshModelContext<GenericOnOffServer>>(
+        &mut self,
         ctx: C,
-    ) -> Self::RunFuture<'_, C> {
-        async move {
-            loop {
-                let payload = ctx.receive().await;
-                if let InboundModelPayload::Message(message, meta) = payload {
-                    match message {
-                        GenericOnOffMessage::Get => {}
-                        GenericOnOffMessage::Set(val) => {
-                            let present_on_off = if val.on_off == 0 {
-                                self.led.set_high();
-                                0
-                            } else {
-                                self.led.set_low();
-                                1
-                            };
-                            ctx.send(
-                                Status {
-                                    present_on_off,
-                                    target_on_off: present_on_off,
-                                    remaining_time: 0,
-                                }
-                                .into(),
-                                meta.reply(),
-                            )
-                            .await?;
-                        }
-                        GenericOnOffMessage::SetUnacknowledged(val) => {
-                            if val.on_off == 0 {
-                                self.led.set_high();
-                            } else {
-                                self.led.set_low();
+    ) -> Result<(), ()> {
+        loop {
+            let payload = ctx.receive().await;
+            if let InboundModelPayload::Message(message, meta) = payload {
+                match message {
+                    GenericOnOffMessage::Get => {}
+                    GenericOnOffMessage::Set(val) => {
+                        let present_on_off = if val.on_off == 0 {
+                            self.led.set_high();
+                            0
+                        } else {
+                            self.led.set_low();
+                            1
+                        };
+                        ctx.send(
+                            Status {
+                                present_on_off,
+                                target_on_off: present_on_off,
+                                remaining_time: 0,
                             }
+                            .into(),
+                            meta.reply(),
+                        )
+                        .await?;
+                    }
+                    GenericOnOffMessage::SetUnacknowledged(val) => {
+                        if val.on_off == 0 {
+                            self.led.set_high();
+                        } else {
+                            self.led.set_low();
                         }
-                        GenericOnOffMessage::Status(_) => {
-                            // not applicable
-                        }
+                    }
+                    GenericOnOffMessage::Status(_) => {
+                        // not applicable
                     }
                 }
             }
@@ -112,38 +104,31 @@ impl MyOnOffClientHandler<'_> {
 }
 
 impl BluetoothMeshModel<GenericOnOffClient> for MyOnOffClientHandler<'_> {
-    type RunFuture<'f, C> = impl Future<Output=Result<(), ()>> + 'f
-    where
-        Self: 'f,
-        C: BluetoothMeshModelContext<GenericOnOffClient> + 'f;
-
     #[allow(clippy::await_holding_refcell_ref)]
-    fn run<'run, C: BluetoothMeshModelContext<GenericOnOffClient> + 'run>(
-        &'run mut self,
+    async fn run<C: BluetoothMeshModelContext<GenericOnOffClient>>(
+        &mut self,
         ctx: C,
-    ) -> Self::RunFuture<'_, C> {
-        async move {
-            let mut tid = 0;
-            loop {
-                let button_fut = self.button.wait_for_any_edge();
-                let message_fut = ctx.receive();
+    ) -> Result<(), ()> {
+        let mut tid = 0;
+        loop {
+            let button_fut = self.button.wait_for_any_edge();
+            let message_fut = ctx.receive();
 
-                match select(button_fut, message_fut).await {
-                    Either::First(_) => {
-                        defmt::info!("** button toggled {}", tid);
-                        ctx.publish(GenericOnOffMessage::Set(Set {
-                            on_off: if self.button.is_high() { 0 } else { 1 },
-                            tid,
-                            transition_time: None,
-                            delay: None,
-                        }))
-                        .await
-                        .ok();
-                        tid += 1;
-                    }
-                    Either::Second(_message) => {
-                        defmt::info!("** message received");
-                    }
+            match select(button_fut, message_fut).await {
+                Either::First(_) => {
+                    defmt::info!("** button toggled {}", tid);
+                    ctx.publish(GenericOnOffMessage::Set(Set {
+                        on_off: if self.button.is_high() { 0 } else { 1 },
+                        tid,
+                        transition_time: None,
+                        delay: None,
+                    }))
+                    .await
+                    .ok();
+                    tid += 1;
+                }
+                Either::Second(_message) => {
+                    defmt::info!("** message received");
                 }
             }
         }

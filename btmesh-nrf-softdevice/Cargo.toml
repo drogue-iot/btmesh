@@ -72,8 +72,7 @@ low_power = [
 ]
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-time-v0.1.0" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-time-v0.1.0" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-executor-v0.1.1" }
 nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "8f9895f82069c8f4e388f5b92a50ccb6c2652be5" }
 nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "8f9895f82069c8f4e388f5b92a50ccb6c2652be5" }
 nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "8f9895f82069c8f4e388f5b92a50ccb6c2652be5" }

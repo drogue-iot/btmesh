@@ -2,7 +2,6 @@ use crate::models::configuration::Configuration;
 use crate::{BackingStore, Storage};
 use btmesh_device::BluetoothMeshModel;
 use btmesh_macro::{device, element};
-use core::future::Future;
 
 pub mod configuration;
 
