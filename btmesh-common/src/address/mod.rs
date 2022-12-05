@@ -1,3 +1,5 @@
+//! Bluetooth mesh addresses.
+
 pub mod group_address;
 pub mod unicast_address;
 pub mod virtual_address;
@@ -38,7 +40,7 @@ pub enum Address {
 }
 
 impl Address {
-    /// convert an Address to it's big-endian 2-byte array representation.
+    /// Convert an Address to it's big-endian 2-byte array representation.
     pub fn as_bytes(&self) -> [u8; 2] {
         match self {
             Address::Unassigned => [0, 0],
@@ -65,6 +67,7 @@ impl Address {
         }
     }
 
+    /// Returns true if the provided bytes represent valid unicast address.
     pub fn is_unicast(&self) -> bool {
         match self {
             Self::Unicast(_) => true,

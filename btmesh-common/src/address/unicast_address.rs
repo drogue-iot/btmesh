@@ -1,9 +1,12 @@
+//! Bluetooth mesh unicast addresses.
+
 use crate::address::{Address, InvalidAddress};
 use core::convert::TryInto;
 use core::ops::Add;
 use core::ops::Sub;
 use hash32_derive::Hash32;
 
+/// Represents any valid unicast address within a Bluetooth mesh network.
 #[derive(Copy, Clone, Eq, PartialEq, PartialOrd, Debug, Hash, Hash32, Default)]
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct UnicastAddress(u16);
@@ -15,6 +18,7 @@ impl core::fmt::LowerHex for UnicastAddress {
 }
 
 impl UnicastAddress {
+    /// Create a new unicast address.
     pub fn new(addr: u16) -> Result<Self, InvalidAddress> {
         if Self::is_unicast_address(&addr.to_be_bytes()) {
             Ok(Self(addr))
@@ -32,14 +36,17 @@ impl UnicastAddress {
         Self(addr)
     }
 
+    /// Convert a unicast address to it's big-endian 2-byte array representation.
     pub fn as_bytes(&self) -> [u8; 2] {
         self.0.to_be_bytes()
     }
 
+    /// Returns true if the provided bytes represent valid unicast address.
     pub fn is_unicast_address(data: &[u8; 2]) -> bool {
         data[0] & 0b10000000 == 0
     }
 
+    /// Parse a big-endian 2-byte array into a unicast address.
     pub fn parse(data: [u8; 2]) -> Result<Self, InvalidAddress> {
         if Self::is_unicast_address(&data) {
             Ok(UnicastAddress(u16::from_be_bytes(data)))

@@ -1,3 +1,5 @@
+//! Bluetooth mesh virtual addresses.
+
 use crate::address::{Address, InvalidAddress};
 use crate::{crypto, ParseError};
 use cmac::crypto_mac::InvalidKeyLength;
@@ -25,14 +27,17 @@ impl VirtualAddress {
         Self(addr)
     }
 
+    /// Convert a virtual address to it's big-endian 2-byte array representation.
     pub fn as_bytes(&self) -> [u8; 2] {
         self.0.to_be_bytes()
     }
 
+    /// Returns true if the provided bytes represent valid virtual address.
     pub fn is_virtual_address(data: &[u8; 2]) -> bool {
         data[0] & 0b11000000 == 0b10000000
     }
 
+    /// Parse a big-endian 2-byte array into a virtual address.
     pub fn parse(data: [u8; 2]) -> Result<Self, InvalidAddress> {
         if Self::is_virtual_address(&data) {
             Ok(VirtualAddress(u16::from_be_bytes(data)))
@@ -106,6 +111,7 @@ impl LabelUuid {
         }
     }
 
+    /// Parse a 16 octet label UUID.
     pub fn new(uuid: [u8; 16]) -> Result<Self, InvalidKeyLength> {
         Ok(Self {
             uuid,
@@ -113,14 +119,17 @@ impl LabelUuid {
         })
     }
 
+    /// Returns 16 octet label UUID.
     pub fn label_uuid(&self) -> &[u8] {
         &self.uuid
     }
 
+    /// Returns virtual address.
     pub fn virtual_address(&self) -> VirtualAddress {
         self.address
     }
 
+    /// Parses 16 octet UUID into a virtual address value.
     pub fn virtual_address_of(uuid: [u8; 16]) -> Result<VirtualAddress, InvalidKeyLength> {
         let salt = crypto::s1(b"vtad")?;
         let hash = crypto::aes_cmac(&salt.into_bytes(), &uuid)?;
