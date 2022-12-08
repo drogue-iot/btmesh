@@ -1,6 +1,8 @@
 use crate::InsufficientBuffer;
 use heapless::Vec;
 
+/// Opcode of the mesh message.
+/// It can be single, two or three octets large.
 #[derive(Copy, Clone, Eq, PartialEq, Debug)]
 pub enum Opcode {
     OneOctet(u8),
@@ -22,6 +24,7 @@ impl Opcode {
         }
     }
 
+    /// Returns size of the opcode.
     pub fn opcode_len(&self) -> usize {
         match self {
             Opcode::OneOctet(_) => 1,
@@ -30,6 +33,7 @@ impl Opcode {
         }
     }
 
+    /// Extracts opcode from the beginning of the array of bytes.
     pub fn split(data: &[u8]) -> Option<(Opcode, &[u8])> {
         if data.is_empty() {
             None
@@ -47,6 +51,7 @@ impl Opcode {
         }
     }
 
+    /// Pushes opcode to the end of the array of bytes.
     pub fn emit<const N: usize>(&self, xmit: &mut Vec<u8, N>) -> Result<(), InsufficientBuffer> {
         match self {
             Opcode::OneOctet(a) => {
@@ -84,6 +89,7 @@ impl defmt::Format for Opcode {
     }
 }
 
+/// Macro creating opcode for mesh messages.
 #[macro_export]
 macro_rules! opcode {
     ($name:ident $o1:expr) => {

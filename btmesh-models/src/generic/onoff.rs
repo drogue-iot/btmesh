@@ -1,23 +1,34 @@
+//! Implementation of the Generic OnOff model
+
 use crate::{Message, Model};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
+/// Generic OnOff Server model
 #[derive(Clone, Debug)]
 pub struct GenericOnOffServer;
 
 #[derive(Clone, Debug)]
+/// Generic OnOff Client model
 pub struct GenericOnOffClient;
 
+/// Generic OnOff Server model identifier
 pub const GENERIC_ONOFF_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1000);
+/// Generic OnOff Client model identifier
 pub const GENERIC_ONOFF_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1001);
 
+/// Generic OnOff messages
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericOnOffMessage {
+    /// Get Generic OnOff
     Get,
+    /// Get Generic OnOff
     Set(Set),
+    /// Set Generic OnOff
     SetUnacknowledged(Set),
+    /// Set Unacknowledged Generic OnOff
     Status(Status),
 }
 
@@ -85,12 +96,17 @@ opcode!( GENERIC_ON_OFF_SET 0x82, 0x02 );
 opcode!( GENERIC_ON_OFF_SET_UNACKNOWLEDGE 0x82, 0x03 );
 opcode!( GENERIC_ON_OFF_STATUS 0x82, 0x04 );
 
+/// OnOff set message
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Set {
+    /// The target value of the Generic OnOff state.
     pub on_off: u8,
+    /// Transaction Identifier.
     pub tid: u8,
+    /// Generic Default Transition Time.
     pub transition_time: Option<u8>,
+    /// Message execution delay in 5 milliseconds steps (so).
     pub delay: Option<u8>,
 }
 
@@ -137,11 +153,15 @@ impl Set {
     }
 }
 
+/// Generic OnOff status message.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Status {
+    /// The present value of the Generic OnOff state.
     pub present_on_off: u8,
+    /// The target value of the Generic OnOff state.
     pub target_on_off: u8,
+    /// Remaining Time.
     pub remaining_time: u8,
 }
 

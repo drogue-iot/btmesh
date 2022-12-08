@@ -1,21 +1,30 @@
+//! Implementation of the Generic Battery model.
+
 use crate::{Message, Model};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
+/// Generic Battery Server message.
 #[derive(Clone, Debug)]
 pub struct GenericBatteryServer;
 
+/// Generic Battery Client message.
 #[derive(Clone, Debug)]
 pub struct GenericBatteryClient;
 
+/// Generic Battery Server model Identifier
 pub const GENERIC_BATTERY_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x100C);
+/// Generic Battery Client model Identifier
 pub const GENERIC_BATTERY_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x100D);
 
+/// Generic battery message.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryMessage {
+    /// Get message.
     Get,
+    /// Status message.
     Status(GenericBatteryStatus),
 }
 
@@ -67,11 +76,15 @@ impl Model for GenericBatteryServer {
 opcode!( GENERIC_BATTERY_GET 0x82, 0x23 );
 opcode!( GENERIC_BATTERY_STATUS 0x82, 0x24 );
 
+/// The Generic Battery Flags state is a concatenation of four 2-bit bit fields: Presence, Indicator, Charging, and Serviceability.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericBatteryFlags {
+    /// Generic Battery Flags Presence.
     pub presence: GenericBatteryFlagsPresence,
+    /// Generic Battery Flags Indicator.
     pub indicator: GenericBatteryFlagsIndicator,
+    /// Generic Battery Flags Charging.
     pub charging: GenericBatteryFlagsCharging,
 }
 
@@ -139,43 +152,64 @@ impl GenericBatteryFlags {
     }
 }
 
+/// The Generic Battery Flags Presence state bit field indicates presence of a battery.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsPresence {
+    /// The battery is not present.
     NotPresent,
+    /// The battery is present and is removable.
     PresentRemovable,
+    /// The battery is present and is non-removable.
     PresentNotRemovable,
+    /// The battery presence is unknown.
     Unknown,
 }
 
+/// The Generic Battery Flags Indicator state bit field indicates the charge level of a battery.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsIndicator {
+    /// The battery charge is Critically Low Level.
     LowCritical,
+    /// The battery charge is Low Level.
     Low,
+    /// The battery charge is Good Level.
     Good,
+    /// The battery charge is unknown.
     Unknown,
 }
 
+/// The Generic Battery Flags Charging state bit field indicates whether a battery is charging.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericBatteryFlagsCharging {
+    /// The battery is not chargeable.
     NotChargeable,
+    /// The battery is chargeable and is not charging.
     ChargeableNotCharging,
+    /// The battery is chargeable and is charging.
     ChargeableCharging,
+    /// The battery charging state is unknown.
     Unknown,
 }
 
+/// Generic Battery Status is an unacknowledged message used to report the Generic Battery state of an element.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericBatteryStatus {
+    /// The value of the Generic Battery Level state.
     pub battery_level: u8,
+    /// The value of the Generic Battery Time to Discharge state.
     pub time_to_discharge: u32,
+    /// The value of the Generic Battery Time to Charge state.
     pub time_to_charge: u32,
+    /// The value of the Generic Battery Flags state.
     pub flags: GenericBatteryFlags,
 }
 
 impl GenericBatteryStatus {
+    /// Creates new battery status.
     pub fn new(
         battery_level: u8,
         time_to_discharge: u32,
@@ -227,3 +261,4 @@ impl GenericBatteryStatus {
         }
     }
 }
+

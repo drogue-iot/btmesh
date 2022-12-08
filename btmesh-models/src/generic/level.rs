@@ -1,27 +1,42 @@
+//! Implementation of the Generic Level model
+
 use crate::{Message, Model};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
+/// Generic level server.
 #[derive(Clone, Debug)]
 pub struct GenericLevelServer;
 
+/// Generic level client.
 #[derive(Clone, Debug)]
 pub struct GenericLevelClient;
 
+/// Generic level server identifier.
 pub const GENERIC_LEVEL_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1002);
+/// Generic level client identifier.
 pub const GENERIC_LEVEL_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1003);
 
+/// Generic level message.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum GenericLevelMessage {
+    /// Get message.
     Get,
+    /// Set message.
     Set(GenericLevelSet),
+    /// Set unacknowledged message.
     SetUnacknowledged(GenericLevelSet),
+    /// Set delta message.
     DeltaSet(GenericDeltaSet),
+    /// Set delta unacknowledged message.
     DeltaSetUnacknowledged(GenericDeltaSet),
+    /// Set move message.
     MoveSet(GenericMoveSet),
+    /// Set move unacknowledged message.
     MoveSetUnacknowledged(GenericMoveSet),
+    /// Status message.
     Status(GenericLevelStatus),
 }
 
@@ -118,12 +133,18 @@ opcode!( GENERIC_LEVEL_DELTA_SET_UNACKNOWLEDGED 0x82, 0x0A );
 opcode!( GENERIC_LEVEL_MOVE_SET 0x82, 0x0B );
 opcode!( GENERIC_LEVEL_MOVE_SET_UNACKNOWLEDGED 0x82, 0x0C );
 
+
+/// Generic Level Set is an acknowledged message used to set the Generic Level state of an element to a new absolute value.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericLevelSet {
+    /// The target value of the Generic Level state.
     pub level: i16,
+    /// Transaction Identifier.
     pub tid: u8,
+    /// Transition Time.
     pub transition_time: Option<u8>,
+    /// Message execution delay in 5 milliseconds steps.
     pub delay: Option<u8>,
 }
 
@@ -171,12 +192,17 @@ impl GenericLevelSet {
     }
 }
 
+/// Generic Delta Set is an acknowledged message used to set the Generic Level state of an element by a relative value.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericDeltaSet {
+    /// The Delta change of the Generic Level state.
     pub delta_level: i32,
+    /// Transaction Identifier.
     pub tid: u8,
+    /// Transition Time.
     pub transition_time: Option<u8>,
+    /// Message execution delay in 5 milliseconds steps.
     pub delay: Option<u8>,
 }
 
@@ -225,12 +251,17 @@ impl GenericDeltaSet {
     }
 }
 
+/// Generic Move Set is an acknowledged message used to start a process of changing the Generic Level state of an element with a defined transition speed.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericMoveSet {
+    /// The Delta Level step to calculate Move speed for the Generic Level state.
     pub delta_level: i16,
+    /// Transaction Identifier.
     pub tid: u8,
+    /// Transition Time.
     pub transition_time: Option<u8>,
+    /// Message execution delay in 5 milliseconds steps.
     pub delay: Option<u8>,
 }
 
@@ -278,11 +309,15 @@ impl GenericMoveSet {
     }
 }
 
+/// Generic Level Status is an unacknowledged message used to report the Generic Level state of an element.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct GenericLevelStatus {
+    /// The present value of the Generic Level state.
     pub present_level: i16,
+    /// The target value of the Generic Level state.
     pub target_level: Option<i16>,
+    /// Remaining Time.
     pub remaining_time: Option<u8>,
 }
 
@@ -335,3 +370,4 @@ impl GenericLevelStatus {
         }
     }
 }
+

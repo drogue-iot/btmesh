@@ -1,3 +1,5 @@
+//! Implementation of the Sensor model.
+
 use crate::{Message, Model};
 use btmesh_common::opcode::Opcode;
 use btmesh_common::{opcode, InsufficientBuffer, ModelIdentifier, ParseError};
@@ -5,6 +7,7 @@ use heapless::Vec;
 #[allow(unused_imports)]
 use micromath::F32Ext;
 
+/// Sensor client.
 #[derive(Clone, Debug, Default)]
 pub struct SensorClient<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
@@ -13,6 +16,7 @@ where
     _c: core::marker::PhantomData<C>,
 }
 
+/// Sensor server.
 #[derive(Clone, Debug, Default)]
 pub struct SensorServer<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
@@ -26,6 +30,7 @@ impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
 {
+    /// Creates new sensor server.
     pub fn new() -> Self {
         Self {
             _c: core::marker::PhantomData,
@@ -38,6 +43,7 @@ impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
 {
+    /// Creates new sensor client.
     pub fn new() -> Self {
         Self {
             _c: core::marker::PhantomData,
@@ -45,6 +51,7 @@ where
     }
 }
 
+/// Sensor setup server.
 #[derive(Clone, Debug)]
 pub struct SensorSetupServer<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
@@ -58,6 +65,7 @@ impl<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorSetupConfig,
 {
+    /// Creates new sensor server.
     pub fn new() -> Self {
         Self {
             _server: SensorServer::new(),
@@ -75,18 +83,24 @@ where
     }
 }
 
+/// Sensor server identifier.
 pub const SENSOR_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1100);
+/// Sensor setup server identifier.
 pub const SENSOR_SETUP_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x1101);
+/// Sensor client identifier.
 pub const SENSOR_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x1102);
 
+/// Property identifier as integer.
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct PropertyId(pub u16);
 
+/// Raw value as 128 bytes array.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct RawValue(pub Vec<u8, 128>);
 
+/// Tolerance as integer.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct Tolerance(pub u16);
@@ -97,14 +111,20 @@ pub trait SensorConfig: defmt::Format + Clone {
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
+/// Sensor configuration.
 #[cfg(not(feature = "defmt"))]
 pub trait SensorConfig: Clone {
+    /// Data type represented by the sensor.
     type Data: SensorData + core::fmt::Debug;
+    /// Descriptor of the sensor.
     const DESCRIPTORS: &'static [SensorDescriptor];
 }
 
+/// Sensor data.
 pub trait SensorData: Default {
+    /// Decodes property into array of bytes.
     fn decode(&mut self, property: PropertyId, data: &[u8]) -> Result<(), ParseError>;
+    /// Encodes property and appends it to the byte array.
     fn encode<const N: usize>(
         &self,
         property: PropertyId,
@@ -112,17 +132,22 @@ pub trait SensorData: Default {
     ) -> Result<(), InsufficientBuffer>;
 }
 
+/// Sensor setup configuration.
 pub trait SensorSetupConfig: SensorConfig {
+    /// Cadence descriptors.
     const CADENCE_DESCRIPTORS: &'static [CadenceDescriptor];
+    /// Setting descriptors.
     const SETTING_DESCRIPTORS: &'static [SettingDescriptor];
 }
 
+/// Sensor descriptor get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct DescriptorGet {
     id: Option<PropertyId>,
 }
 
+/// Sensor descriptor status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DescriptorStatus<const NUM_SENSORS: usize> {
@@ -130,19 +155,29 @@ pub enum DescriptorStatus<const NUM_SENSORS: usize> {
     Descriptors(Vec<SensorDescriptor, NUM_SENSORS>),
 }
 
+/// Sensor descriptor.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorDescriptor {
+    /// Property id.
     pub id: PropertyId,
+    /// Positive tolerance.
     pub positive_tolerance: Tolerance,
+    /// Negative tolerance.
     pub negative_tolerance: Tolerance,
+    /// Sampling function.
     pub sampling_function: SamplingFunction,
+    /// Measurement period.
     pub measurement_period: Option<u32>,
+    /// Update interval.
     pub update_interval: Option<u32>,
+    /// Size
     pub size: usize,
+    /// X size
     pub x_size: usize,
 }
 
+/// Cadence descriptor.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceDescriptor {
@@ -150,6 +185,7 @@ pub struct CadenceDescriptor {
     size: usize,
 }
 
+/// Setting descriptor operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingDescriptor {
@@ -158,34 +194,47 @@ pub struct SettingDescriptor {
     size: usize,
 }
 
+/// Sampling function for the sensor.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SamplingFunction {
+    /// Unspecified sampling function.
     Unspecified,
+    /// Instantaneous sampling function.
     Instantaneous,
+    /// Arithmetic mean sampling function.
     ArithmeticMean,
+    /// RMS sampling function.
     RMS,
+    /// Maximum sampling function.
     Maximum,
+    /// Minimum sampling function.
     Minimum,
+    /// Accumulated sampling function.
     Accumulated,
+    /// Count sampling function.
     Count,
 }
 
+/// Sensor get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorGet {
     id: Option<PropertyId>,
 }
 
+/// Sensor status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SensorStatus<C>
 where
     C: SensorConfig,
 {
+    /// Sensor status data.
     pub data: C::Data,
 }
 
+/// Column get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ColumnGet {
@@ -193,6 +242,7 @@ pub struct ColumnGet {
     x: RawValue,
 }
 
+/// Column status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ColumnStatus {
@@ -201,6 +251,7 @@ pub struct ColumnStatus {
     values: Option<(RawValue, RawValue)>,
 }
 
+/// Series get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SeriesGet {
@@ -208,6 +259,7 @@ pub struct SeriesGet {
     x: Option<(RawValue, RawValue)>,
 }
 
+/// Series status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SeriesStatus<const NUM_COLUMNS: usize> {
@@ -215,38 +267,59 @@ pub struct SeriesStatus<const NUM_COLUMNS: usize> {
     values: Vec<(RawValue, RawValue, RawValue), NUM_COLUMNS>,
 }
 
+/// Sensor message type.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SensorMessage<C, const NUM_SENSORS: usize, const NUM_COLUMNS: usize>
 where
     C: SensorConfig,
 {
+    /// Get descriptor.
     DescriptorGet(DescriptorGet),
+    /// Descriptor status.
     DescriptorStatus(DescriptorStatus<NUM_SENSORS>),
+    /// Get sensor.
     Get(SensorGet),
+    /// Sensor status.
     Status(SensorStatus<C>),
+    /// Get column.
     ColumnGet(ColumnGet),
+    /// Column status.
     ColumnStatus(ColumnStatus),
+    /// Get series.
     SeriesGet(SeriesGet),
+    /// Series status.
     SeriesStatus(SeriesStatus<NUM_COLUMNS>),
+    /// Get cadence.
     CadenceGet(CadenceGet),
+    /// Set cadence.
     CadenceSet(CadenceSet),
+    /// Set unacknowledged cadence.
     CadenceSetUnacknowledged(CadenceSet),
+    /// Cadence status.
     CadenceStatus(CadenceStatus),
+    /// Get settings.
     SettingsGet(SettingsGet),
+    /// Settings status.
     SettingsStatus(SettingsStatus<NUM_SENSORS>),
+    /// Get setting.
     SettingGet(SettingGet),
+    /// Set setting.
     SettingSet(SettingSet),
+    /// Set unacknowledged setting .
     SettingSetUnacknowledged(SettingSet),
+    /// Setting status.
     SettingStatus(SettingStatus),
 }
 
+/// Cadence get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceGet {
     id: PropertyId,
 }
 
+/// Cadence set operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct CadenceSet {
@@ -260,21 +333,27 @@ pub struct CadenceSet {
     fast_cadence_high: RawValue,
 }
 
+/// Status trigger type.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum StatusTriggerType {
+    /// Property.
     Property,
+    /// Unitless.
     Unitless,
 }
 
+/// Type of the cadence status.
 pub type CadenceStatus = CadenceSet;
 
+/// Settings get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingsGet {
     id: PropertyId,
 }
 
+/// Settings status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingsStatus<const NUM_SENSORS: usize> {
@@ -282,6 +361,7 @@ pub struct SettingsStatus<const NUM_SENSORS: usize> {
     settings: Vec<PropertyId, NUM_SENSORS>,
 }
 
+/// Setting get operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingGet {
@@ -289,6 +369,7 @@ pub struct SettingGet {
     setting: PropertyId,
 }
 
+/// Setting set operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingSet {
@@ -297,6 +378,7 @@ pub struct SettingSet {
     raw: RawValue,
 }
 
+/// Setting status operation.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct SettingStatus {
@@ -306,10 +388,13 @@ pub struct SettingStatus {
     raw: RawValue,
 }
 
+/// Sensor setting access.
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum SensorSettingAccess {
+    /// Read only.
     Read,
+    /// Read and write.
     ReadWrite,
 }
 
@@ -550,6 +635,7 @@ impl<const NUM_SENSORS: usize> DescriptorStatus<NUM_SENSORS> {
 }
 
 impl SensorDescriptor {
+    /// Creates new sensor descriptor.
     pub const fn new(id: PropertyId, size: usize) -> Self {
         Self {
             id,
@@ -644,6 +730,7 @@ impl<C> SensorStatus<C>
 where
     C: SensorConfig,
 {
+    /// Creates new sensor status.
     pub fn new(data: C::Data) -> Self {
         Self { data }
     }
