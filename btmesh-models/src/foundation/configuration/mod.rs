@@ -1,3 +1,4 @@
+//! Implementation of the Configuration models.
 use crate::foundation::configuration::app_key::{
     AppKeyMessage, CONFIG_APPKEY_ADD, CONFIG_APPKEY_DELETE, CONFIG_APPKEY_GET, CONFIG_APPKEY_STATUS,
 };
@@ -41,31 +42,53 @@ use btmesh_common::opcode::Opcode;
 use btmesh_common::{InsufficientBuffer, ModelIdentifier, ParseError};
 use heapless::Vec;
 
+/// Application key.
 pub mod app_key;
+/// Beacon messages.
 pub mod beacon;
+/// Composition data message.
 pub mod composition_data;
+/// Default TTL message.
 pub mod default_ttl;
+/// Model app message.
 pub mod model_app;
+/// Model publication messages.
 pub mod model_publication;
+/// Model subscription messages.
 pub mod model_subscription;
+/// Network transmit messages.
 pub mod network_transmit;
+/// Node reset messages.
 pub mod node_reset;
+/// Relay messages.
 pub mod relay;
 
+/// Configuration server identifier.
 pub const CONFIGURATION_SERVER: ModelIdentifier = ModelIdentifier::SIG(0x0000);
+/// Configuration client identifier.
 pub const CONFIGURATION_CLIENT: ModelIdentifier = ModelIdentifier::SIG(0x0001);
 
+/// Configuration message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum ConfigurationMessage {
+    /// Beacon message.
     Beacon(BeaconMessage),
+    /// Default TTL message.
     DefaultTTL(DefaultTTLMessage),
+    /// Node reset message.
     NodeReset(NodeResetMessage),
+    /// Composition data message.
     CompositionData(CompositionDataMessage),
+    /// App key message
     AppKey(AppKeyMessage),
+    /// Model app message.
     ModelApp(ModelAppMessage),
+    /// Model publication message.
     ModelPublication(ModelPublicationMessage),
+    /// Model subscription message.
     ModelSubscription(ModelSubscriptionMessage),
+    /// Relay message.
     Relay(RelayMessage),
 }
 
@@ -102,6 +125,7 @@ impl Message for ConfigurationMessage {
     }
 }
 
+/// This model is used to represent a mesh network configuration of a device.
 #[derive(Clone, Debug, Default)]
 pub struct ConfigurationServer;
 
@@ -213,6 +237,7 @@ impl Model for ConfigurationServer {
     }
 }
 
+/// The model is used to represent an element that can control and monitor the configuration of a node.
 #[derive(Clone, Debug, Default)]
 pub struct ConfigurationClient;
 
@@ -250,6 +275,7 @@ impl Model for ConfigurationClient {
 // ------------------------------------------------------------------------
 // ------------------------------------------------------------------------
 
+/// Represents Key index.
 #[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug, Hash)]
 #[cfg_attr(feature = "serde", derive(serde::Deserialize, serde::Serialize))]
 pub struct KeyIndex(u16);
@@ -262,6 +288,7 @@ impl defmt::Format for KeyIndex {
 }
 
 impl KeyIndex {
+    /// Creates new key index.
     pub fn new(index: u16) -> Self {
         Self(index)
     }
@@ -327,11 +354,13 @@ impl KeyIndex {
     }
 }
 
+/// Index of the network key.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Eq, PartialEq, PartialOrd, Copy, Clone, Debug, Hash)]
 pub struct NetKeyIndex(KeyIndex);
 
 impl NetKeyIndex {
+    /// Creates new network key.
     pub fn new(index: u16) -> Self {
         Self(KeyIndex(index))
     }
@@ -354,11 +383,13 @@ impl defmt::Format for NetKeyIndex {
     }
 }
 
+/// Index of the application key.
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(PartialEq, Eq, PartialOrd, Copy, Clone, Debug, Hash)]
 pub struct AppKeyIndex(KeyIndex);
 
 impl AppKeyIndex {
+    /// Creates new application key.
     pub fn new(index: u16) -> Self {
         Self(KeyIndex::new(index))
     }
@@ -381,6 +412,7 @@ impl defmt::Format for AppKeyIndex {
     }
 }
 
+/// The pair of network and application keys.
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct NetKeyAppKeyIndexesPair(NetKeyIndex, AppKeyIndex);
@@ -391,6 +423,7 @@ impl NetKeyAppKeyIndexesPair {
         Ok(())
     }
 
+    /// Parses array of bytes into key pair.
     pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() == 3 {
             let (net_key, app_key) = KeyIndex::parse_two(parameters)?;
@@ -400,10 +433,12 @@ impl NetKeyAppKeyIndexesPair {
         }
     }
 
+    /// Returns network key.
     pub fn net_key(&self) -> NetKeyIndex {
         self.0
     }
 
+    /// Returns application key.
     pub fn app_key(&self) -> AppKeyIndex {
         self.1
     }

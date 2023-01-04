@@ -7,15 +7,19 @@ use heapless::Vec;
 opcode!( CONFIG_COMPOSITION_DATA_GET 0x80, 0x08 );
 opcode!( CONFIG_COMPOSITION_DATA_STATUS 0x02 );
 
+/// Composition data message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum CompositionDataMessage {
+    /// Composition data Get message.
     Get(u8),
+    /// Composition data Status message.
     Status(CompositionStatus),
 }
 
 #[allow(unused)]
 impl CompositionDataMessage {
+    /// Parses byte array into Composition data Get message.
     pub fn parse_get(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() == 1 {
             Ok(Self::Get(parameters[0]))
@@ -47,6 +51,7 @@ impl Message for CompositionDataMessage {
     }
 }
 
+/// Composition data Status message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct CompositionStatus {
@@ -67,6 +72,7 @@ impl From<CompositionStatus> for CompositionDataMessage {
 }
 
 impl CompositionStatus {
+    /// Creates new Composition data Status message.
     pub fn new(page: u8, data: &Composition) -> Self {
         Self {
             page,

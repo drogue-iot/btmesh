@@ -8,11 +8,15 @@ opcode!( CONFIG_BEACON_GET 0x80, 0x09 );
 opcode!( CONFIG_BEACON_SET 0x80, 0x0A );
 opcode!( CONFIG_BEACON_STATUS 0x80, 0x0B );
 
+/// Beacon Message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum BeaconMessage {
+    /// Beacon Get is an acknowledged message used to get the current Secure Network Beacon state of a node.
     Get,
+    /// Beacon Set is an acknowledged message used to set the Secure Network Beacon state of a node.
     Set(bool),
+    /// Beacon Status is an unacknowledged message used to report the current Secure Network Beacon state of a node.
     Status(bool),
 }
 
@@ -50,6 +54,7 @@ impl Message for BeaconMessage {
 
 #[allow(unused)]
 impl BeaconMessage {
+    /// Parses byte array into Beacon Get message.
     pub fn parse_get(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.is_empty() {
             Ok(Self::Get)
@@ -58,6 +63,7 @@ impl BeaconMessage {
         }
     }
 
+    /// Parses byte array into Beacon Set message.
     pub fn parse_set(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() == 1 {
             if parameters[0] == 0x00 {

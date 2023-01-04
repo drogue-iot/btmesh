@@ -261,4 +261,3 @@ impl GenericBatteryStatus {
         }
     }
 }
-

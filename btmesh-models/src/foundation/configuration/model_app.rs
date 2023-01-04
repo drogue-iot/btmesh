@@ -9,11 +9,16 @@ opcode!( CONFIG_MODEL_APP_BIND 0x80, 0x3D);
 opcode!( CONFIG_MODEL_APP_STATUS 0x80, 0x3E);
 opcode!( CONFIG_MODEL_APP_UNBIND 0x80, 0x3F);
 
+/// Model App message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum ModelAppMessage {
+    /// Model App Bind is an acknowledged message used to bind an AppKey to a model.
     Bind(ModelAppPayload),
+    /// Model App Status is an unacknowledged message used to report a status for the requesting message,
+    /// based on the element address, the AppKeyIndex identifying the AppKey on the AppKey List, and the ModelIdentifier.
     Status(ModelAppStatusMessage),
+    /// Model App Unbind is an acknowledged message used to remove the binding between an AppKey and a model.
     Unbind(ModelAppPayload),
 }
 
@@ -24,14 +29,17 @@ impl From<ModelAppMessage> for ConfigurationMessage {
 }
 
 impl ModelAppMessage {
+    /// Parses byte array into Model App Bind message.
     pub fn parse_bind(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Bind(ModelAppPayload::parse(parameters)?))
     }
 
+    /// Parses byte array into Model App Unbind message.
     pub fn parse_unbind(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Unbind(ModelAppPayload::parse(parameters)?))
     }
 
+    /// Parses byte array into Model App Status message.
     pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Status(ModelAppStatusMessage::parse(parameters)?))
     }
@@ -58,11 +66,15 @@ impl Message for ModelAppMessage {
     }
 }
 
+/// Model App Bind/Unbind message payload.
 #[derive(Copy, Clone, Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub struct ModelAppPayload {
+    /// Address of the element.
     pub element_address: UnicastAddress,
+    /// Index of the AppKey.
     pub app_key_index: AppKeyIndex,
+    /// SIG Model ID or Vendor Model ID.
     pub model_identifier: ModelIdentifier,
 }
 
@@ -97,10 +109,13 @@ impl ModelAppPayload {
     }
 }
 
+/// Model App Status message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct ModelAppStatusMessage {
+    /// Status Code for the requesting message.
     pub status: Status,
+    /// Payload for the requesting message.
     pub payload: ModelAppPayload,
 }
 

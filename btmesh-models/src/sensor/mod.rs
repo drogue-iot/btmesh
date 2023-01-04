@@ -151,7 +151,9 @@ pub struct DescriptorGet {
 #[derive(Debug)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum DescriptorStatus<const NUM_SENSORS: usize> {
+    /// Descriptor Not found.
     NotFound(PropertyId),
+    /// List of Descriptors.
     Descriptors(Vec<SensorDescriptor, NUM_SENSORS>),
 }
 

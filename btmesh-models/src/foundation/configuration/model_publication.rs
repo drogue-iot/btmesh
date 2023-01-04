@@ -11,12 +11,17 @@ opcode!( CONFIG_MODEL_PUBLICATION_GET 0x80, 0x18);
 opcode!( CONFIG_MODEL_PUBLICATION_STATUS 0x80, 0x19);
 opcode!( CONFIG_MODEL_PUBLICATION_VIRTUAL_ADDRESS_SET 0x80, 0x1A);
 
+/// Model publication message.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub enum ModelPublicationMessage {
+    /// Model Publication Get message.
     Get(ModelPublicationGetMessage),
+    /// Model Publication Set message.
     Set(ModelPublicationSetMessage),
+    /// Model Publication Virtual Address Set message.
     VirtualAddressSet(ModelPublicationSetMessage),
+    /// Model Publication Status message.
     Status(ModelPublicationStatusMessage),
 }
 
@@ -52,20 +57,24 @@ impl Message for ModelPublicationMessage {
 }
 
 impl ModelPublicationMessage {
+    /// Parses parameters into Model Publication Set message.
     pub fn parse_set(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Set(ModelPublicationSetMessage::parse(parameters)?))
     }
 
+    /// Parses parameters into Model Publication Virtual Address Set message.
     pub fn parse_virtual_address_set(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Set(
             ModelPublicationSetMessage::parse_virtual_address(parameters)?,
         ))
     }
 
+    /// Parses parameters into Model Publication Get message.
     pub fn parse_get(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Get(ModelPublicationGetMessage::parse(parameters)?))
     }
 
+    /// Parses parameters into Model Publication Status message.
     pub fn parse_status(parameters: &[u8]) -> Result<Self, ParseError> {
         Ok(Self::Status(ModelPublicationStatusMessage::parse(
             parameters,
@@ -73,10 +82,14 @@ impl ModelPublicationMessage {
     }
 }
 
+/// Model Publication Get is an acknowledged message used to get the publish address
+/// and parameters of an outgoing message that originates from a model.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct ModelPublicationGetMessage {
+    /// Address of the element.
     pub element_address: UnicastAddress,
+    /// SIG Model ID or Vendor Model ID.
     pub model_identifier: ModelIdentifier,
 }
 
@@ -88,6 +101,7 @@ impl ModelPublicationGetMessage {
         todo!()
     }
 
+    /// Parses parameters into Model Publication Get message.
     pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         if parameters.len() >= 4 {
             let element_address = UnicastAddress::parse([parameters[1], parameters[0]])?;
@@ -103,14 +117,20 @@ impl ModelPublicationGetMessage {
     }
 }
 
+/// Publish Address state determines the destination address in messages sent by a model.
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Hash)]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 pub enum PublishAddress {
+    /// Unicast address.
     Unicast(UnicastAddress),
+    /// Group address.
     Group(GroupAddress),
+    /// Label UUID.
     Label(LabelUuid),
+    /// Virtual address.
     Virtual(VirtualAddress),
+    /// Unassigned value.
     Unassigned,
 }
 
@@ -125,9 +145,12 @@ impl From<Address> for PublishAddress {
     }
 }
 
+/// Model Publication Set is an acknowledged message used to set the Model Publication
+/// state of an outgoing message that originates from a model.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct ModelPublicationSetMessage {
+    /// Publication Set message details.
     pub details: PublicationDetails,
 }
 
@@ -153,10 +176,14 @@ impl ModelPublicationSetMessage {
     }
 }
 
+/// Model Publication Status is an unacknowledged message used to report the model Publication state
+/// of an outgoing message that is published by the model.
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
 #[derive(Debug)]
 pub struct ModelPublicationStatusMessage {
+    /// Status Code for the requesting message.
     pub status: Status,
+    /// Publication details.
     pub details: PublicationDetails,
 }
 
@@ -171,6 +198,7 @@ impl ModelPublicationStatusMessage {
         Ok(())
     }
 
+    /// Parses parameters into Model Publication status message.
     pub fn parse(parameters: &[u8]) -> Result<Self, ParseError> {
         let status: Status = parameters[0].try_into()?;
         let details: PublicationDetails = PublicationDetails::parse(&parameters[1..])?;
@@ -178,17 +206,26 @@ impl ModelPublicationStatusMessage {
     }
 }
 
+/// Publication details.
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
 pub struct PublicationDetails {
+    /// Address of the element.
     pub element_address: UnicastAddress,
+    /// Value of the publish address.
     pub publish_address: PublishAddress,
+    /// Index of the application key.
     pub app_key_index: AppKeyIndex,
+    /// Value of the Friendship Credential Flag.
     pub credential_flag: bool,
+    /// Default TTL value for the outgoing messages.
     pub publish_ttl: Option<Ttl>,
+    /// Period for periodic status publishing.
     pub publish_period: PublishPeriod,
+    /// Retransmissions configuration for each published message.
     pub publish_retransmit: PublishRetransmit,
+    /// SIG Model ID or Vendor Model ID
     pub model_identifier: ModelIdentifier,
 }
 
@@ -308,13 +345,18 @@ impl PublicationDetails {
     }
 }
 
+/// Retransmit resolution.
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
 pub enum Resolution {
+    /// 100 miliseconds.
     Milliseconds100 = 0b00,
+    /// Seconds.
     Seconds1 = 0b01,
+    /// 10 Seconds.
     Seconds10 = 0b10,
+    /// 10 Minutes.
     Minutes10 = 0b11,
 }
 
@@ -330,6 +372,7 @@ impl Resolution {
     }
 }
 
+/// Period for periodic status publishing.
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
@@ -338,16 +381,19 @@ pub struct PublishPeriod {
 }
 
 impl PublishPeriod {
+    /// Creates new publish period using steps and resolution.
     pub fn new(steps: u8, resolution: Resolution) -> Self {
         Self {
             period: steps << 2 | resolution as u8,
         }
     }
 
+    /// Creates new publish period from u8.
     pub fn from_u8(period: u8) -> Self {
         Self { period }
     }
 
+    /// Returns resolution in period.
     pub fn resolution(&self) -> Resolution {
         let resolution = self.period & 0b11;
         match resolution {
@@ -359,6 +405,7 @@ impl PublishPeriod {
         }
     }
 
+    /// Returns steps in period.
     pub fn steps(&self) -> u8 {
         (self.period & 0b11111100) >> 2
     }
@@ -376,6 +423,7 @@ impl From<u8> for PublishPeriod {
     }
 }
 
+/// Publish retransmit configuration.
 #[cfg_attr(feature = "defmt", derive(::defmt::Format))]
 #[cfg_attr(feature = "serde", derive(::serde::Serialize, ::serde::Deserialize))]
 #[derive(Copy, Clone, Eq, Debug, PartialEq, Hash)]
@@ -384,20 +432,23 @@ pub struct PublishRetransmit {
 }
 
 impl PublishRetransmit {
+    /// Creates new publish retransmit using count and steps.
     pub fn new(count: u8, interval_steps: u8) -> Self {
         Self {
             retransmit: (count << 5) | (interval_steps & 0b00011111),
         }
     }
-
+    /// Creates new publish period from u8.
     pub fn from_u8(retransmit: u8) -> Self {
         Self { retransmit }
     }
 
+    /// Returns publish retransmit count.
     pub fn count(&self) -> u8 {
         self.retransmit >> 5
     }
 
+    /// Returns publish retransmit steps.
     pub fn interval_steps(&self) -> u8 {
         self.retransmit & 0b00011111
     }

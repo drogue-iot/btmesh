@@ -133,7 +133,6 @@ opcode!( GENERIC_LEVEL_DELTA_SET_UNACKNOWLEDGED 0x82, 0x0A );
 opcode!( GENERIC_LEVEL_MOVE_SET 0x82, 0x0B );
 opcode!( GENERIC_LEVEL_MOVE_SET_UNACKNOWLEDGED 0x82, 0x0C );
 
-
 /// Generic Level Set is an acknowledged message used to set the Generic Level state of an element to a new absolute value.
 #[derive(Copy, Clone)]
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -370,4 +369,3 @@ impl GenericLevelStatus {
         }
     }
 }
-

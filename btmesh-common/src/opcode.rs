@@ -93,14 +93,17 @@ impl defmt::Format for Opcode {
 #[macro_export]
 macro_rules! opcode {
     ($name:ident $o1:expr) => {
+        /// Opcode
         pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::OneOctet($o1);
     };
 
     ($name:ident $o1:expr, $o2:expr) => {
+        /// Opcode
         pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::TwoOctet($o1, $o2);
     };
 
     ($name:ident $o1:expr, $o2:expr, $o3:expr) => {
+        /// Opcode
         pub const $name: $crate::opcode::Opcode = $crate::opcode::Opcode::ThreeOctet($o1, $o2, $o3);
     };
 }
