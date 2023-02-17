@@ -133,7 +133,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                     Some(ConnectionChannel::Provisioning) => {
                         self.server
                             .provisioning
-                            .data_out_notify(connection, pdu.clone())
+                            .data_out_notify(connection, &pdu)
                             .map_err(|_| BearerError::TransmissionFailure)?;
                     }
                     #[cfg(feature = "proxy")]
