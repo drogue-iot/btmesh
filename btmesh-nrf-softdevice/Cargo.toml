@@ -69,7 +69,7 @@ friend = ["btmesh-common/friend"]
 low_power = ["btmesh-common/low_power"]
 
 [patch.crates-io]
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", tag = "embassy-executor-v0.1.1" }
-nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "e8ee783fdd9674a061c2479d0a29e87e4e2a6d2f" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "e8ee783fdd9674a061c2479d0a29e87e4e2a6d2f" }
-nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "e8ee783fdd9674a061c2479d0a29e87e4e2a6d2f" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "37a1e9f971214c11a614b06b230be27c688fff1d" }
+nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
+nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
+nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
