@@ -87,7 +87,6 @@ impl SoftdeviceGattBearer {
                     },
                 )
                 .await
-                .ok()
             };
 
             let reset_fut = RESET_SIGNAL.wait();
