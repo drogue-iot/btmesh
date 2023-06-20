@@ -24,6 +24,7 @@ embassy-sync = { version = "0.2.0", default-features = false, features = [
 ] }
 embassy-futures = { version = "0.1.0", default-features = false }
 nrf-softdevice = { version = "0.1.0", default-features = false, features = [
+  "nightly",
   "ble-peripheral",
   "ble-gatt-server",
 ] }

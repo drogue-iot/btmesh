@@ -3,6 +3,7 @@
 #![feature(associated_type_defaults)]
 #![feature(future_join)]
 #![allow(dead_code)]
+#![feature(impl_trait_in_assoc_type)]
 
 #[cfg(not(any(feature = "nrf52833", feature = "nrf52840",)))]
 compile_error!("No chip feature activated. You must activate exactly one of the following features: nrf52833, nrf52840");
