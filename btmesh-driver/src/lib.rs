@@ -6,6 +6,7 @@
 #![allow(dead_code)]
 #![allow(clippy::await_holding_refcell_ref)]
 #![feature(async_closure)]
+#![feature(impl_trait_in_assoc_type)]
 
 use btmesh_bearer::beacon::Beacon;
 use btmesh_common::address::{Address, UnicastAddress};
