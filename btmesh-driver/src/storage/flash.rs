@@ -2,7 +2,7 @@ use crate::storage::{BackingStore, StorageError};
 use crate::util::hash::hash_of;
 use crate::ProvisionedConfiguration;
 use core::future::Future;
-use embedded_storage_async::nor_flash::AsyncNorFlash;
+use embedded_storage_async::nor_flash::NorFlash;
 use postcard::{from_bytes, to_slice};
 
 #[repr(align(4))]
@@ -14,7 +14,7 @@ pub enum LatestLoad {
     Provisioned { hash: u64, sequence: u32 },
 }
 
-pub struct FlashBackingStore<F: AsyncNorFlash, const PAGE_SIZE: u32 = 4096> {
+pub struct FlashBackingStore<F: NorFlash, const PAGE_SIZE: u32 = 4096> {
     flash: F,
     base_address: u32,
     extra_base_address: Option<u32>,
@@ -23,7 +23,7 @@ pub struct FlashBackingStore<F: AsyncNorFlash, const PAGE_SIZE: u32 = 4096> {
     buffer: AlignedBuffer<USEFUL_BUFFER_SIZE>,
 }
 
-impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
+impl<F: NorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
     pub fn new(
         flash: F,
         base_address: u32,
@@ -77,7 +77,7 @@ impl<F: AsyncNorFlash, const PAGE_SIZE: u32> FlashBackingStore<F, PAGE_SIZE> {
 
 const USEFUL_BUFFER_SIZE: usize = 2048;
 
-impl<F: AsyncNorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<F, PAGE_SIZE> {
+impl<F: NorFlash, const PAGE_SIZE: u32> BackingStore for FlashBackingStore<F, PAGE_SIZE> {
     type LoadFuture<'m> =  impl Future<Output = Result<ProvisionedConfiguration, StorageError>> + 'm
         where
             Self: 'm;

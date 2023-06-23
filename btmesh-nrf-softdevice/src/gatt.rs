@@ -87,7 +87,6 @@ impl SoftdeviceGattBearer {
                     },
                 )
                 .await
-                .ok()
             };
 
             let reset_fut = RESET_SIGNAL.wait();
@@ -140,7 +139,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
                     Some(ConnectionChannel::Proxy) => {
                         self.server
                             .proxy
-                            .data_out_notify(connection, pdu.clone())
+                            .data_out_notify(connection, &pdu)
                             .map_err(|_| BearerError::TransmissionFailure)?;
                     }
                     _ => {}
