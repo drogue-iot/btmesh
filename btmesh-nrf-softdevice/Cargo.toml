@@ -35,7 +35,7 @@ embassy-nrf = { version = "0.1.0", default-features = false, features = [
   "time-driver-rtc1",
   "gpiote",
 ], optional = true }
-embassy-time = { version = "0.1.0", default-features = false }
+embassy-time = { version = "0.1.3", default-features = false }
 
 [features]
 default = ["nrf52840"]
