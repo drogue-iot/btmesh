@@ -38,7 +38,7 @@ impl BluetoothMeshDeviceContext for DeviceContext {
     }
 
     async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload> {
-        self.inbound.recv().await
+        self.inbound.receive().await
     }
 }
 
@@ -65,7 +65,7 @@ impl BluetoothMeshElementContext for ElementContext {
     }
 
     async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload> {
-        self.inbound.recv().await
+        self.inbound.receive().await
     }
 }
 
@@ -78,7 +78,7 @@ pub(crate) struct ModelContext<'m, M: Model> {
 
 impl<M: Model> BluetoothMeshModelContext<M> for ModelContext<'_, M> {
     async fn receive(&self) -> InboundModelPayload<M::Message> {
-        self.inbound.recv().await
+        self.inbound.receive().await
     }
 
     async fn send(&self, message: M::Message, meta: OutboundMetadata) -> Result<(), ()> {

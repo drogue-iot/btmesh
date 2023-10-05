@@ -681,7 +681,7 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
 
             if let Some(device_state) = device_state {
                 let receive_fut = self.network.receive(&device_state, &self.watchdog);
-                let transmit_fut = OUTBOUND.recv();
+                let transmit_fut = OUTBOUND.receive();
                 let io_fut = select(receive_fut, transmit_fut);
 
                 let beacon_fut = self.next_beacon();
