@@ -87,9 +87,9 @@ embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
 embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
 embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
-nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
+nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
+nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
+nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
 
 #nrf-softdevice = { path = "../../../../../nrf-softdevice/nrf-softdevice" }
 #nrf-softdevice-s140 = { path = "../../../../../nrf-softdevice/nrf-softdevice-s140" }
