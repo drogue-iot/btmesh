@@ -13,7 +13,7 @@ pub async fn dispatch<C: BluetoothMeshModelContext<ConfigurationServer>, B: Back
 ) -> Result<(), DriverError> {
     match message {
         CompositionDataMessage::Get(page) => {
-            if *page == 0 {
+            if *page == 0 || *page == 255 {
                 ctx.send(
                     CompositionStatus::new(0, storage.composition().as_ref().unwrap()).into(),
                     meta.reply(),
