@@ -14,13 +14,15 @@ resolver = "2"
 
 [dependencies]
 defmt = { version = "0.3" }
-defmt-rtt = { version = "0.3" }
+defmt-rtt = { version = "0.4" }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
-embassy-executor = { version = "0.1.1", default-features = false, features = [
+embassy-executor = { version = "0.3.0", default-features = false, features = [
+  "arch-cortex-m",
+  "executor-thread",
   "defmt",
-  "nightly",
   "integrated-timers",
+  "nightly",
 ] }
 embassy-time = { version = "0.1.3", default-features = false, features = [
   "defmt",
