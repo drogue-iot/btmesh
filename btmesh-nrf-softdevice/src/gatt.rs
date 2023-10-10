@@ -120,7 +120,7 @@ impl GattBearer<66> for SoftdeviceGattBearer {
     Self: 'm;
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
-        async move { Ok(self.inbound.recv().await) }
+        async move { Ok(self.inbound.receive().await) }
     }
 
     type TransmitFuture<'m> = impl Future<Output = Result<(), BearerError>> + 'm;

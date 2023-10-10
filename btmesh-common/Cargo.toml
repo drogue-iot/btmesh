@@ -17,20 +17,19 @@ uuid = { version = "1.2.2", default-features = false }
 #logging
 log = { version = "0.4", optional = true }
 defmt = { version = "0.3", optional = true }
-serde = { version = "1.0", default-features = false, features = ["derive"], optional = true }
+serde = { version = "1.0", default-features = false, features = [
+  "derive",
+], optional = true }
 darling = { version = "0.14.1", optional = true }
-syn = { version = "1.0.89", default-features = false, features = ["full", "extra-traits"], optional = true }
+syn = { version = "1.0.89", default-features = false, features = [
+  "full",
+  "extra-traits",
+], optional = true }
 
 
 [features]
-darling = [
-    "dep:darling",
-    "dep:syn",
-]
-defmt = [
-    "dep:defmt",
-    "heapless/defmt-impl",
-]
+darling = ["dep:darling", "dep:syn"]
+defmt = ["dep:defmt", "heapless/defmt-impl"]
 relay = []
 proxy = []
 friend = []

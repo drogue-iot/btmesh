@@ -14,15 +14,17 @@ resolver = "2"
 
 [dependencies]
 defmt = { version = "0.3" }
-defmt-rtt = { version = "0.3" }
+defmt-rtt = { version = "0.4" }
 panic-probe = { version = "0.3", features = ["print-defmt"] }
 
-embassy-executor = { version = "0.1.1", default-features = false, features = [
+embassy-executor = { version = "0.3.0", default-features = false, features = [
+  "arch-cortex-m",
+  "executor-thread",
   "defmt",
-  "nightly",
   "integrated-timers",
+  "nightly",
 ] }
-embassy-time = { version = "0.1.0", default-features = false, features = [
+embassy-time = { version = "0.1.3", default-features = false, features = [
   "defmt",
   "defmt-timestamp-uptime",
 ] }
@@ -82,11 +84,11 @@ opt-level = 1
 overflow-checks = false
 
 [patch.crates-io]
-embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "1f2be2dac5eeed739d2866b9b63ca06fdd84c276" }
-nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
-nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
-nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b3eabb5383ae16a7772924f5301e6a79d0a591f" }
+embassy-executor = { git = "https://github.com/embassy-rs/embassy.git", rev = "65ed19aae272d6d6320554446f9187ec2ef8bf39" }
+embassy-nrf = { git = "https://github.com/embassy-rs/embassy.git", rev = "65ed19aae272d6d6320554446f9187ec2ef8bf39" }
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "65ed19aae272d6d6320554446f9187ec2ef8bf39" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "65ed19aae272d6d6320554446f9187ec2ef8bf39" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "65ed19aae272d6d6320554446f9187ec2ef8bf39" }
+nrf-softdevice = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
+nrf-softdevice-s140 = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
+nrf-softdevice-macro = { git = "https://github.com/embassy-rs/nrf-softdevice/", rev = "3b08bda268d343e100932cbf0df7e007826fa3be" }
