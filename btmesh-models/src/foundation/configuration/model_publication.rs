@@ -384,18 +384,14 @@ impl PublishPeriod {
     /// Creates new publish period using steps and resolution.
     pub fn new(steps: u8, resolution: Resolution) -> Self {
         Self {
-            period: steps << 2 | resolution as u8,
+            period: (resolution as u8) << 6 | steps,
         }
     }
 
-    /// Creates new publish period from u8.
-    pub fn from_u8(period: u8) -> Self {
-        Self { period }
-    }
-
     /// Returns resolution in period.
+    /// The step resolution is stored in bits 6 and 7 of the Publish Period byte.
     pub fn resolution(&self) -> Resolution {
-        let resolution = self.period & 0b11;
+        let resolution = (self.period & 0b11000000) >> 6;
         match resolution {
             0b00 => Resolution::Milliseconds100,
             0b01 => Resolution::Seconds1,
@@ -406,8 +402,9 @@ impl PublishPeriod {
     }
 
     /// Returns steps in period.
+    /// The period number of steps is stored in bits 0 to 5 of the Publish Period byte.
     pub fn steps(&self) -> u8 {
-        (self.period & 0b11111100) >> 2
+        self.period & 0b00111111
     }
 }
 
@@ -501,16 +498,26 @@ mod tests {
 
     #[test]
     fn test_publish_period() {
-        let period1 = PublishPeriod::new(20, Resolution::Seconds1);
-        assert_eq!(0x51, period1.period);
+        let period1 = PublishPeriod::new(60, Resolution::Seconds10);
+        assert_eq!(0xBC, period1.period);
 
+        // Publish Period: 0x29 = 4.1 seconds (41 * 100 ms).
         let period2 = PublishPeriod::from(0x29);
-        assert_eq!(10, period2.steps());
-        assert_eq!(Resolution::Seconds1 as u8, period2.resolution() as u8);
+        assert_eq!(41, period2.steps());
+        assert_eq!(
+            Resolution::Milliseconds100 as u8,
+            period2.resolution() as u8
+        );
 
+        // Publish Period: 0x51 = 17 seconds.
         let period3 = PublishPeriod::from(0x51);
-        assert_eq!(20, period3.steps());
+        assert_eq!(17, period3.steps());
         assert_eq!(Resolution::Seconds1 as u8, period3.resolution() as u8);
+
+        // Publish Period: 0x5E = 30 seconds.
+        let period4 = PublishPeriod::from(0x5E);
+        assert_eq!(30, period4.steps());
+        assert_eq!(Resolution::Seconds1 as u8, period4.resolution() as u8);
     }
 
     #[test]
