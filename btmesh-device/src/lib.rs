@@ -18,7 +18,9 @@ pub use btmesh_common::{
     ProductIdentifier, VersionIdentifier,
 };
 use btmesh_common::{IvIndex, ParseError, Ttl};
-use btmesh_models::foundation::configuration::model_publication::{PublishPeriod, Resolution};
+use btmesh_models::foundation::configuration::model_publication::{
+    PublishPeriod, PublishRetransmit, Resolution,
+};
 use btmesh_models::foundation::configuration::{AppKeyIndex, NetKeyIndex};
 pub use btmesh_models::Model;
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -56,6 +58,7 @@ pub enum InboundBody {
 pub enum Control {
     Shutdown,
     PublicationCadence(PublicationCadence),
+    PublicationRetransmission(PublicationRetransmission),
 }
 
 #[cfg_attr(feature = "defmt", derive(defmt::Format))]
@@ -77,6 +80,33 @@ impl From<PublishPeriod> for PublicationCadence {
                 Resolution::Seconds1 => Duration::from_secs(steps as u64),
                 Resolution::Seconds10 => Duration::from_secs(steps as u64 * 10),
                 Resolution::Minutes10 => Duration::from_secs(steps as u64 * 60 * 10),
+            })
+        }
+    }
+}
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub struct Retransmission {
+    pub count: u8,
+    pub interval: Duration,
+}
+
+#[cfg_attr(feature = "defmt", derive(defmt::Format))]
+#[derive(Copy, Clone, Eq, PartialEq)]
+pub enum PublicationRetransmission {
+    None,
+    RetransmitCountInterval(Retransmission),
+}
+
+impl From<PublishRetransmit> for PublicationRetransmission {
+    fn from(val: PublishRetransmit) -> Self {
+        if val.count() == 0 {
+            PublicationRetransmission::None
+        } else {
+            PublicationRetransmission::RetransmitCountInterval(Retransmission {
+                count: val.count(),
+                interval: Duration::from_millis((val.interval_steps() as u64 + 1) * 50),
             })
         }
     }
@@ -383,12 +413,14 @@ impl From<ApplicationKeyHandle> for AppKeyIndex {
 
 pub struct CompositionExtra {
     pub publication_cadence: PublicationCadence,
+    pub publication_retransmission: PublicationRetransmission,
 }
 
 impl Default for CompositionExtra {
     fn default() -> Self {
         Self {
             publication_cadence: PublicationCadence::None,
+            publication_retransmission: PublicationRetransmission::None,
         }
     }
 }
