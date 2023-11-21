@@ -432,7 +432,7 @@ impl PublishRetransmit {
     /// Creates new publish retransmit using count and steps.
     pub fn new(count: u8, interval_steps: u8) -> Self {
         Self {
-            retransmit: (count << 5) | (interval_steps & 0b00011111),
+            retransmit: (interval_steps << 3) | (count & 0b00000111),
         }
     }
     /// Creates new publish period from u8.
@@ -442,12 +442,12 @@ impl PublishRetransmit {
 
     /// Returns publish retransmit count.
     pub fn count(&self) -> u8 {
-        self.retransmit >> 5
+        self.retransmit & 0b00000111
     }
 
     /// Returns publish retransmit steps.
     pub fn interval_steps(&self) -> u8 {
-        self.retransmit & 0b00011111
+        self.retransmit >> 3
     }
 }
 
@@ -522,10 +522,27 @@ mod tests {
 
     #[test]
     fn test_retransmit() {
-        let rxt = PublishRetransmit::from(0xa0);
-        assert_eq!(rxt.count(), 5);
+        let rxt = PublishRetransmit::new(0, 0);
+        assert_eq!(rxt.count(), 0);
         assert_eq!(rxt.interval_steps(), 0);
+        assert_eq!(u8::from(rxt), 0b00000000);
 
-        assert_eq!(u8::from(rxt), 0b10100000);
+        let rxt2 = PublishRetransmit::new(5, 1);
+        assert_eq!(rxt2.count(), 5);
+        assert_eq!(rxt2.interval_steps(), 1);
+        assert_eq!(u8::from(rxt2), 0b00001101);
+
+        let rxt3 = PublishRetransmit::new(7, 31);
+        assert_eq!(rxt3.count(), 7);
+        assert_eq!(rxt3.interval_steps(), 31);
+        assert_eq!(u8::from(rxt3), 0b11111111);
+
+        let rxt4 = PublishRetransmit::from(0b00000001);
+        assert_eq!(rxt4.count(), 1);
+        assert_eq!(rxt4.interval_steps(), 0);
+
+        let rxt5 = PublishRetransmit::from(0b00001001);
+        assert_eq!(rxt5.count(), 1);
+        assert_eq!(rxt5.interval_steps(), 1);
     }
 }
