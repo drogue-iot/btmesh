@@ -5,6 +5,7 @@ use btmesh_common::{ModelIdentifier, Seq};
 use btmesh_device::access_counted::AccessCounted;
 use btmesh_device::{
     Control, InboundBody, InboundChannelSender, InboundMessage, InboundPayload, PublicationCadence,
+    PublicationRetransmission,
 };
 use btmesh_models::foundation::configuration::ConfigurationServer;
 use btmesh_models::Model;
@@ -142,7 +143,7 @@ impl Dispatcher {
         Ok(())
     }
 
-    pub async fn dispatch_publish(
+    pub async fn dispatch_publish_cadence(
         &self,
         element_index: u8,
         model_identifier: ModelIdentifier,
@@ -153,6 +154,31 @@ impl Dispatcher {
                 element_index: element_index as usize,
                 model_identifier: Some(model_identifier),
                 body: InboundBody::Control(Control::PublicationCadence(cadence)),
+            });
+        }
+
+        if element_index == 0 && model_identifier == ConfigurationServer::IDENTIFIER {
+            self.foundation_sender.send(unsafe { PAYLOAD.get() }).await;
+        }
+
+        self.device_sender.send(unsafe { PAYLOAD.get() }).await;
+
+        unsafe {
+            PAYLOAD.wait().await;
+        }
+    }
+
+    pub async fn dispatch_publish_retransmission(
+        &self,
+        element_index: u8,
+        model_identifier: ModelIdentifier,
+        retransmission: PublicationRetransmission,
+    ) {
+        unsafe {
+            PAYLOAD.set(InboundPayload {
+                element_index: element_index as usize,
+                model_identifier: Some(model_identifier),
+                body: InboundBody::Control(Control::PublicationRetransmission(retransmission)),
             });
         }
 
