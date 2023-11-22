@@ -1,5 +1,6 @@
 use crate::DriverError;
 use btmesh_common::{Composition, ModelIdentifier};
+use btmesh_device::{PublicationCadence, PublicationRetransmission};
 use btmesh_models::foundation::configuration::model_publication::{
     PublicationDetails, PublishAddress,
 };
@@ -30,11 +31,12 @@ impl<const N: usize> Publications<N> {
                 if let Some(publication) = self.get(index as u8, model_descriptor.model_identifier)
                 {
                     info!(
-                        "  {} --> {} {}/{}",
+                        "  {} --> {} {} / {} {}",
                         model_descriptor.model_identifier,
                         publication.details.publish_address,
                         publication.details.publish_ttl,
-                        publication.details.publish_period
+                        PublicationCadence::from(publication.details.publish_period),
+                        PublicationRetransmission::from(publication.details.publish_retransmit)
                     );
                 }
             }

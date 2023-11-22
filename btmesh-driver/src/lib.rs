@@ -13,7 +13,8 @@ use btmesh_common::address::{Address, UnicastAddress};
 use btmesh_common::{Composition, Seq, Ttl, Uuid};
 use btmesh_device::{
     BluetoothMeshDevice, CompletionToken, CompositionExtra, InboundChannel, InboundChannelReceiver,
-    KeyHandle, OutboundChannel, OutboundExtra, OutboundPayload, PublicationCadence, SendExtra,
+    KeyHandle, OutboundChannel, OutboundExtra, OutboundPayload, PublicationCadence,
+    PublicationRetransmission, SendExtra,
 };
 use btmesh_models::foundation::configuration::model_publication::PublishAddress;
 use btmesh_models::foundation::configuration::CONFIGURATION_SERVER;
@@ -523,11 +524,13 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     {
                         let pub_cadence =
                             PublicationCadence::from(publication.details.publish_period);
+                        let pub_retransmit =
+                            PublicationRetransmission::from(publication.details.publish_retransmit);
 
                         if model_descriptor.extra.publication_cadence != pub_cadence {
                             self.dispatcher
                                 .borrow()
-                                .dispatch_publish(
+                                .dispatch_publish_cadence(
                                     element_index as u8,
                                     model_descriptor.model_identifier,
                                     pub_cadence,
@@ -535,17 +538,41 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                                 .await;
                             model_descriptor.extra.publication_cadence = pub_cadence;
                         }
+                        if model_descriptor.extra.publication_retransmission != pub_retransmit {
+                            self.dispatcher
+                                .borrow()
+                                .dispatch_publish_retransmission(
+                                    element_index as u8,
+                                    model_descriptor.model_identifier,
+                                    pub_retransmit,
+                                )
+                                .await;
+                            model_descriptor.extra.publication_retransmission = pub_retransmit;
+                        }
                     } else if model_descriptor.extra.publication_cadence != PublicationCadence::None
                     {
                         self.dispatcher
                             .borrow()
-                            .dispatch_publish(
+                            .dispatch_publish_cadence(
                                 element_index as u8,
                                 model_descriptor.model_identifier,
                                 PublicationCadence::None,
                             )
                             .await;
                         model_descriptor.extra.publication_cadence = PublicationCadence::None;
+                    } else if model_descriptor.extra.publication_retransmission
+                        != PublicationRetransmission::None
+                    {
+                        self.dispatcher
+                            .borrow()
+                            .dispatch_publish_retransmission(
+                                element_index as u8,
+                                model_descriptor.model_identifier,
+                                PublicationRetransmission::None,
+                            )
+                            .await;
+                        model_descriptor.extra.publication_retransmission =
+                            PublicationRetransmission::None;
                     }
                 }
             }
@@ -556,13 +583,27 @@ impl<'s, N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> InnerDri
                     if model_descriptor.extra.publication_cadence != PublicationCadence::None {
                         self.dispatcher
                             .borrow()
-                            .dispatch_publish(
+                            .dispatch_publish_cadence(
                                 element_index as u8,
                                 model_descriptor.model_identifier,
                                 PublicationCadence::None,
                             )
                             .await;
                         model_descriptor.extra.publication_cadence = PublicationCadence::None;
+                    }
+                    if model_descriptor.extra.publication_retransmission
+                        != PublicationRetransmission::None
+                    {
+                        self.dispatcher
+                            .borrow()
+                            .dispatch_publish_retransmission(
+                                element_index as u8,
+                                model_descriptor.model_identifier,
+                                PublicationRetransmission::None,
+                            )
+                            .await;
+                        model_descriptor.extra.publication_retransmission =
+                            PublicationRetransmission::None;
                     }
                 }
             }
