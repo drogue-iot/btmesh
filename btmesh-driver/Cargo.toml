@@ -33,6 +33,7 @@ postcard = { version = "1.0.1", default-features = false, features = [
   "heapless",
 ], optional = true }
 defmt = { version = "0.3", optional = true }
+log = { version = "0.4", optional = true }
 
 [dev-dependencies]
 rand_core = { version = "0.6.2", default-features = false, features = [
@@ -60,6 +61,7 @@ defmt = [
   "btmesh-models/defmt",
   "btmesh-pdu/defmt",
 ]
+log = ["dep:log"]
 
 relay = ["btmesh-common/relay", "btmesh-models/relay"]
 proxy = ["btmesh-common/proxy"]
