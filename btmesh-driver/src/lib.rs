@@ -72,7 +72,7 @@ pub trait BluetoothMeshDriver {
         Self: 'f,
         D: BluetoothMeshDevice + 'f;
 
-    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D>;
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D>;
 }
 
 pub struct Driver<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> {
@@ -852,7 +852,7 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> BluetoothMes
     Self: 'f,
     D: BluetoothMeshDevice + 'f;
 
-    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D> {
         async move {
             InnerDriver::new(
                 unwrap!(self.network.take()),
