@@ -107,17 +107,19 @@ impl GattBearer<66> for SoftdeviceGattBearer {
         RESET_SIGNAL.signal(())
     }
 
-    type RunFuture<'m> = impl Future<Output=Result<(), BearerError>> + 'm
+    type RunFuture<'m>
+        = impl Future<Output = Result<(), BearerError>> + 'm
     where
-    Self: 'm;
+        Self: 'm;
 
     fn run(&self) -> Self::RunFuture<'_> {
         SoftdeviceGattBearer::run(self)
     }
 
-    type ReceiveFuture<'m> = impl Future<Output=Result<Vec<u8, 66>, BearerError>> + 'm
+    type ReceiveFuture<'m>
+        = impl Future<Output = Result<Vec<u8, 66>, BearerError>> + 'm
     where
-    Self: 'm;
+        Self: 'm;
 
     fn receive(&self) -> Self::ReceiveFuture<'_> {
         async move { Ok(self.inbound.receive().await) }

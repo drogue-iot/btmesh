@@ -12,13 +12,11 @@ btmesh-bearer = { path = "../btmesh-bearer" }
 btmesh-device = { path = "../btmesh-device" }
 btmesh-models = { path = "../btmesh-models", features = ["serde"] }
 btmesh-macro = { path = "../btmesh-macro" }
-embassy-time = { version = "0.1.3", default-features = false }
-embassy-sync = { version = "0.3.0", default-features = false, features = [
-  "nightly",
-] }
+embassy-time = { version = "0.3.2", default-features = false }
+embassy-sync = { version = "0.6.0" }
 critical-section = { version = "1.1.1", default-features = false, optional = true }
 embassy-futures = { version = "0.1.0", default-features = false }
-heapless = "0.7"
+heapless = "0.8"
 hash32 = "0.2.1"
 hash32-derive = "0.1.1"
 uluru = "3.0.0"
@@ -67,3 +65,8 @@ relay = ["btmesh-common/relay", "btmesh-models/relay"]
 proxy = ["btmesh-common/proxy"]
 friend = ["btmesh-common/friend"]
 low_power = ["btmesh-common/low_power"]
+
+[patch.crates-io]
+embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "1a1d5c4689a8b6c57ebb74e99fdea8df39adb037" }
+embassy-time = { git = "https://github.com/embassy-rs/embassy.git", rev = "1a1d5c4689a8b6c57ebb74e99fdea8df39adb037" }
+embassy-futures = { git = "https://github.com/embassy-rs/embassy.git", rev = "1a1d5c4689a8b6c57ebb74e99fdea8df39adb037" }
