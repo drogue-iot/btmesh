@@ -35,7 +35,7 @@ impl<'d> ElementZero<'d> {
 }
 
 struct MyOnOffServerHandler<'d> {
-    led: Output<'d, AnyPin>,
+    led: Output<'d>,
 }
 
 impl<'d> MyOnOffServerHandler<'d> {
@@ -92,7 +92,7 @@ impl BluetoothMeshModel<GenericOnOffServer> for MyOnOffServerHandler<'_> {
 }
 
 struct MyOnOffClientHandler<'d> {
-    button: Input<'d, AnyPin>,
+    button: Input<'d>,
 }
 
 impl MyOnOffClientHandler<'_> {

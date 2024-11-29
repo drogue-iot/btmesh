@@ -1,14 +1,16 @@
 [target.'cfg(all(target_arch = "arm", target_os = "none"))']
 # replace nRF82840_xxAA with your chip as listed in `probe-run --list-chips`
-runner = "probe-run --chip nRF52840_xxAA"
+runner = "probe-rs run --chip nRF52840_xxAA"
 
 rustflags = [
   # Code-size optimizations.
-  "-Z", "trap-unreachable=no",
-  "-C", "inline-threshold=5",
-  "-C", "no-vectorize-loops",
-#  "-Z", "print-type-sizes",
-  "-Z", "emit-stack-sizes",
+  "-Z",
+  "trap-unreachable=no",
+  "-C",
+  "no-vectorize-loops",
+  #  "-Z", "print-type-sizes",
+  "-Z",
+  "emit-stack-sizes",
 ]
 
 
