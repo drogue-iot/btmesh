@@ -141,11 +141,13 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
 }
 
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingOnlyDriver {
-    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
+    type RunFuture<'f, D>
+        = impl Future<Output = Result<(), DriverError>> + 'f
     where
-    Self: 'f, D: BluetoothMeshDevice + 'f;
+        Self: 'f,
+        D: BluetoothMeshDevice + 'f;
 
-    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D> {
         self.0.run(device)
     }
 }
@@ -191,11 +193,13 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
 }
 
 impl BluetoothMeshDriver for NrfSoftdeviceAdvertisingAndGattDriver {
-    type RunFuture<'f, D> = impl Future<Output=Result<(), DriverError>> + 'f
+    type RunFuture<'f, D>
+        = impl Future<Output = Result<(), DriverError>> + 'f
     where
-    Self: 'f, D: BluetoothMeshDevice + 'f;
+        Self: 'f,
+        D: BluetoothMeshDevice + 'f;
 
-    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'_, D> {
+    fn run<'r, D: BluetoothMeshDevice>(&'r mut self, device: &'r mut D) -> Self::RunFuture<'r, D> {
         self.0.run(device)
     }
 }

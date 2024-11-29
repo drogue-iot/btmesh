@@ -1,6 +1,5 @@
 #![cfg_attr(not(test), no_std)]
 #![feature(associated_type_defaults)]
-#![feature(async_fn_in_trait)]
 #![allow(incomplete_features)]
 #![allow(dead_code)]
 
@@ -166,19 +165,27 @@ pub trait BluetoothMeshDeviceContext {
         inbound: InboundChannelReceiver,
     ) -> Self::ElementContext;
 
-    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload>;
+    fn receive(
+        &self,
+    ) -> impl core::future::Future<Output = AccessCountedHandle<'static, InboundPayload>>;
 }
 
 pub trait BluetoothMeshDevice {
     fn composition(&self) -> Composition<CompositionExtra>;
 
-    async fn run<C: BluetoothMeshDeviceContext>(&mut self, ctx: C) -> Result<(), ()>;
+    fn run<C: BluetoothMeshDeviceContext>(
+        &mut self,
+        ctx: C,
+    ) -> impl core::future::Future<Output = Result<(), ()>>;
 }
 
 pub trait BluetoothMeshElement {
     fn populate(&self, composition: &mut Composition<CompositionExtra>);
 
-    async fn run<C: BluetoothMeshElementContext>(&mut self, ctx: C) -> Result<(), ()>;
+    fn run<C: BluetoothMeshElementContext>(
+        &mut self,
+        ctx: C,
+    ) -> impl core::future::Future<Output = Result<(), ()>>;
 }
 
 pub trait BluetoothMeshElementContext {
@@ -192,13 +199,18 @@ pub trait BluetoothMeshElementContext {
         inbound: InboundModelChannelReceiver<'m, M::Message>,
     ) -> Self::ModelContext<'m, M>;
 
-    async fn receive(&self) -> AccessCountedHandle<'static, InboundPayload>;
+    fn receive(
+        &self,
+    ) -> impl core::future::Future<Output = AccessCountedHandle<'static, InboundPayload>>;
 }
 
 pub trait BluetoothMeshModel<M: Model> {
     type Model: Model = M;
 
-    async fn run<C: BluetoothMeshModelContext<M>>(&mut self, ctx: C) -> Result<(), ()>;
+    fn run<C: BluetoothMeshModelContext<M>>(
+        &mut self,
+        ctx: C,
+    ) -> impl core::future::Future<Output = Result<(), ()>>;
 
     fn model_identifier(&self) -> ModelIdentifier {
         M::IDENTIFIER
@@ -213,18 +225,22 @@ pub type ParseFunction<M> =
     for<'r> fn(&Opcode, &'r [u8]) -> Result<Option<<M as Model>::Message>, ParseError>;
 
 pub trait BluetoothMeshModelContext<M: Model> {
-    async fn receive(&self) -> InboundModelPayload<M::Message>;
+    fn receive(&self) -> impl core::future::Future<Output = InboundModelPayload<M::Message>>;
 
-    async fn send(&self, message: M::Message, meta: OutboundMetadata) -> Result<(), ()>;
+    fn send(
+        &self,
+        message: M::Message,
+        meta: OutboundMetadata,
+    ) -> impl core::future::Future<Output = Result<(), ()>>;
 
-    async fn send_with_completion(
+    fn send_with_completion(
         &self,
         message: M::Message,
         meta: OutboundMetadata,
         signal: &'static Signal<CompletionStatus>,
-    ) -> CompletionStatus;
+    ) -> impl core::future::Future<Output = CompletionStatus>;
 
-    async fn publish(&self, message: M::Message) -> Result<(), ()>;
+    fn publish(&self, message: M::Message) -> impl core::future::Future<Output = Result<(), ()>>;
 }
 
 pub enum CompletionStatus {
