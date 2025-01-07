@@ -6,6 +6,7 @@ use btmesh_driver::interface::{
     AdvertisingAndGattNetworkInterfaces, AdvertisingOnlyNetworkInterfaces, NetworkInterfaces,
 };
 use btmesh_driver::storage::flash::FlashBackingStore;
+use btmesh_driver::storage::Configuration;
 use btmesh_driver::{
     BluetoothMeshDriver, BluetoothMeshDriverConfig, Driver as BaseDriver, DriverError,
 };
@@ -85,6 +86,10 @@ impl<N: NetworkInterfaces> NrfSoftdeviceDriver<N> {
         }
     }
 
+    pub async fn get_provisioning_info(&self) -> Result<Configuration, DriverError> {
+        self.driver.get_provisioning_info().await
+    }
+
     #[allow(unreachable_code)]
     pub async fn run<'r, D: BluetoothMeshDevice>(
         &'r mut self,
@@ -126,6 +131,10 @@ impl NrfSoftdeviceAdvertisingOnlyDriver {
             backing_store,
             config,
         ))
+    }
+
+    pub async fn get_provisioning_info(&self) -> Result<Configuration, DriverError> {
+        self.0.get_provisioning_info().await
     }
 
     pub fn softdevice(&self) -> &'static Softdevice {
@@ -189,6 +198,10 @@ impl NrfSoftdeviceAdvertisingAndGattDriver {
             backing_store,
             config,
         ))
+    }
+
+    pub async fn get_provisioning_info(&self) -> Result<Configuration, DriverError> {
+        self.0.get_provisioning_info().await
     }
 }
 

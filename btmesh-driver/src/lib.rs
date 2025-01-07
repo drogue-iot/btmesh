@@ -23,6 +23,7 @@ use btmesh_pdu::provisioned::Message;
 use btmesh_pdu::provisioning::generic::Reason;
 use btmesh_pdu::provisioning::{Capabilities, ProvisioningPDU};
 use btmesh_pdu::PDU;
+use storage::StorageError;
 use core::cell::RefCell;
 use core::future::{pending, Future};
 use embassy_futures::select::{select, select3, select4, Either, Either3, Either4};
@@ -97,6 +98,14 @@ impl<N: NetworkInterfaces, R: RngCore + CryptoRng, B: BackingStore> Driver<N, R,
             rng: Some(rng),
             storage: Storage::new(backing_store, upc),
             persist_interval: config.persist_interval,
+        }
+    }
+
+    pub async fn get_provisioning_info(&self) -> Result<Configuration, DriverError> {
+        match self.storage.load().await {
+            Ok(configuration) => Ok(Configuration::Provisioned(configuration)),
+            Err(StorageError::Serialization) => {Ok(Configuration::Unprovisioned(self.storage.default_config()))},
+            Err(e) => Err(DriverError::Storage(e))
         }
     }
 }
