@@ -22,6 +22,10 @@ impl UnprovisionedConfiguration {
     pub fn new(uuid: Uuid) -> Self {
         Self { uuid }
     }
+
+    pub fn uuid(&self) -> Uuid {
+        self.uuid
+    }
 }
 
 impl From<UnprovisionedConfiguration> for Configuration {

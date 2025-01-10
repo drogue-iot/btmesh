@@ -89,7 +89,7 @@ impl ProvisionedConfiguration {
         &mut self.secrets
     }
 
-    pub(crate) fn device_info(&self) -> &DeviceInfo {
+    pub fn device_info(&self) -> &DeviceInfo {
         &self.device_info
     }
 

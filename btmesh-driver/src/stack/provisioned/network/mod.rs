@@ -71,6 +71,10 @@ impl DeviceInfo {
     pub fn is_local_unicast(&self, dst: Address) -> bool {
         self.local_element_index(dst).is_some()
     }
+
+    pub fn primary_unicast_address(&self) -> UnicastAddress {
+        self.primary_unicast_address
+    }
 }
 
 pub struct NetworkDriver {

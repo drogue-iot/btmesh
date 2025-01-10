@@ -368,6 +368,11 @@ impl Uuid {
                 .as_bytes(),
         )
     }
+
+    // Get slice
+    pub fn as_slice(&self) -> &[u8] {
+        &self.0
+    }
 }
 
 impl Deref for Uuid {
