@@ -45,7 +45,6 @@ flash = [
   "embedded-storage",
   "embedded-storage-async",
   "postcard",
-  "postcard/use-defmt",
   "serde/derive",
   "btmesh-common/serde",
   "btmesh-pdu/serde",
@@ -58,6 +57,7 @@ defmt = [
   "btmesh-device/defmt",
   "btmesh-models/defmt",
   "btmesh-pdu/defmt",
+  "postcard/use-defmt",
 ]
 log = ["dep:log"]
 
