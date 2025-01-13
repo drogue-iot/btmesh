@@ -19,7 +19,7 @@ log = { version = "0.4", optional = true }
 defmt = { version = "0.3", optional = true }
 
 [features]
-defmt = ["dep:defmt", "heapless/defmt-03"]
+defmt = ["dep:defmt", "heapless/defmt-03", "embassy-time/defmt"]
 
 [patch.crates-io]
 embassy-sync = { git = "https://github.com/embassy-rs/embassy.git", rev = "1a1d5c4689a8b6c57ebb74e99fdea8df39adb037" }

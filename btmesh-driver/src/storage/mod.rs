@@ -85,23 +85,36 @@ impl<B: BackingStore> Storage<B> {
         }
     }
 
+    pub async fn load(&self) -> Result<ProvisionedConfiguration, StorageError> {
+        let config = {
+            let mut backing_store = self.backing_store.borrow_mut();
+            backing_store.load().await?
+        };
+        Ok(config)
+    }
+
     pub async fn init(&self) -> Result<(), StorageError> {
-        let mut locked_config = self.config.lock().await;
-        let mut backing_store = self.backing_store.borrow_mut();
-        if let Ok(mut config) = backing_store.load().await {
-            let seq = config.sequence();
+        let config = self.load().await;
+        match config {
+            Ok(mut config) => {
+                let seq = config.sequence();
 
-            let mut extra = seq % 100;
-            if extra == 100 {
-                extra = 0;
+                let mut extra = seq % 100;
+                if extra == 100 {
+                    extra = 0;
+                }
+                let seq = (seq - extra) + 100;
+
+                *config.sequence_mut() = seq;
+                let mut backing_store = self.backing_store.borrow_mut();
+                backing_store.store(&config).await?;
+                let mut locked_config = self.config.lock().await;
+                locked_config.replace(Configuration::Provisioned(config));
             }
-            let seq = (seq - extra) + 100;
-
-            *config.sequence_mut() = seq;
-            backing_store.store(&config).await?;
-            locked_config.replace(Configuration::Provisioned(config));
-        } else {
-            locked_config.replace(Configuration::Unprovisioned(self.default_config.clone()));
+            Err(_) => {
+                let mut locked_config = self.config.lock().await;
+                locked_config.replace(Configuration::Unprovisioned(self.default_config.clone()));
+            }
         }
         Ok(())
     }
@@ -193,5 +206,9 @@ impl<B: BackingStore> Storage<B> {
 
     pub(crate) fn set_composition(&self, composition: Composition) {
         self.composition.borrow_mut().replace(composition);
+    }
+
+    pub fn default_config(&self) -> UnprovisionedConfiguration {
+        self.default_config
     }
 }
